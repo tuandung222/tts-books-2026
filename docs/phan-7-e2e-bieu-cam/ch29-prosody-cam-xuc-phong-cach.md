@@ -57,7 +57,7 @@ Có một sự đánh đổi ẩn: $\mathbf{p}$ càng giàu thông tin, số h�
 
 ### 29.2.1. Trường độ, cao độ, năng lượng
 
-Các mô hình có bộ điều chỉnh phương sai như FastSpeech 2 ([Chương 22](../phan-5-mo-hinh-am-hoc/ch22-fastspeech.md)) dự đoán tường minh trường độ $\mathbf{d}$, cao độ và năng lượng, rồi điều kiện hóa bộ giải mã trên chúng. Vì các đại lượng này có ý nghĩa vật lý, ta có thể sửa chúng trước khi giải mã:
+Các mô hình có bộ điều chỉnh phương sai như FastSpeech 2 (Ren và cộng sự, 2021; [Chương 22](../phan-5-mo-hinh-am-hoc/ch22-fastspeech.md)) dự đoán tường minh trường độ $\mathbf{d}$, cao độ và năng lượng, rồi điều kiện hóa bộ giải mã trên chúng. Vì các đại lượng này có ý nghĩa vật lý, ta có thể sửa chúng trước khi giải mã:
 
 - **Trường độ**: $d_i' = \operatorname{round}(\alpha_i d_i)$, với $\alpha_i$ toàn cục (tốc độ đọc) hoặc riêng cho một từ/cụm (kéo dài từ cần nhấn, thêm khoảng ngừng).
 - **Cao độ**: làm việc trong miền **log**. Đặt $\ell = \log_2 F_0$; dịch $k$ nửa cung là $\ell' = \ell + k/12$, tức là nhân $F_0$ với $2^{k/12}$; mở rộng hoặc thu hẹp biên độ là $\ell' = \bar{\ell} + r(\ell - \bar{\ell})$.
@@ -143,7 +143,7 @@ Khi huấn luyện, mel tham chiếu chính là mel đích (tự mã hóa). Khi 
 
 ### 29.3.2. Giới hạn: rò rỉ nội dung và ràng buộc độ dài
 
-Bài báo gốc và các công trình sau ghi nhận hai vấn đề:
+Bài báo gốc và các công trình sau ghi nhận những vấn đề sau:
 
 - **Rò rỉ nội dung (*content leakage*).** Vì tham chiếu lúc huấn luyện là chính câu đích, bộ mã hóa có động cơ mã hóa cả *nội dung* để giảm mất mát tái tạo. Lúc suy luận với văn bản khác, phần nội dung "lậu" này xung đột với văn bản thật, gây đọc lẫn hoặc méo. Nút thắt càng rộng, rò rỉ càng nặng; quá hẹp thì không đủ ngôn điệu.
 - **Chuyển ngôn điệu hoạt động tốt nhất khi văn bản tương tự.** Một véc-tơ toàn câu không biết "nhấn ở đâu" khi số âm tiết và cấu trúc cú pháp khác hẳn.
@@ -153,7 +153,7 @@ Bài báo gốc và các công trình sau ghi nhận hai vấn đề:
 
 ### 29.4.1. Ý tưởng
 
-Global Style Tokens (GST; Wang và cộng sự, 2018) thêm một tầng cấu trúc lên bộ mã hóa tham chiếu: thay vì dùng thẳng véc-tơ tham chiếu $\mathbf{r}$, ta học một **ngân hàng $K$ token phong cách** $\{\mathbf{t}_1, \ldots, \mathbf{t}_K\}$ (bài báo dùng $K = 10$, mỗi token 256 chiều) và biểu diễn phong cách như một **tổ hợp có trọng số** của chúng, với trọng số tính bằng attention:
+Global Style Tokens (GST; Wang và cộng sự, 2018) thêm một tầng cấu trúc lên bộ mã hóa tham chiếu: thay vì dùng thẳng véc-tơ tham chiếu $\mathbf{r}$, ta học một **ngân hàng $K$ token phong cách** $\{\mathbf{t}_1, \ldots, \mathbf{t}_K\}$ (bài báo dùng $K = 10$) và biểu diễn phong cách như một **tổ hợp có trọng số** của chúng, với trọng số tính bằng attention:
 
 $$
 \alpha_k = \operatorname{softmax}_k\!\left(\frac{(\mathbf{W}_q\mathbf{r})^\top \mathbf{W}_k \tanh(\mathbf{t}_k)}{\sqrt{d}}\right), \qquad

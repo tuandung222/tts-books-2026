@@ -153,7 +153,7 @@ Chiến lược đơn giản và hiệu quả nhất cho tiếng Việt là **hu
 
 ### 30.5.2. Mô hình đa ngôn ngữ quy mô lớn
 
-Một hướng khác là dùng sẵn các mô hình được huấn luyện cho rất nhiều ngôn ngữ. Dự án MMS (Pratap và cộng sự, 2023) huấn luyện các mô hình VITS riêng cho hơn một nghìn ngôn ngữ, có tiếng Việt (giấy phép không dùng thương mại tính đến thời điểm biên soạn; xem [Chương 27](ch27-vits.md)). Các mô hình zero-shot lớn dựa trên mô hình ngôn ngữ ([Phần VIII](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md)) thường hỗ trợ tiếng Việt kém hoặc không hỗ trợ trong bản phát hành gốc, nên cộng đồng thường tinh chỉnh chúng trên dữ liệu tiếng Việt ([Dự án 4](../phan-10-du-an/du-an-4-zero-shot-tts.md)). Danh sách ngôn ngữ được hỗ trợ thay đổi theo phiên bản; hãy kiểm tra thẻ mô hình.
+Một hướng khác là dùng sẵn các mô hình được huấn luyện cho rất nhiều ngôn ngữ. Dự án MMS (Pratap và cộng sự, 2023) huấn luyện các mô hình VITS (Kim và cộng sự, 2021) riêng cho hơn một nghìn ngôn ngữ, có tiếng Việt (giấy phép không dùng thương mại tính đến thời điểm biên soạn; xem [Chương 27](ch27-vits.md)). Các mô hình zero-shot lớn dựa trên mô hình ngôn ngữ ([Phần VIII](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md)) thường hỗ trợ tiếng Việt kém hoặc không hỗ trợ trong bản phát hành gốc, nên cộng đồng thường tinh chỉnh chúng trên dữ liệu tiếng Việt ([Dự án 4](../phan-10-du-an/du-an-4-zero-shot-tts.md)). Danh sách ngôn ngữ được hỗ trợ thay đổi theo phiên bản; hãy kiểm tra thẻ mô hình.
 
 ### 30.5.3. Cân bằng ngôn ngữ khi huấn luyện chung
 
@@ -210,6 +210,8 @@ Không phải mọi từ "có gốc tiếng Anh" đều là trộn mã. Phân bi
 | Từ viết tắt tiếng Việt | UBND, TP.HCM, THPT | Chuẩn hóa văn bản ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md)) |
 | Token trộn chữ và số | 5G, COVID-19, H5N1, mp3 | Chuẩn hóa văn bản trước, rồi xử lý từng phần |
 | Câu/cụm tiếng Anh hoàn chỉnh | "Thank you so much", tên bài hát | Phát âm tiếng Anh (nếu mô hình có khả năng) hoặc Việt hóa |
+
+Nhiều loại trong bảng (từ viết tắt, token trộn chữ và số) là các *từ không chuẩn* (*non-standard words*) theo phân loại của Sproat và cộng sự (2001), nên được xử lý ở bước chuẩn hóa văn bản trước khi bàn đến chuyện ngôn ngữ.
 
 ### 30.6.2. Nhận diện token tiếng Anh
 

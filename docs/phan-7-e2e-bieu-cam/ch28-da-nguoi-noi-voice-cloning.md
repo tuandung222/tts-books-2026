@@ -49,7 +49,7 @@ Vì sao huấn luyện chung nhiều người nói lại có lợi, ngay cả kh
 
 ### 28.2.1. Bảng tra embedding
 
-Cách đơn giản nhất: gán mỗi người nói $k \in \{1, \ldots, K\}$ một véc-tơ học được $\mathbf{g}_k = \mathbf{E}[k] \in \mathbb{R}^{D}$ (một `nn.Embedding`). Véc-tơ này được học đồng thời với mô hình bằng lan truyền ngược, giống embedding từ. Kích thước thường từ 64 đến 512; VITS trên VCTK dùng 256. Ưu điểm là đơn giản và hiệu quả khi mỗi người nói có đủ dữ liệu; nhược điểm là **không tổng quát hóa** sang người nói chưa thấy (không có hàng nào trong bảng cho họ).
+Cách đơn giản nhất: gán mỗi người nói $k \in \{1, \ldots, K\}$ một véc-tơ học được $\mathbf{g}_k = \mathbf{E}[k] \in \mathbb{R}^{D}$ (một `nn.Embedding`). Véc-tơ này được học đồng thời với mô hình bằng lan truyền ngược, giống embedding từ. Kích thước thường từ 64 đến 512; VITS (Kim và cộng sự, 2021) trên VCTK dùng 256. Ưu điểm là đơn giản và hiệu quả khi mỗi người nói có đủ dữ liệu; nhược điểm là **không tổng quát hóa** sang người nói chưa thấy (không có hàng nào trong bảng cho họ).
 
 ### 28.2.2. Đưa $\mathbf{g}$ vào mạng: các phép toán
 
@@ -83,9 +83,9 @@ $$
 
 Trực giác: phép chuẩn hóa xóa thống kê "cũ" (thang và độ dịch) của $\mathbf{h}_t$, sau đó người nói "vẽ lại" thang và độ dịch của riêng mình. Vì LayerNorm có mặt ở *mọi* khối Transformer, thay $\boldsymbol{\gamma}, \boldsymbol{\beta}$ cố định bằng hàm của $\mathbf{g}$ cho phép người nói tác động sâu vào toàn bộ mạng với rất ít tham số. Đây cũng là họ hàng gần của AdaLN trong DiT/F5-TTS ([Chương 5](../phan-1-nen-tang/ch05-transformer.md)).
 
-**AdaIN** (*Adaptive Instance Normalization*) giống công thức trên nhưng chuẩn hóa theo **thời gian** cho từng kênh (trung bình và độ lệch chuẩn của mỗi kênh trên toàn câu) thay vì theo kênh tại mỗi bước. Vì thống kê theo thời gian của một kênh mang nhiều thông tin "phong cách toàn cục", AdaIN hay được dùng trong chuyển đổi giọng và StyleTTS ([Chương 29](ch29-prosody-cam-xuc-phong-cach.md)).
+**AdaIN** (*Adaptive Instance Normalization*; Huang và Belongie, 2017) giống công thức trên nhưng chuẩn hóa theo **thời gian** cho từng kênh (trung bình và độ lệch chuẩn của mỗi kênh trên toàn câu) thay vì theo kênh tại mỗi bước. Vì thống kê theo thời gian của một kênh mang nhiều thông tin "phong cách toàn cục", AdaIN hay được dùng trong chuyển đổi giọng và StyleTTS ([Chương 29](ch29-prosody-cam-xuc-phong-cach.md)).
 
-**Điều kiện toàn cục trong khối WaveNet** (VITS, WaveNet gốc): trong đơn vị cổng $\tanh(\mathbf{W}_f * \mathbf{h} + \mathbf{V}_f\mathbf{g}) \odot \sigma(\mathbf{W}_g * \mathbf{h} + \mathbf{V}_g\mathbf{g})$, người nói được cộng vào *trước* các phi tuyến cổng, nên tác động không còn chỉ là dịch tuyến tính.
+**Điều kiện toàn cục trong khối WaveNet** (VITS, WaveNet gốc): trong đơn vị cổng $\tanh(\mathbf{W}_f * \mathbf{h} + \mathbf{V}_f\mathbf{g}) \odot \sigma(\mathbf{W}_c * \mathbf{h} + \mathbf{V}_c\mathbf{g})$, người nói được cộng vào *trước* các phi tuyến cổng, nên tác động không còn chỉ là dịch tuyến tính.
 
 Mã dưới đây cài đặt FiLM và LayerNorm có điều kiện. Một chi tiết thực hành quan trọng: khởi tạo sao cho $\boldsymbol{\gamma} = \mathbf{1}$, $\boldsymbol{\beta} = \mathbf{0}$, để lúc bắt đầu, lớp mới hoạt động y hệt LayerNorm thường. Nhờ vậy ta có thể chèn nó vào một mô hình một người nói đã huấn luyện mà không phá hỏng mô hình.
 
@@ -232,7 +232,7 @@ assert l_good < l_bad
 
 Một hướng khác là huấn luyện phân loại $K$ người nói rồi bỏ tầng phân loại, giữ embedding. Softmax thường có logit $\mathbf{w}_k^\top\mathbf{e} + b_k$. Nếu chuẩn hóa cả $\mathbf{w}_k$ lẫn $\mathbf{e}$ và bỏ $b_k$, logit thành $s\cos\theta_k$, với $\theta_k$ là góc giữa embedding và véc-tơ đại diện của lớp $k$, còn $s$ là hệ số tỉ lệ (cần thiết vì $\cos\theta \in [-1, 1]$ quá hẹp để softmax đạt xác suất gần 1). Khi đó việc phân loại chỉ phụ thuộc vào **góc**, khớp với việc chấm điểm bằng cosine lúc dùng.
 
-Softmax trên cosine chỉ đòi $\theta_y < \theta_k$ cho lớp đúng $y$, tức là ranh giới quyết định "sát nút". Để embedding của cùng người nói **co cụm** và của người khác **tách xa**, ta thêm một lề (*margin*) $m$ làm khó lớp đúng:
+Softmax trên cosine chỉ đòi $\theta_y < \theta_k$ cho lớp đúng $y$, tức là ranh giới quyết định "sát nút". Để embedding của cùng người nói **co cụm** và của người khác **tách xa**, ta thêm một lề (*margin*) $m$ làm khó lớp đúng, theo kiểu AM-softmax (Wang và cộng sự, 2018) hoặc AAM-softmax, còn gọi là ArcFace (Deng và cộng sự, 2019):
 
 $$
 \text{AM-softmax:}\quad \ell_y = s(\cos\theta_y - m), \qquad

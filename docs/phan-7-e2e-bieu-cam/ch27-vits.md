@@ -26,7 +26,7 @@
 2. **Nút thắt do con người thiết kế.** Mel-spectrogram 80 kênh là một biểu diễn trung gian cố định. Nó bỏ đi pha và một phần chi tiết tần số cao; mô hình không được phép tự học một biểu diễn trung gian tốt hơn cho chính nhiệm vụ của mình.
 3. **Sai số lan truyền.** Lỗi của giai đoạn một (mel quá trơn, sai cao độ) không thể được giai đoạn hai sửa, vì hai mô hình được tối ưu riêng rẽ.
 
-Các mô hình end-to-end đầu tiên như FastSpeech 2s hay EATS đã sinh dạng sóng trực tiếp từ văn bản, nhưng chất lượng còn thua hệ thống hai giai đoạn tốt nhất. **VITS** (*Variational Inference with adversarial learning for end-to-end Text-to-Speech*; Kim và cộng sự, 2021) là mô hình end-to-end song song có ảnh hưởng lớn nhất trong giai đoạn này: theo đánh giá của chính bài báo, nó vượt các hệ thống hai giai đoạn công khai tốt nhất lúc đó (kể cả cặp Glow-TTS + HiFi-GAN đã tinh chỉnh), trong khi vẫn huấn luyện **một lần** và sinh **song song**. Theo báo cáo gốc, trên LJSpeech, VITS đạt MOS xấp xỉ 4,43 so với 4,46 của ghi âm thật; phép thử CMOS ở phụ lục cho thấy người nghe vẫn hơi nghiêng về ghi âm thật, nên không nên hiểu là "ngang con người" tuyệt đối.
+Các mô hình end-to-end đầu tiên như FastSpeech 2s (Ren và cộng sự, 2021) hay EATS (Donahue và cộng sự, 2021) đã sinh dạng sóng trực tiếp từ văn bản, nhưng chất lượng còn thua hệ thống hai giai đoạn tốt nhất. **VITS** (*Variational Inference with adversarial learning for end-to-end Text-to-Speech*; Kim và cộng sự, 2021) là mô hình end-to-end song song có ảnh hưởng lớn nhất trong giai đoạn này: theo đánh giá của chính bài báo, nó vượt các hệ thống hai giai đoạn công khai tốt nhất lúc đó (kể cả cặp Glow-TTS + HiFi-GAN đã tinh chỉnh), trong khi vẫn huấn luyện **một lần** và sinh **song song**. Theo báo cáo gốc, trên LJSpeech, VITS đạt MOS xấp xỉ 4,43 so với 4,46 của ghi âm thật; phép thử CMOS ở phụ lục cho thấy người nghe vẫn hơi nghiêng về ghi âm thật, nên không nên hiểu là "ngang con người" tuyệt đối.
 
 Ý tưởng cốt lõi của VITS là ghép bốn mảnh ghép quen thuộc vào một khung xác suất duy nhất:
 
@@ -88,7 +88,7 @@ Số hạng KL trong ELBO kéo hai cách này lại gần nhau. Nếu kéo thàn
 
 ### 27.2.2. Hình thức hóa: cận dưới ELBO có điều kiện
 
-Ta muốn cực đại hóa log-likelihood có điều kiện $\log p_\theta(\mathbf{s} \mid \mathbf{x})$. Đưa vào biến ẩn $\mathbf{z}$ và giả định rằng, **khi biết $\mathbf{z}$, tiếng nói không còn phụ thuộc văn bản** (bộ giải mã không nhìn văn bản):
+Như mọi VAE (Kingma và Welling, 2014), ta muốn cực đại hóa log-likelihood có điều kiện $\log p_\theta(\mathbf{s} \mid \mathbf{x})$. Đưa vào biến ẩn $\mathbf{z}$ và giả định rằng, **khi biết $\mathbf{z}$, tiếng nói không còn phụ thuộc văn bản** (bộ giải mã không nhìn văn bản):
 
 $$
 p_\theta(\mathbf{s} \mid \mathbf{x}) = \int p_\theta(\mathbf{s} \mid \mathbf{z})\, p_\theta(\mathbf{z} \mid \mathbf{x})\, d\mathbf{z}.
@@ -133,7 +133,7 @@ Như vậy L1 trên mel chính là cực đại likelihood dưới giả định
 
 ### 27.3.1. Vì sao prior Gauss đơn giản là không đủ
 
-Bộ mã hóa văn bản (Transformer với mã hóa vị trí tương đối) sinh ra, cho mỗi token $i$, một trung bình $\boldsymbol{\mu}_i \in \mathbb{R}^C$ và độ lệch chuẩn $\boldsymbol{\sigma}_i \in \mathbb{R}^C$. Sau khi có căn chỉnh $\mathbf{A}$, mỗi khung $t$ được gán cho token $a(t)$, và một prior "ngây thơ" sẽ là
+Bộ mã hóa văn bản (Transformer với mã hóa vị trí tương đối; Shaw và cộng sự, 2018) sinh ra, cho mỗi token $i$, một trung bình $\boldsymbol{\mu}_i \in \mathbb{R}^C$ và độ lệch chuẩn $\boldsymbol{\sigma}_i \in \mathbb{R}^C$. Sau khi có căn chỉnh $\mathbf{A}$, mỗi khung $t$ được gán cho token $a(t)$, và một prior "ngây thơ" sẽ là
 
 $$
 p(\mathbf{z} \mid \mathbf{x}, \mathbf{A}) = \prod_{t=1}^{T} \mathcal{N}\big(\mathbf{z}_t;\, \boldsymbol{\mu}_{a(t)},\, \operatorname{diag}(\boldsymbol{\sigma}_{a(t)}^2)\big).
@@ -141,7 +141,7 @@ $$
 
 Prior này nói rằng mọi khung thuộc cùng một token có **cùng** phân phối và **độc lập** với nhau. Nhưng $\mathbf{z}$ từ âm thanh thật thì thay đổi liên tục bên trong một âm vị (chuyển tiếp formant, đường nét cao độ, nhất là thanh điệu tiếng Việt vốn là một *đường cong* F0 trải trên cả vần). Ép một hậu nghiệm giàu cấu trúc như vậy về một prior "bậc thang" sẽ buộc $\mathbf{z}$ phải nghèo thông tin, và bộ giải mã nhận một $\mathbf{z}$ nghèo nàn thì sinh âm thanh kém.
 
-Lời giải của VITS: đặt một normalizing flow $f_\theta$ (khả nghịch) giữa $\mathbf{z}$ và prior Gauss. Theo công thức đổi biến ([Chương 10](../phan-2-mo-hinh-sinh/ch10-normalizing-flows.md)):
+Lời giải của VITS, theo tinh thần dùng flow để làm giàu phân phối trong suy luận biến phân (Rezende và Mohamed, 2015): đặt một normalizing flow $f_\theta$ (khả nghịch) giữa $\mathbf{z}$ và prior Gauss. Theo công thức đổi biến ([Chương 10](../phan-2-mo-hinh-sinh/ch10-normalizing-flows.md)):
 
 $$
 p_\theta(\mathbf{z} \mid \mathbf{x}, \mathbf{A}) = \mathcal{N}\big(f_\theta(\mathbf{z});\, \boldsymbol{\mu}_\theta(\mathbf{x}, \mathbf{A}),\, \boldsymbol{\sigma}_\theta(\mathbf{x}, \mathbf{A})\big)\,\left|\det \frac{\partial f_\theta(\mathbf{z})}{\partial \mathbf{z}}\right|.
@@ -487,7 +487,7 @@ print("vị trí bắt đầu (khung):", ids.tolist())
 
 ### 27.6.3. Bộ phân biệt và mất mát đối kháng
 
-VITS dùng bộ phân biệt đa chu kỳ (MPD) của HiFi-GAN với các chu kỳ $[2, 3, 5, 7, 11]$, cộng thêm **một** bộ phân biệt đa thang đo trên sóng gốc (bỏ hai bộ trên sóng đã lấy trung bình gộp để tiết kiệm). Có thể xem nó như MPD với chu kỳ $[1, 2, 3, 5, 7, 11]$. Hàm mất mát là LSGAN cộng feature matching:
+VITS dùng bộ phân biệt đa chu kỳ (MPD) của HiFi-GAN với các chu kỳ $[2, 3, 5, 7, 11]$, cộng thêm **một** bộ phân biệt đa thang đo trên sóng gốc (bỏ hai bộ trên sóng đã lấy trung bình gộp để tiết kiệm). Có thể xem nó như MPD với chu kỳ $[1, 2, 3, 5, 7, 11]$. Hàm mất mát là LSGAN (Mao và cộng sự, 2017) cộng feature matching:
 
 $$
 \mathcal{L}_{\text{adv}}(D) = \sum_k \mathbb{E}\big[(D_k(\mathbf{s}) - 1)^2 + D_k(G(\mathbf{z}))^2\big], \qquad
