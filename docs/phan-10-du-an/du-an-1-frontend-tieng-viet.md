@@ -425,3 +425,274 @@ Ngoài số đếm, `numbers.py` còn có: `digits_to_words` (đọc từng ch�
 
 !!! note "Góc tiếng Việt"
     Nhiều cách đọc số mang màu sắc phương ngữ hoặc khẩu ngữ: "ngàn" (Nam) và "nghìn" (Bắc), "lẻ" và "linh", "hai mươi nhăm", "hăm mốt" (21), "băm" (30 trong "băm mốt"), "rưỡi" (một trăm rưỡi = 150). Gói chỉ cài các lựa chọn có tham số trong `NumberStyle`; các dạng khẩu ngữ để dành cho bài tập. Nguyên tắc vàng: cách đọc trong front-end phải **trùng với cách người đọc thực sự đọc trong dữ liệu huấn luyện**. Nếu người đọc nói "hai mươi bốn" mà front-end sinh "hai mươi tư", mô hình sẽ học một ánh xạ sai giữa văn bản và âm thanh.
+
+## 6. Chuẩn hóa văn bản
+
+### 6.1. Nguyên tắc "cụ thể trước, tổng quát sau"
+
+Bộ chuẩn hóa là một **chuỗi luật viết lại** (*rewrite rules*), mỗi luật là một biểu thức chính quy kèm một hàm sinh chuỗi đọc. Vấn đề cốt lõi là các luật **tranh chấp** nhau trên cùng một chuỗi ký tự:
+
+- "30/4/1975" vừa khớp luật ngày tháng, vừa khớp luật phân số "30/4", vừa chứa ba số nguyên;
+- "0912.345.678" trông như một số có dấu chấm phân cách hàng nghìn nhưng thực ra là số điện thoại;
+- "20-25°C" vừa là khoảng số, vừa chứa đơn vị;
+- "TP.HCM" chứa một dấu chấm có thể bị hiểu là kết thúc câu.
+
+Cách giải quyết đơn giản và hiệu quả là **sắp thứ tự luật từ cụ thể đến tổng quát**: luật nào nhận dạng một cấu trúc dài, ít nhập nhằng (email, URL, ngày đủ ba thành phần, số điện thoại) chạy trước; luật "đọc mọi số còn lại" chạy gần cuối. Khi một luật đã viết lại một đoạn thành chữ, các luật sau không còn thấy chữ số ở đó nữa, nên tranh chấp tự biến mất. Thứ tự trong `normalize_text`:
+
+| Bước | Luật | Ví dụ |
+|---|---|---|
+| 1 | làm sạch Unicode | NFD → NFC, Ð → Đ |
+| 2 | email, URL | *a.b@gmail.com* → "a chấm b a còng gmail chấm com" |
+| 3 | viết tắt theo từ điển (hai lượt) | *TP.HCM* → "thành phố Hồ Chí Minh" |
+| 4 | số điện thoại | *0912 345 678* → "không chín một hai, ba bốn năm, sáu bảy tám" |
+| 5 | ngày tháng | *30/4/1975*, *2024-05-12*, *3/2024*, *ngày 2/9* |
+| 6 | giờ | *14:30*, *7h30*, *7g30* |
+| 7 | khoảng số, số âm, tiền tệ, phần trăm, đơn vị | *5-10%*, *-5°C*, *50.000đ/kg*, *120km* |
+| 8 | số thứ tự, tháng, số La Mã có ngữ cảnh | *thứ 4*, *tháng 4*, *thế kỷ XXI*, *quý IV/2024* |
+| 9 | phân số | *1/2* → "một phần hai" |
+| 10 | tách chữ-số dính nhau, đọc mọi số còn lại | *U23* → "U hai mươi ba" |
+| 11 | từ viết hoa: từ mượn, chữ hoa thường, hay đánh vần | *VTV* → "vê tê vê" |
+| 12 | ký hiệu, dọn khoảng trắng, chuẩn hóa dấu thanh | *&* → "và" |
+
+Một chi tiết đáng giá: ở bản đầu tiên, luật "khoảng số" và "số âm" chạy *sau* luật đơn vị. Kết quả là "-5°C" thành "-năm độ xê": luật đơn vị đã đọc "5°C" trước, để lại dấu trừ trơ trọi mà luật số âm (cần một chữ số theo sau) không còn nhận ra. Đưa hai luật này lên trước luật đơn vị sửa được cả "-5°C" lẫn "20-25°C". Bài học: mỗi khi thêm luật, hãy viết ca kiểm thử cho **tương tác** giữa các luật, không chỉ cho luật đơn lẻ.
+
+### 6.2. Đọc một chuỗi số có dấu phân cách
+
+Hàm `read_number` quyết định ý nghĩa của dấu chấm và dấu phẩy trong một chuỗi số:
+
+| Mẫu | Hiểu là | Ví dụ |
+|---|---|---|
+| nhóm 3 chữ số ngăn bởi dấu chấm | số nguyên kiểu Việt | *1.000.000* → "một triệu" |
+| nhóm 3 chữ số ngăn bởi dấu phẩy, ít nhất hai dấu | số nguyên kiểu Anh | *1,000,000* → "một triệu" |
+| một dấu phẩy | số thập phân kiểu Việt | *3,14* → "ba phẩy mười bốn" |
+| một dấu chấm (không phải nhóm 3 chữ số) | số thập phân kiểu kỹ thuật | *3.5* → "ba chấm năm" |
+| bắt đầu bằng 0, hoặc dài hơn 15 chữ số | mã số, đọc từng chữ số | *007* → "không không bảy" |
+
+Bảng này bộc lộ một nhập nhằng không thể giải bằng luật cục bộ: "1,000" trong một bài báo dịch từ tiếng Anh nghĩa là một nghìn, nhưng theo quy ước tiếng Việt là "một phẩy không không không". Gói chọn quy ước tiếng Việt và ghi rõ trong tài liệu. Khi miền dữ liệu của bạn có nhiều văn bản kiểu Anh, hãy thêm một luật ngữ cảnh (ví dụ: theo sau là "USD") hoặc chuẩn hóa nguồn trước.
+
+### 6.3. Ngày tháng và giờ
+
+Luật ngày tháng là ví dụ điển hình của việc **kiểm tra ngữ nghĩa sau khi khớp mẫu**. Biểu thức chính quy chỉ bắt được hình dạng "d/m/yyyy"; hàm thay thế kiểm tra tiếp $1 \le d \le 31$ và $1 \le m \le 12$, nếu không hợp lệ thì trả lại nguyên văn để các luật sau xử lý. Hàm cũng tránh lặp từ: nếu ngay trước đã có "ngày", "mùng", "mồng" hay "hôm" thì không chèn thêm "ngày". Trích `normalize.py`:
+
+```python
+_DATE_DMY_RE = re.compile(r"(?<![\d/.-])(\d{1,2})([/.-])(\d{1,2})\2(\d{4})(?![\d/.-]?\d)")
+
+def dmy_values(m: re.Match[str], d: int, mo: int, y: int) -> str:
+    if not (1 <= d <= 31 and 1 <= mo <= 12):
+        return m.group(0)
+    before = m.string[:m.start()].rstrip().lower()
+    lead = "" if before.endswith(("ngày", "mùng", "mồng", "hôm")) else "ngày "
+    return f"{lead}{number_to_words(d, st)} tháng {month_to_words(mo, st)} năm {number_to_words(y, st)}"
+```
+
+(Đoạn trên là bản trích lược: trong tệp thật, `dmy_values` là hàm lồng bên trong `normalize_text` để dùng chung biến `st`.) Chú ý `\2` trong biểu thức: dấu phân cách thứ hai phải **giống** dấu thứ nhất, nên "12/05-2024" không bị coi là ngày. Tháng 4 luôn đọc "tháng tư" nhờ `month_to_words`.
+
+Dạng "d/m" không có năm thì nhập nhằng thật sự với phân số: "1/2" là "một phần hai" hay "mùng một tháng hai"? Gói chỉ đọc là ngày khi đứng sau một từ ngữ cảnh (*ngày, mùng, mồng, hôm, nay, sáng, trưa, chiều, tối, đêm*), ngược lại đọc là phân số. Đây là lựa chọn bảo thủ; [Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md) bàn các cách phân loại tốt hơn (mô hình phân loại token, hoặc mô hình ngôn ngữ có kiểm chứng).
+
+Giờ được nhận ở hai dạng: "hh:mm(:ss)" và "hh**h**mm" / "hh**g**mm" (cách viết phổ biến trên báo chí). Phút bằng 0 được lược ("9:00" → "chín giờ"); "8:05" đọc "tám giờ năm phút" chứ không phải "tám giờ không năm phút". Riêng "5g" (không có phút theo sau) được để lại cho luật đơn vị đọc thành "năm gam", vì trong văn bản thông thường đó là khối lượng nhiều hơn là giờ.
+
+### 6.4. Tiền tệ, phần trăm, đơn vị
+
+Các luật này cùng một khuôn: `(số)(khoảng trắng tùy chọn)(ký hiệu)` → `đọc(số) + tên ký hiệu`. Tên ký hiệu lấy từ bảng `CURRENCY_SUFFIX`, `UNITS` trong `lexicon.py`. Biểu thức được sinh tự động từ khóa của bảng, **sắp khóa dài trước** để "km²" không bị "km" hay "m" khớp mất. Hai luật phụ đáng chú ý:
+
+- "k" và "tr" kiểu khẩu ngữ: *50k* → "năm mươi nghìn", *15tr* → "mười lăm triệu";
+- "trên một đơn vị": *50.000đ/kg* → "năm mươi nghìn đồng một ki lô gam", *15tr/tháng* → "mười lăm triệu một tháng". Cách đọc "một" thay cho "/" tự nhiên hơn "trên" trong tiếng Việt thông thường; riêng các đơn vị ghép như "km/h" được đọc trọn trong bảng ("ki lô mét trên giờ").
+
+### 6.5. Viết tắt và số La Mã
+
+Từ điển `ABBREVIATIONS` phân biệt hoa/thường và cho phép khóa kết thúc bằng dấu chấm khớp **dính liền** chữ phía sau, để bắt được cả "TP.HCM" lẫn "TP. Hà Nội". Ta chạy luật viết tắt **hai lượt**: lượt đầu biến "TP.HCM" thành "thành phố HCM" nếu từ điển chỉ có "TP." và "HCM"; lượt hai xử lý phần còn lại. Vì các chuỗi mở rộng không chứa khóa nào, lượt thứ hai không thể gây mở rộng kép.
+
+Số La Mã rất dễ nhầm với chữ cái: "phần C" là phần mang nhãn C, không phải "phần một trăm". Vì vậy luật số La Mã chỉ áp dụng sau một danh sách từ ngữ cảnh (*thế kỷ, quý, khóa, kỳ, đại hội, chương, phần, tập, hồi, thứ*) và chỉ nhận dạng gồm I, V, X hoặc có từ hai chữ trở lên. Sau "thứ", số La Mã được đọc như số thứ tự (*thứ II* → "thứ hai", *thứ IV* → "thứ tư").
+
+### 6.6. Từ viết hoa: chữ thường viết hoa, từ mượn hay từ viết tắt?
+
+Một token viết hoa toàn bộ gồm chữ cái Latinh không dấu (như "VTV", "ATM", "TIN") có ba khả năng: là từ mượn có trong bảng `LOANWORDS` ("COVID" → "cô vít", "OK" → "ô kê"), là một âm tiết tiếng Việt viết hoa ("TIN" trong tiêu đề "TIN NÓNG"), hoặc là từ viết tắt cần đánh vần ("VTV" → "vê tê vê"). Gói kiểm tra theo đúng thứ tự đó, dùng `is_vietnamese_syllable` ở chế độ chặt cho khả năng thứ hai. Token có dấu tiếng Việt (như "NÓNG") không bao giờ bị đánh vần vì biểu thức chỉ bắt chữ cái không dấu.
+
+Tên chữ cái khi đánh vần lấy từ `LETTER_NAMES` (*bê, xê, dê, đê, ép, giê, hát, ca, e lờ, em, en, pê, quy, e rờ, ét, tê, vê, vê kép, ích, i dài, dét*). Cách gọi tên chữ cái khác nhau giữa các vùng và ngữ cảnh (người này nói "lờ", người kia nói "e lờ"), nên bảng là một **lựa chọn** cần khớp với dữ liệu ghi âm.
+
+!!! warning "Bẫy: từ viết tắt trùng âm tiết tiếng Việt"
+    "AI" (trí tuệ nhân tạo) trùng với âm tiết "ai", nên luật trên giữ nguyên và G2P đọc thành /ʔaj/ — sai với ý người viết. Không luật cục bộ nào phân biệt được hai trường hợp này; cách khắc phục thực tế là thêm "AI" vào từ điển theo cách đọc mà người đọc của bạn dùng ("ây ai" hay "a i"). Đây là lý do mọi hệ thống TTS thương mại đều có một **từ điển ngoại lệ do người biên tập duy trì**.
+
+Kết quả chạy thử một số câu:
+
+```python
+from vn_frontend import normalize_text
+
+cases = [
+    "UBND TP.HCM họp lúc 14h30 ngày 15/3.",
+    "Giá vàng tăng 3,5% lên 85.000.000 VNĐ/lượng.",
+    "Nhiệt độ -5°C đến 20-25°C, quãng đường 120km.",
+    "Gọi 0912 345 678. Thế kỷ XXI, thứ 4, tháng 4.",
+    "Đội U23 VN thắng 2-1, COVID-19, tỷ lệ 1/2, VTV và AI.",
+]
+for c in cases:
+    print(normalize_text(c))
+```
+
+```text
+ủy ban nhân dân thành phố Hồ Chí Minh họp lúc mười bốn giờ ba mươi phút ngày mười lăm tháng ba.
+Giá vàng tăng ba phẩy năm phần trăm lên tám mươi lăm triệu đồng một lượng.
+Nhiệt độ âm năm độ xê đến hai mươi đến hai mươi lăm độ xê, quãng đường một trăm hai mươi ki lô mét.
+Gọi không chín một hai, ba bốn năm, sáu bảy tám. Thế kỷ hai mươi mốt, thứ tư, tháng tư.
+Đội U hai mươi ba Việt Nam thắng hai đến một, cô vít mười chín, tỷ lệ một phần hai, vê tê vê và AI.
+```
+
+Quan sát kỹ, bạn sẽ thấy cả ưu lẫn nhược điểm của cách tiếp cận dựa trên luật. "2-1" là tỷ số trận đấu nhưng bị đọc thành khoảng "hai đến một"; "âm năm độ xê đến hai mươi đến hai mươi lăm" đúng từng chữ nhưng nghe vụng. Luật cục bộ không biết ngữ cảnh "thắng" hay cấu trúc câu. Đó chính là động lực của các phương pháp chuẩn hóa dùng mô hình (seq2seq, mô hình ngôn ngữ lớn) kết hợp kiểm chứng bằng luật, được trình bày ở [Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md).
+
+### 6.7. Tính lũy đẳng
+
+Vì sao lũy đẳng lại quan trọng đến mức được đưa vào hợp đồng API? Trong một hệ thống thật, văn bản có thể bị chuẩn hóa ở nhiều nơi: lúc làm sạch dữ liệu, lúc tạo bản ghi (*transcript*) huấn luyện, rồi lại trong `g2p` (hàm này mặc định gọi `normalize_text`). Nếu chuẩn hóa lần hai thay đổi kết quả lần một, dữ liệu huấn luyện và suy luận sẽ lệch nhau theo những cách rất khó phát hiện. Gói đảm bảo lũy đẳng bằng hai cơ chế: đầu ra không còn chữ số nào, và mọi chuỗi mở rộng trong `lexicon.py` không chứa khóa viết tắt nào. Một ca kiểm thử tính chất kiểm tra điều này trên một câu dài trộn mọi loại token.
+
+## 7. Tách câu
+
+Mô hình TTS thường được huấn luyện trên các câu dài vài giây đến khoảng hai mươi giây, và nhiều mô hình kém ổn định với đầu vào quá dài. Vì vậy văn bản dài cần được tách câu trước khi tổng hợp. Luật của `split_sentences`:
+
+1. xuống dòng luôn ngắt câu;
+2. cụm `. ! ? …` (có thể kèm dấu đóng ngoặc/nháy) ngắt câu khi theo sau là khoảng trắng **và** một ký tự mở đầu câu: chữ hoa, chữ số, dấu mở ngoặc/nháy, gạch đầu dòng — hoặc hết văn bản;
+3. không ngắt sau các viết tắt có dấu chấm (*TP., PGS., GS.*) và sau chữ cái viết tắt trong tên người (*Nguyễn V. A*).
+
+Điều kiện "theo sau là chữ hoa" loại được phần lớn trường hợp dấu chấm không kết thúc câu: "3.5" không có khoảng trắng, "chờ chút… rồi đi" có chữ thường theo sau. Tham số tùy chọn `max_chars` chia tiếp câu quá dài tại dấu phẩy, chấm phẩy hoặc hai chấm gần giới hạn nhất (nếu không có thì tại khoảng trắng) — hữu ích cho TTS streaming ở [Dự án 5](du-an-5-tts-service-streaming.md).
+
+```python
+from vn_frontend import split_sentences
+
+text = "Ông đến TP. Hồ Chí Minh lúc 3.5 giờ. PGS. Lan nói: “Được.” Rồi đi… chậm rãi.\nDòng mới"
+for s in split_sentences(text):
+    print(repr(s))
+print(split_sentences("Hôm nay trời đẹp, chúng ta đi chơi công viên, sau đó ăn trưa.", max_chars=30))
+```
+
+```text
+'Ông đến TP. Hồ Chí Minh lúc 3.5 giờ.'
+'PGS. Lan nói: “Được.”'
+'Rồi đi… chậm rãi.'
+'Dòng mới'
+['Hôm nay trời đẹp,', 'chúng ta đi chơi công viên,', 'sau đó ăn trưa.']
+```
+
+## 8. G2P giọng Bắc
+
+### 8.1. Vì sao tiếng Việt cần G2P, dù chữ viết đã gần biểu âm?
+
+Có thể đưa thẳng ký tự vào mô hình, và nhiều mô hình lớn làm như vậy. Tuy nhiên với mô hình nhỏ và dữ liệu vài chục giờ — tình huống phổ biến của tiếng Việt — đầu vào âm vị có ba lợi thế rõ rệt (xem thảo luận đầy đủ ở [Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md)):
+
+- **gộp các cách viết của cùng một âm**: c/k/q → /k/, g/gh → /ɣ/, ng/ngh → /ŋ/, i/y → /i/, iê/yê/ia/ya → /iə/; ở giọng Hà Nội còn gộp d/gi/r → /z/, s/x → /s/, ch/tr → /c/. Mô hình không phải tự học những tương đương này từ dữ liệu ít ỏi;
+- **tách các âm khác nhau viết giống nhau**: "a" trong *mai* là /a/ dài, nhưng trong *máy* là /ă/ ngắn; "o" và "u" cuối vần (*cao, cau*) đều là bán nguyên âm /w/;
+- **thanh điệu thành token riêng**, giúp mô hình chia sẻ tham số giữa các âm tiết cùng vần khác thanh.
+
+### 8.2. Bảng âm vị
+
+Bảng dưới là lựa chọn của gói, dựa trên các mô tả giọng Hà Nội (ví dụ Kirby, 2011) nhưng **đơn giản hóa có chủ đích** cho mục đích TTS. Đây không phải phiên âm hẹp; nhiều hiện tượng tha âm vị (như môi hóa âm cuối sau nguyên âm tròn môi trong *ông, ung, óc*) được để mô hình tự học từ dữ liệu.
+
+**Âm đầu** (cột trái là chữ viết, cột phải là token):
+
+| Chữ | IPA | Chữ | IPA | Chữ | IPA |
+|---|---|---|---|---|---|
+| (không có) | ʔ | b | ɓ | đ | ɗ |
+| c, k, q | k | kh | x | g, gh | ɣ |
+| ng, ngh | ŋ | nh | ɲ | ch, tr | c |
+| d, gi, r | z | s, x | s | ph | f |
+| th | tʰ | t | t | v | v |
+| m | m | n | n | l | l |
+| h | h | p | p | | |
+
+**Âm đệm**: "o" và "u" đều → /w/. **Âm chính**:
+
+| Chữ | IPA | Chữ | IPA | Chữ | IPA |
+|---|---|---|---|---|---|
+| a | a | ă | ă | â | ə̆ |
+| e | ɛ | ê | e | i, y | i |
+| o | ɔ | ô | o | ơ | ə |
+| u | u | ư | ɨ | iê, yê, ia, ya | iə |
+| uô, ua | uə | ươ, ưa | ɨə | oo / ôô | ɔː / oː |
+
+**Âm cuối**: c → k, ch → c, m → m, n → n, ng → ŋ, nh → ɲ, p → p, t → t; bán nguyên âm i, y → j; o, u → w.
+
+**Luật ngữ cảnh** (đều nằm trong `syllable_to_phones`):
+
+1. "a" trước bán nguyên âm cuối y hoặc u là **a ngắn**: *máy* = /m ă j/, *cau* = /k ă w/, phân biệt với *mai* = /m a j/, *cao* = /k a w/. Đây là một sự thật âm vị học ít tranh cãi của tiếng Việt, và chính tả không thể hiện nó.
+2. Vần *anh, ach*: trong nhiều mô tả âm vị học, -nh và -ch được coi là biến thể của /ŋ/ và /k/ sau nguyên âm hàng trước, và chữ "a" trong hai vần này được phân tích như một nguyên âm hàng trước ngắn. Gói ánh xạ "a" trước nh/ch thành /ɛ/ và giữ âm cuối ở dạng bề mặt /ɲ/, /c/. Vì "e" không bao giờ đứng trước nh/ch trong chính tả, lựa chọn này không gây trùng lặp với vần *eng/ec*. Mô tả ngữ âm chi tiết của các vần này ở giọng Hà Nội khá đa dạng giữa các tác giả; bài tập 4 đề nghị bạn thử phương án khác và so sánh.
+3. Âm tiết không có phụ âm đầu bắt đầu bằng **âm tắc thanh hầu** /ʔ/: *ăn* = /ʔ ă n/. Nhiều mô tả giọng Bắc ghi nhận âm này; với mô hình, token /ʔ/ còn cho biết "đây là ranh giới âm tiết mở đầu bằng nguyên âm", giúp phân biệt *ba ăn* với *bă năn* hay các ghép nối nhập nhằng.
+
+### 8.3. Thanh điệu và ranh giới
+
+Mỗi âm tiết kết thúc bằng một token thanh `T1`..`T6`. Có ba cách phổ biến để đưa thanh vào mô hình (so sánh chi tiết ở [Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md)): token thanh riêng, thanh gắn vào nguyên âm (ví dụ `a_T2`), và đặc trưng thanh ở cấp âm tiết cộng vào embedding. Gói chọn **token riêng đặt cuối âm tiết** vì ba lý do: bảng ký hiệu nhỏ (6 token thanh thay vì khoảng 16 × 6 nguyên âm có thanh), mỗi token thanh có rất nhiều dữ liệu huấn luyện, và cơ chế self-attention của encoder dễ dàng "chuyển" thông tin thanh sang các âm vị của vần. Cái giá phải trả là chuỗi dài hơn khoảng 25–30% và — như ta sẽ thấy ở [Dự án 2](du-an-2-fastspeech2-hifigan.md) — token thanh không ứng với một đoạn âm thanh riêng, nên khâu căn chỉnh phải xử lý nó đặc biệt.
+
+Các quy ước còn lại của `g2p`:
+
+- token `" "` (`WORD_BOUNDARY`) đặt giữa hai từ cách nhau bởi khoảng trắng; các âm tiết nối bằng `_` (đầu ra của bộ tách từ như *học_sinh*) hoặc `-` (*ki-lô-mét*) không có ranh giới ở giữa — gói sẵn sàng nhận đầu ra của bộ tách từ mà không cần sửa;
+- dấu câu `, . ! ? ; : …` giữ làm token ngắt nghỉ; ngoặc đơn, ngoặc vuông và gạch dài được quy về dấu phẩy; dấu câu liên tiếp được gộp, ưu tiên dấu "mạnh" hơn (một dấu phẩy theo sau là dấu chấm thì giữ dấu chấm);
+- token không phân tích được (từ nước ngoài, ký hiệu lạ): tra bảng `LOANWORDS`, nếu không có thì **đánh vần** theo tên chữ cái tiếng Việt. Nhờ vậy `g2p` không bao giờ sinh ký hiệu ngoài bảng — một bất biến được kiểm thử.
+
+```python
+from vn_frontend import g2p, syllable_to_phones
+
+print(g2p("Xin chào, Việt Nam!"))
+for w in ["máy", "mai", "anh", "quả", "ngã", "Việt", "rừng"]:
+    print(w, syllable_to_phones(w), syllable_to_phones(w, "south"))
+print(g2p("học_sinh Facebook"))
+```
+
+```text
+['s', 'i', 'n', 'T1', ' ', 'c', 'a', 'w', 'T2', ',', 'v', 'iə', 't', 'T6', ' ', 'n', 'a', 'm', 'T1', '!']
+máy ['m', 'ă', 'j', 'T3'] ['m', 'ă', 'j', 'T3']
+mai ['m', 'a', 'j', 'T1'] ['m', 'a', 'j', 'T1']
+anh ['ʔ', 'ɛ', 'ɲ', 'T1'] ['ʔ', 'a', 'n', 'T1']
+quả ['k', 'w', 'a', 'T4'] ['w', 'a', 'T4']
+ngã ['ŋ', 'a', 'T5'] ['ŋ', 'a', 'T4']
+Việt ['v', 'iə', 't', 'T6'] ['j', 'iə', 'k', 'T6']
+rừng ['z', 'ɨ', 'ŋ', 'T2'] ['ʐ', 'ɨ', 'ŋ', 'T2']
+['h', 'ɔ', 'k', 'T6', 's', 'i', 'ɲ', 'T1', ' ', 'f', 'ə̆', 'j', 'T1', 'ɓ', 'u', 'k', 'T3']
+```
+
+### 8.4. Xấp xỉ giọng Nam
+
+Tham số `dialect="south"` cài một **xấp xỉ đơn giản** của giọng Sài Gòn, đủ để minh họa cách tham số hóa phương ngữ:
+
+| Hiện tượng | Giọng Bắc (gói) | Giọng Nam (xấp xỉ trong gói) |
+|---|---|---|
+| tr / ch | gộp /c/ | tr → /ʈ/, ch → /c/ |
+| s / x | gộp /s/ | s → /ʂ/, x → /s/ |
+| d, gi | /z/ | /j/ |
+| r | /z/ | /ʐ/ (thực tế biến thiên mạnh giữa người nói) |
+| v | /v/ | /j/ (phổ biến trong khẩu ngữ, không phải mọi người nói) |
+| qu | /k w/ | /w/ |
+| thanh hỏi / ngã | hai thanh riêng | gộp về `T4` |
+| âm cuối -n / -ng, -t / -c | phân biệt | gộp thành /ŋ/, /k/ trừ sau i, ê |
+| âm cuối -nh / -ch | /ɲ/, /c/ | /n/, /t/ |
+
+Bảng này chưa mô tả nhiều hiện tượng quan trọng khác của giọng Nam (biến đổi nguyên âm trước âm cuối, âm đệm sau phụ âm gốc lưỡi, khác biệt đường nét thanh). Ở mức mô hình, điều quan trọng nhất không phải là phiên âm "đúng" tuyệt đối, mà là **ánh xạ nhất quán với người nói trong dữ liệu**: nếu người nói giọng Nam phát âm *an* và *ang* như nhau, việc gộp chúng giúp mô hình bớt phải học một khác biệt không tồn tại trong âm thanh.
+
+!!! note "Góc tiếng Việt"
+    Chọn phương ngữ đích là quyết định đầu tiên của một dự án TTS tiếng Việt. Dùng G2P giọng Bắc cho dữ liệu người nói giọng Nam không làm mô hình "hỏng", vì mô hình vẫn học được quan hệ ký hiệu → âm thanh, nhưng nó phải dùng một phần năng lực để học những khác biệt mà G2P đã có thể giải quyết sẵn (ví dụ thanh ngã giọng Nam nghe như thanh hỏi). Ngược lại, nếu một bộ dữ liệu trộn nhiều phương ngữ, hãy cân nhắc dùng đầu vào gần chữ viết hơn (gộp ít hơn) và thêm embedding phương ngữ hoặc người nói, để mô hình tự học khác biệt từ dữ liệu.
+
+## 9. Bảng ký hiệu và chuỗi ID
+
+`SYMBOLS` là danh sách 60 phần tử, theo thứ tự cố định:
+
+| Vị trí | Nhóm | Phần tử |
+|---|---|---|
+| 0–5 | đặc biệt | `<pad>`, `<unk>`, `<blank>`, `<bos>`, `<eos>`, `" "` |
+| 6–12 | dấu câu | `, . ! ? ; : …` |
+| 13–53 | âm vị | 25 âm đầu/âm cuối/bán nguyên âm, 16 âm chính |
+| 54–59 | thanh | `T1`..`T6` |
+
+Thứ tự này là một **hợp đồng** giữa front-end và mọi checkpoint đã huấn luyện: lớp embedding của mô hình chỉ biết "ID 37", không biết "ID 37 là /a/". Nếu bạn chèn một ký hiệu vào giữa danh sách, mọi ID phía sau dịch đi một và checkpoint cũ sẽ đọc sai toàn bộ — một lỗi không báo lỗi, chỉ cho ra âm thanh vô nghĩa. Quy tắc: **chỉ nối thêm vào cuối**, và lưu bản sao `SYMBOLS` cùng checkpoint. Bảng âm vị được viết tường minh (không sinh từ `set`), vì thứ tự duyệt của `set` không được đảm bảo giữa các phiên bản Python.
+
+ID 0 dành cho `<pad>` để `nn.Embedding(..., padding_idx=0)` hoạt động đúng. `<blank>` dùng cho kỹ thuật chèn xen kẽ của VITS ([Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md), [Dự án 3](du-an-3-vits-tieng-viet.md)), được hỗ trợ bằng hàm `intersperse`:
+
+```python
+from vn_frontend import SYMBOLS, text_to_sequence, intersperse, BLANK_ID
+
+print(len(SYMBOLS), SYMBOLS[:13])
+ids = text_to_sequence("Xin chào")
+print(ids)
+print(intersperse(ids))
+assert intersperse(ids)[0] == BLANK_ID
+```
+
+```text
+60 ['<pad>', '<unk>', '<blank>', '<bos>', '<eos>', ' ', ',', '.', '!', '?', ';', ':', '…']
+[26, 43, 22, 54, 5, 15, 38, 37, 55]
+[2, 26, 2, 43, 2, 22, 2, 54, 2, 5, 2, 15, 2, 38, 2, 37, 2, 55, 2]
+```
