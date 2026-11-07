@@ -71,7 +71,7 @@ DiffWave (Kong và cộng sự, 2021) chọn một kiến trúc quen thuộc hơ
 
 ### 26.3.1 Kiến trúc
 
-Theo cấu hình "base" của kho mã chính thức:
+Theo cấu hình "base" mô tả trong bài báo (và trong bản cài đặt mã nguồn mở phổ biến `lmnt-com/diffwave` bám theo nó):
 
 - **Đầu vào**: dạng sóng nhiễu $\mathbf{s}_k$ $(B, L)$ qua tích chập $1 \times 1$ thành $C = 64$ kênh.
 - **Nhúng bước khuếch tán**: $k$ được mã hóa bằng 128 hàm sin/cos, rồi qua hai tầng kết nối đầy đủ với SiLU thành véc-tơ 512 chiều. Mỗi khối dư có một phép chiếu tuyến tính riêng của véc-tơ này, *cộng* vào đầu vào của khối.
@@ -79,13 +79,13 @@ Theo cấu hình "base" của kho mã chính thức:
 - **30 khối dư**, hệ số giãn lặp chu kỳ $1, 2, \ldots, 512$ (chu kỳ 10), nhân 3, **không nhân quả** (mọi mẫu của $\mathbf{s}_k$ đã có sẵn, không cần tự hồi quy). Trong mỗi khối, mel (sau tích chập $1 \times 1$) được cộng vào đầu ra của tích chập giãn nở, rồi qua cổng $\tanh \odot \sigma$ như WaveNet. Đầu ra tách thành nhánh dư (chia $\sqrt{2}$ để giữ phương sai) và nhánh skip.
 - **Đầu ra**: tổng các skip chia $\sqrt{30}$, qua tích chập, ReLU, và tích chập cuối được **khởi tạo bằng 0** (ban đầu mạng dự đoán nhiễu bằng 0, một điểm xuất phát ổn định).
 
-Với cấu hình này, mô hình chỉ khoảng 2,6 triệu tham số (chúng tôi đếm lại từ cấu hình công khai). Lịch nhiễu base dùng $K = 50$ với $\beta_k$ tăng tuyến tính từ $10^{-4}$ đến $0{,}05$. Bài báo dùng mất mát L2 như DDPM; kho mã chính thức phổ biến dùng L1, một khác biệt nhỏ nên biết khi so sánh kết quả.
+Với cấu hình này, mô hình chỉ khoảng 2,6 triệu tham số (chúng tôi đếm lại từ cấu hình công khai). Lịch nhiễu base dùng $K = 50$ với $\beta_k$ tăng tuyến tính từ $10^{-4}$ đến $0{,}05$. Bài báo dùng mất mát L2 như DDPM; bản cài đặt `lmnt-com/diffwave` lại dùng L1, một khác biệt nhỏ nên biết khi so sánh kết quả.
 
 DiffWave còn cho thấy một điều mà vocoder GAN thời đó không làm được: **sinh vô điều kiện** (không có mel), ví dụ sinh các từ đọc số tiếng Anh từ nhiễu thuần túy, minh họa sức mạnh của khuếch tán như một mô hình sinh thực thụ chứ không chỉ một bộ "dịch" mel.
 
 ### 26.3.2 Lấy mẫu nhanh: ánh xạ lịch nhiễu suy luận vào bước huấn luyện
 
-DiffWave huấn luyện với $K = 50$ bước rời rạc nhưng muốn suy luận với $S = 6$ bước theo một lịch nhiễu khác, $\eta_1, \ldots, \eta_S$ (kho mã chính thức dùng $10^{-4}, 10^{-3}, 10^{-2}, 0{,}05, 0{,}2, 0{,}5$), với $\gamma_s = 1 - \eta_s$ và $\bar{\gamma}_s = \prod_{i \le s} \gamma_i$. Vấn đề: mạng chỉ biết các bước $k = 1, \ldots, K$, mỗi bước ứng với một mức nhiễu $\sqrt{\bar{\alpha}_k}$; bước suy luận thứ $s$ có mức nhiễu $\sqrt{\bar{\gamma}_s}$ thường nằm *giữa* hai mức huấn luyện. Lời giải: tìm $k$ sao cho $\bar{\alpha}_{k+1} \le \bar{\gamma}_s \le \bar{\alpha}_k$, rồi nội suy tuyến tính trên thang $\sqrt{\bar{\alpha}}$ để được một bước "thực" (có phần lẻ):
+DiffWave huấn luyện với $K = 50$ bước rời rạc nhưng muốn suy luận với $S = 6$ bước theo một lịch nhiễu khác, $\eta_1, \ldots, \eta_S$ (cấu hình base dùng $10^{-4}, 10^{-3}, 10^{-2}, 0{,}05, 0{,}2, 0{,}5$), với $\gamma_s = 1 - \eta_s$ và $\bar{\gamma}_s = \prod_{i \le s} \gamma_i$. Vấn đề: mạng chỉ biết các bước $k = 1, \ldots, K$, mỗi bước ứng với một mức nhiễu $\sqrt{\bar{\alpha}_k}$; bước suy luận thứ $s$ có mức nhiễu $\sqrt{\bar{\gamma}_s}$ thường nằm *giữa* hai mức huấn luyện. Lời giải: tìm $k$ sao cho $\bar{\alpha}_{k+1} \le \bar{\gamma}_s \le \bar{\alpha}_k$, rồi nội suy tuyến tính trên thang $\sqrt{\bar{\alpha}}$ để được một bước "thực" (có phần lẻ):
 
 $$
 k_s = k + \frac{\sqrt{\bar{\alpha}_k} - \sqrt{\bar{\gamma}_s}}{\sqrt{\bar{\alpha}_k} - \sqrt{\bar{\alpha}_{k+1}}} .
