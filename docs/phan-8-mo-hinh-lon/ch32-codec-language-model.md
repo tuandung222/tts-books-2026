@@ -117,7 +117,7 @@ $$
 p(\mathbf{c}_{:,j} \mid \mathbf{c}_{:,<j}, \mathbf{x}, \tilde{\mathbf{C}}) \approx \prod_{t=1}^{T'} p_{\theta_{\text{NAR}}}\big(c_{t,j} \mid \mathbf{c}_{:,<j}, \mathbf{x}, \tilde{\mathbf{C}}\big).
 $$
 
-Đây là **giả thiết độc lập duy nhất** của VALL-E. Nó hợp lý vì: tầng 1 đã chốt nội dung, trường độ và phần lớn ngôn điệu; các tầng sau chỉ thêm chi tiết âm học mang tính cục bộ, mà mô hình NAR (dùng attention hai chiều trên toàn chuỗi) có thể suy ra từ các tầng thấp hơn và từ prompt (cho âm sắc). Mô hình NAR nhận tổng embedding các tầng $< j$ tại mỗi khung, cộng một embedding cho chỉ số tầng $j$ (đưa vào qua *adaptive LayerNorm*), và dùng **cả 8 tầng** của prompt để nắm âm sắc. Một mạng NAR duy nhất dùng chung tham số cho cả 7 tầng.
+Đây là **giả thiết độc lập chính** của VALL-E (xấp xỉ còn lại là mô hình AR chỉ nhìn tầng 1 của prompt). Giả thiết này hợp lý vì: tầng 1 đã chốt nội dung, trường độ và phần lớn ngôn điệu; các tầng sau chỉ thêm chi tiết âm học mang tính cục bộ, mà mô hình NAR (dùng attention hai chiều trên toàn chuỗi) có thể suy ra từ các tầng thấp hơn và từ prompt (cho âm sắc). Mô hình NAR nhận tổng embedding các tầng $< j$ tại mỗi khung, cộng một embedding cho chỉ số tầng $j$ (đưa vào qua *adaptive LayerNorm*), và dùng **cả 8 tầng** của prompt để nắm âm sắc. Một mạng NAR duy nhất dùng chung tham số cho cả 7 tầng.
 
 ### Vì sao chia như vậy?
 
