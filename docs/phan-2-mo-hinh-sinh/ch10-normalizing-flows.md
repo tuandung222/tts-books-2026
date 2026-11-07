@@ -395,7 +395,10 @@ class InvConv1x1(nn.Module):
 torch.manual_seed(0)
 B, C, T = 3, 4, 5
 x = 3.0 * torch.randn(B, C, T) + 1.0
-for module in (ActNorm(C), InvConv1x1(C)):
+conv = InvConv1x1(C)
+with torch.no_grad():
+    conv.log_abs_u.normal_(0.0, 0.5)                          # phá tính trực giao để log-det khác 0
+for module in (ActNorm(C), conv):
     z, logdet = module(x)                                     # lần gọi đầu cũng khởi tạo ActNorm
     assert torch.allclose(module.inverse(z), x, atol=1e-4)
     flat = lambda v: module(v.view(1, C, T))[0].flatten()     # R^{C*T} -> R^{C*T}
@@ -597,7 +600,7 @@ for tau in (1.0, 0.7):
     print(f"tau = {tau}: tỉ lệ mẫu cách dữ liệu thật > 0.3 = {(dist > 0.3).float().mean():.4f}")
 ```
 
-Khi chạy trên CPU (khoảng mười giây), chúng tôi thu được NLL test của Gaussian cỡ 2,72 nats/mẫu, còn của flow giảm xuống cỡ 1,7 nats/mẫu sau 2 000 bước; con số trên máy bạn có thể lệch đôi chút. Hiệu số khoảng 1 nat/mẫu nghĩa là flow gán cho dữ liệu kiểm tra mật độ trung bình cao gấp khoảng $e^{1} \approx 2{,}7$ lần. Ở nhiệt độ $\tau = 1$, một tỉ lệ rất nhỏ mẫu (cỡ 0,1%) rơi vào khoảng trống giữa hai vầng trăng — đó chính là "cầu nối" tô-pô đã nói ở mục 10.2.5; với $\tau = 0{,}7$ các mẫu lạc này gần như biến mất, đổi lại phân phối mẫu co hẹp hơn dữ liệu thật một chút.
+Khi chạy trên CPU (khoảng mười giây), chúng tôi thu được NLL test của Gaussian cỡ 2,72 nats/mẫu, còn của flow giảm xuống cỡ 1,7 nats/mẫu sau 2 000 bước; con số trên máy bạn có thể lệch đôi chút. Hiệu số khoảng 1 nat/mẫu nghĩa là flow gán cho dữ liệu kiểm tra mật độ trung bình cao gấp khoảng $e^{1} \approx 2{,}7$ lần. Ở nhiệt độ $\tau = 1$, một tỉ lệ rất nhỏ mẫu (cỡ vài phần nghìn hoặc ít hơn, tùy lần chạy) rơi vào khoảng trống giữa hai vầng trăng — đó chính là "cầu nối" tô-pô đã nói ở mục 10.2.5; với $\tau = 0{,}7$ các mẫu lạc này gần như biến mất, đổi lại phân phối mẫu co hẹp hơn dữ liệu thật một chút.
 
 ## 10.11 Flow liên tục: cầu nối sang flow matching
 
