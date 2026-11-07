@@ -270,3 +270,32 @@ def test_preprocess_pipeline(tmp_path):
     out = model(**{k: batch[k] for k in MODEL_KEYS if k in batch})
     assert out["mel"].shape == batch["mels"].shape
     assert os.path.exists(feats / "mel" / "u0.npy")
+
+
+def test_gta_export(tmp_path):
+    """Mel GTA phải có cùng số khung với mel thật để khớp với wav khi fine-tune HiFi-GAN."""
+    from fastspeech2.synthesize import export_gta
+
+    feats = tmp_path / "feats"
+    for sub in ("mel", "pitch", "energy", "duration"):
+        (feats / sub).mkdir(parents=True)
+    rows = []
+    rng = np.random.default_rng(0)
+    for i in range(3):
+        n = 6
+        dur = rng.integers(1, 4, size=n)
+        t = int(dur.sum())
+        np.save(feats / "mel" / f"u{i}.npy", rng.standard_normal((16, t)).astype(np.float32))
+        np.save(feats / "pitch" / f"u{i}.npy", rng.standard_normal(t).astype(np.float32))
+        np.save(feats / "energy" / f"u{i}.npy", rng.standard_normal(t).astype(np.float32))
+        np.save(feats / "duration" / f"u{i}.npy", dur.astype(np.int64))
+        rows.append({"id": f"u{i}", "text": "", "tokens": rng.integers(1, 60, size=n).tolist(),
+                     "n_frames": t, "speaker": 0})
+    (feats / "train.jsonl").write_text("\n".join(json.dumps(r) for r in rows), encoding="utf-8")
+    (feats / "stats.json").write_text(json.dumps(
+        {"pitch_mean": 0.0, "pitch_std": 1.0, "energy_mean": 0.0, "energy_std": 1.0}))
+    model = tiny_model().eval()
+    assert export_gta(model, str(feats), str(tmp_path / "gta"), "train") == 3
+    for r in rows:
+        gta = np.load(tmp_path / "gta" / f"{r['id']}.npy")
+        assert gta.shape == (16, r["n_frames"])
