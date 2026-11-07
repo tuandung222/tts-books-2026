@@ -10,6 +10,8 @@ from __future__ import annotations
 # Viết tắt -> dạng đọc. Khóa phân biệt hoa/thường. Khóa kết thúc bằng "." được
 # so khớp kể cả khi dính liền chữ phía sau ("TP.HCM").
 ABBREVIATIONS: dict[str, str] = {
+    "TP.HCM": "thành phố Hồ Chí Minh",
+    "Tp.HCM": "thành phố Hồ Chí Minh",
     "TP.": "thành phố",
     "Tp.": "thành phố",
     "TP": "thành phố",

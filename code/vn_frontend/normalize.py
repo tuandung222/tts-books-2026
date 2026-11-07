@@ -8,9 +8,10 @@ Thứ tự các bước quan trọng (quy tắc cụ thể chạy trước quy t
 4. số điện thoại;
 5. ngày tháng (30/4/1975, 3/2024, "ngày 2/9");
 6. giờ (14:30, 7h30);
-7. tiền tệ, phần trăm, đơn vị đo, "trên một đơn vị" (50.000đ/kg);
+7. khoảng (5-10), số âm; tiền tệ, phần trăm, đơn vị đo, "trên một đơn vị"
+   (50.000đ/kg);
 8. số thứ tự, tháng, số La Mã có ngữ cảnh (thế kỷ XXI, quý IV);
-9. phân số, khoảng (5-10), số âm;
+9. phân số;
 10. tách chữ-số dính nhau (U23), đọc mọi số còn lại;
 11. từ viết tắt viết hoa không có trong từ điển: đánh vần (VTV);
 12. ký hiệu (&, +, =, ~), dọn khoảng trắng, chuẩn hóa vị trí dấu thanh.
@@ -81,6 +82,7 @@ _CUR_PREFIX_RE = re.compile(rf"({_alt(CURRENCY_PREFIX)})\s?({NUM})")
 _KTR_RE = re.compile(rf"(?<![\w.,])({NUM})\s?(k|K|tr)(?!\w)")
 _PERCENT_RE = re.compile(rf"({NUM})\s?%")
 _UNIT_RE = re.compile(rf"({NUM})\s?({_alt(UNITS)})(?![\w²³])")
+_CUR_PER_RE = re.compile(r"(đồng|đô la Mỹ|đô la|ơ rô|bảng Anh|yên)\s?/\s?(?=[^\W\d_])")
 _PER_RE = re.compile(
     rf"\s?/\s?({_alt(UNITS)}|tháng|ngày|năm|giờ|tuần|người|lần|chiếc|cái|tấn|lít|vé|suất)(?![\w²³])")
 _ORDINAL_RE = re.compile(r"(?i:\b(thứ|hạng|giải))\s+(\d{1,3})(?![\d.,]?\d)")
@@ -90,7 +92,7 @@ _ROMAN_CTX_RE = re.compile(
     r"\s+([IVX]+|[IVXLCDM]{2,})(?:\s?/\s?(\d{4}))?(?![\w])")
 _QUARTER_RE = re.compile(r"(?i:\b(quý))\s+(\d)\s?/\s?(\d{4})(?!\d)")
 _FRACTION_RE = re.compile(r"(?<![\w/.,])(\d+)/(\d+)(?![\w/])")
-_RANGE_RE = re.compile(rf"(?<![\w.,])({NUM})\s?-\s?({NUM})(?![\w])")
+_RANGE_RE = re.compile(rf"(?<![\w.,])({NUM})\s?-\s?({NUM})")
 _NEG_RE = re.compile(r"(?<![\w.,])-(?=\d)")
 _LETTER_DIGIT_RE = re.compile(r"(?<=[^\W\d_])(?=\d)|(?<=\d)(?=[^\W\d_])")
 _NUM_RE = re.compile(NUM)
@@ -151,8 +153,9 @@ def normalize_text(text: str, *, tone_style: str = "old",
     text = _EMAIL_RE.sub(email, text)
     text = _URL_RE.sub(url, text)
 
-    # Viết tắt theo từ điển
-    text = _ABBR_RE.sub(lambda m: f" {ABBREVIATIONS[m.group(0)]} ", text)
+    # Viết tắt theo từ điển (hai lượt: "TP.HCM" -> "thành phố HCM" -> "... Hồ Chí Minh")
+    for _ in range(2):
+        text = _ABBR_RE.sub(lambda m: f" {ABBREVIATIONS[m.group(0)]} ", text)
 
     # Số điện thoại
     text = _PHONE_RE.sub(_read_phone, text)
@@ -163,7 +166,7 @@ def normalize_text(text: str, *, tone_style: str = "old",
         if not (1 <= d <= 31 and 1 <= mo <= 12):
             return m.group(0)
         before = m.string[:m.start()].rstrip().lower()
-        lead = "" if before.endswith(("ngày", "mùng", "mồng")) else "ngày "
+        lead = "" if before.endswith(("ngày", "mùng", "mồng", "hôm")) else "ngày "
         return f"{lead}{number_to_words(d, st)} tháng {month_to_words(mo, st)} năm {number_to_words(y, st)}"
 
     def my(m: re.Match[str]) -> str:
@@ -206,6 +209,10 @@ def normalize_text(text: str, *, tone_style: str = "old",
     text = _TIME_COLON_RE.sub(time_colon, text)
     text = _TIME_H_RE.sub(time_h, text)
 
+    # Khoảng (5-10) và số âm: trước tiền tệ/đơn vị để "20-25°C", "-5°C" đọc đúng
+    text = _RANGE_RE.sub(lambda m: f"{m[1]} đến {m[2]}", text)
+    text = _NEG_RE.sub("âm ", text)
+
     # Tiền tệ, phần trăm, đơn vị
     text = _CUR_PREFIX_RE.sub(lambda m: f"{num(m[2])} {CURRENCY_PREFIX[m[1]]}", text)
     text = _CUR_SUFFIX_RE.sub(lambda m: f"{num(m[1])} {CURRENCY_SUFFIX[m[2]]}", text)
@@ -213,6 +220,7 @@ def normalize_text(text: str, *, tone_style: str = "old",
     text = _PERCENT_RE.sub(lambda m: f"{num(m[1])} phần trăm", text)
     text = _UNIT_RE.sub(lambda m: f"{num(m[1])} {UNITS[m[2]]}", text)
     text = _PER_RE.sub(lambda m: f" một {UNITS.get(m[1], m[1])}", text)
+    text = _CUR_PER_RE.sub(lambda m: f"{m[1]} một ", text)
 
     # Số thứ tự, tháng, số La Mã theo ngữ cảnh
     text = _ORDINAL_RE.sub(lambda m: f"{m[1]} {ordinal_to_words(int(m[2]), st)}", text)
@@ -234,10 +242,8 @@ def normalize_text(text: str, *, tone_style: str = "old",
         lambda m: f"{m[1]} {number_to_words(int(m[2]), st)} năm {number_to_words(int(m[3]), st)}",
         text)
 
-    # Phân số, khoảng, số âm
+    # Phân số
     text = _FRACTION_RE.sub(lambda m: f"{num(m[1])} phần {num(m[2])}", text)
-    text = _RANGE_RE.sub(lambda m: f"{m[1]} đến {m[2]}", text)
-    text = _NEG_RE.sub("âm ", text)
 
     # Tách chữ-số dính nhau (U23, COVID-19) rồi đọc mọi số còn lại
     text = re.sub(r"(?<=[^\W\d_])-(?=\d)", " ", text)
