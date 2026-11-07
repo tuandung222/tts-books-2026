@@ -290,7 +290,7 @@ $$
 
 Hai trường hợp riêng quen thuộc: $M = 1$ cho mặt nạ nhân quả thông thường (mỗi khung chỉ nhìn quá khứ và chính nó); $M \geq T$ cho mặt nạ đầy đủ, không nhân quả. Giữa hai thái cực là các mặt nạ chunk: bên trong một chunk, attention là hai chiều (chất lượng tốt hơn nhân quả thuần), giữa các chunk thì nhân quả (cho phép streaming).
 
-**Mệnh đề.** Xét một mạng gồm $L$ tầng, mỗi tầng chỉ trộn thông tin giữa các khung qua attention với mặt nạ $A^{(M)}$ (các phép toán còn lại tác động từng khung độc lập). Khi đó đầu ra tại các khung của chunk $k$ chỉ phụ thuộc vào đầu vào của các chunk $0, \ldots, k$.
+**Mệnh đề.** Xét một mạng gồm nhiều tầng xếp chồng, mỗi tầng chỉ trộn thông tin giữa các khung qua attention với mặt nạ $A^{(M)}$ (các phép toán còn lại tác động từng khung độc lập). Khi đó đầu ra tại các khung của chunk $k$ chỉ phụ thuộc vào đầu vào của các chunk $0, \ldots, k$.
 
 *Chứng minh (quy nạp theo số tầng).* Ở tầng thứ nhất, đầu ra tại khung $i$ là tổ hợp có trọng số của các khung $j$ với $c(j) \leq c(i)$, nên chỉ phụ thuộc vào đầu vào của các chunk $\leq c(i)$. Giả sử khẳng định đúng tới tầng $\ell$. Đầu ra tầng $\ell + 1$ tại khung $i$ là hàm của các biểu diễn tầng $\ell$ tại các khung $j$ với $c(j) \leq c(i)$; theo giả thiết quy nạp, mỗi biểu diễn đó chỉ phụ thuộc vào đầu vào của các chunk $\leq c(j) \leq c(i)$. $\square$
 

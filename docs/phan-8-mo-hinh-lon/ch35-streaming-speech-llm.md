@@ -251,7 +251,7 @@ $$
 y[t] = \sum_{i=0}^{k-1} w_i\, x[t - i\delta],
 $$
 
-chỉ cần các mẫu đầu vào từ $t - (k-1)\delta$ đến $t$. Vậy để tính đầu ra cho một chunk bắt đầu tại $t_0$, ta chỉ cần thêm $(k-1)\delta$ mẫu đầu vào **cuối cùng** của phần trước $t_0$. Đó chính là nội dung của bộ đệm (*cache*). Với một chồng $L$ lớp, mỗi lớp giữ bộ đệm riêng trên *đầu vào của chính nó*; bằng quy nạp theo số lớp, đầu ra của cả chồng khi chạy theo chunk trùng với khi chạy toàn chuỗi. Đoạn mã sau cài đặt và kiểm chứng điều đó với các chunk có độ dài tùy ý, kể cả chunk ngắn hơn kích thước bộ đệm.
+chỉ cần các mẫu đầu vào từ $t - (k-1)\delta$ đến $t$. Vậy để tính đầu ra cho một chunk bắt đầu tại $t_0$, ta chỉ cần thêm $(k-1)\delta$ mẫu đầu vào **cuối cùng** của phần trước $t_0$. Đó chính là nội dung của bộ đệm (*cache*). Với một chồng nhiều lớp, mỗi lớp giữ bộ đệm riêng trên *đầu vào của chính nó*; bằng quy nạp theo số lớp, đầu ra của cả chồng khi chạy theo chunk trùng với khi chạy toàn chuỗi. Đoạn mã sau cài đặt và kiểm chứng điều đó với các chunk có độ dài tùy ý, kể cả chunk ngắn hơn kích thước bộ đệm.
 
 ```python
 import torch
@@ -561,7 +561,7 @@ Các nguyên lý ở trên áp dụng cho mọi ngôn ngữ, nhưng tiếng Vi�
 ??? tip "Gợi ý"
     Điều kiện là $a^2 + b^2 + 2\gamma ab = 1$. Với (c), tính tương quan chuẩn hóa giữa hai đoạn trong vùng chồng lấn (có thể sau khi căn chỉnh độ trễ nhỏ bằng tương quan chéo).
 
-**Bài 4 [Nâng cao].** Chứng minh bằng quy nạp rằng chồng $L$ lớp tích chập nhân quả (mỗi lớp kèm hàm kích hoạt và kết nối tắt theo từng khung) chạy theo chunk với bộ đệm $(k_\ell - 1)\delta_\ell$ mẫu ở mỗi lớp cho kết quả trùng với chạy toàn chuỗi. Sau đó tính tổng bộ nhớ đệm (tính theo số phần tử) cho một vocoder có 4 khối, mỗi khối 3 lớp với độ giãn 1, 3, 5, kích thước nhân 3, số kênh lần lượt 256, 128, 64, 32.
+**Bài 4 [Nâng cao].** Chứng minh bằng quy nạp rằng một chồng nhiều lớp tích chập nhân quả (mỗi lớp kèm hàm kích hoạt và kết nối tắt theo từng khung) chạy theo chunk với bộ đệm $(k_\ell - 1)\delta_\ell$ mẫu ở mỗi lớp cho kết quả trùng với chạy toàn chuỗi. Sau đó tính tổng bộ nhớ đệm (tính theo số phần tử) cho một vocoder có 4 khối, mỗi khối 3 lớp với độ giãn 1, 3, 5, kích thước nhân 3, số kênh lần lượt 256, 128, 64, 32.
 
 ??? success "Lời giải"
     Bước quy nạp: nếu đầu vào lớp $\ell$ khi chạy theo chunk trùng với khi chạy toàn chuỗi, thì vì đầu ra tại $t$ chỉ phụ thuộc đầu vào trong $[t - (k_\ell - 1)\delta_\ell, t]$ và bộ đệm cung cấp đúng các mẫu đó, đầu ra lớp $\ell$ cũng trùng. Bộ nhớ: mỗi lớp cần $(3 - 1)\delta$ mẫu, ba lớp cần $2(1 + 3 + 5) = 18$ mẫu mỗi kênh; tổng $18 \times (256 + 128 + 64 + 32) = 18 \times 480 = 8\,640$ phần tử mỗi luồng (chưa tính các lớp tăng mẫu và các lớp khác).
