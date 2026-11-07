@@ -616,7 +616,7 @@ Bảng dưới là lựa chọn của gói, dựa trên các mô tả giọng H�
 
 ### 8.3. Thanh điệu và ranh giới
 
-Mỗi âm tiết kết thúc bằng một token thanh `T1`..`T6`. Có ba cách phổ biến để đưa thanh vào mô hình (so sánh chi tiết ở [Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md)): token thanh riêng, thanh gắn vào nguyên âm (ví dụ `a_T2`), và đặc trưng thanh ở cấp âm tiết cộng vào embedding. Gói chọn **token riêng đặt cuối âm tiết** vì ba lý do: bảng ký hiệu nhỏ (6 token thanh thay vì khoảng 16 × 6 nguyên âm có thanh), mỗi token thanh có rất nhiều dữ liệu huấn luyện, và cơ chế self-attention của encoder dễ dàng "chuyển" thông tin thanh sang các âm vị của vần. Cái giá phải trả là chuỗi dài hơn khoảng 25–30% và — như ta sẽ thấy ở [Dự án 2](du-an-2-fastspeech2-hifigan.md) — token thanh không ứng với một đoạn âm thanh riêng, nên khâu căn chỉnh phải xử lý nó đặc biệt.
+Mỗi âm tiết kết thúc bằng một token thanh `T1`..`T6`. Có ba cách phổ biến để đưa thanh vào mô hình (so sánh chi tiết ở [Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md)): token thanh riêng, thanh gắn vào nguyên âm (ví dụ `a_T2`), và đặc trưng thanh ở cấp âm tiết cộng vào embedding. Gói chọn **token riêng đặt cuối âm tiết** vì ba lý do: bảng ký hiệu nhỏ (6 token thanh thay vì khoảng 16 × 6 nguyên âm có thanh), mỗi token thanh có rất nhiều dữ liệu huấn luyện, và cơ chế self-attention của encoder dễ dàng "chuyển" thông tin thanh sang các âm vị của vần. Cái giá phải trả là chuỗi dài hơn khoảng một phần tư (đo trên văn bản thông thường) và — như ta sẽ thấy ở [Dự án 2](du-an-2-fastspeech2-hifigan.md) — token thanh không ứng với một đoạn âm thanh riêng, nên khâu căn chỉnh phải xử lý nó đặc biệt.
 
 Các quy ước còn lại của `g2p`:
 

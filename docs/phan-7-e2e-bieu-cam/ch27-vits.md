@@ -299,7 +299,7 @@ assert abs(est.mean() - ref) < 4 * se                    # ước lượng khôn
     Số hạng KL nhận gradient theo **ba** hướng cùng lúc: (1) về bộ mã hóa hậu nghiệm qua `logs_q` và qua `z` (nhờ tham số hóa lại); (2) về flow qua `z_p`; (3) về bộ mã hóa văn bản qua `m_p`, `logs_p`. Riêng ma trận căn chỉnh $\mathbf{A}$ dùng để mở rộng `m_p`, `logs_p` thì được tính dưới `torch.no_grad()` nên không có gradient. Nhờ vậy, KL vừa kéo prior về phía hậu nghiệm, vừa kéo hậu nghiệm về phía những gì văn bản dự đoán được. Đây là cơ chế "điều chuẩn" khiến $\mathbf{z}$ không mang quá nhiều thông tin mà văn bản không thể đoán.
 
 !!! note "Nếu flow không bảo toàn thể tích"
-    Với một flow affine đầy đủ (có co giãn $\exp(\mathbf{s}_\theta)$), bạn phải trừ thêm $\log|\det J| = \sum \mathbf{s}_\theta$ khỏi `kl` trước khi lấy tổng. Quên số hạng này là một lỗi kinh điển khi "nâng cấp" flow của VITS: mô hình sẽ học cách phình co giãn để làm KL nhỏ đi một cách giả tạo (xem Bài tập 3).
+    Với một flow affine đầy đủ (có co giãn $\exp(\mathbf{s}_\theta)$), bạn phải trừ thêm $\log|\det J| = \sum \mathbf{s}_\theta$ khỏi `kl` trước khi lấy tổng. Quên số hạng này là một lỗi kinh điển khi "nâng cấp" flow của VITS: mô hình sẽ học cách dùng hệ số co giãn rất nhỏ để ép $\tilde{\mathbf{z}}$ về sát $\boldsymbol{\mu}_p$, làm KL nhỏ đi một cách giả tạo (xem Bài tập 3).
 
 ## 27.4. Căn chỉnh bằng MAS trong không gian ẩn
 
