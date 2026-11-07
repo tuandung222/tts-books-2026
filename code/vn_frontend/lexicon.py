@@ -103,6 +103,6 @@ LOANWORDS: dict[str, str] = {
     "wifi": "oai phai",
     "ok": "ô kê",
     "okay": "ô kê",
-    "website": "goép sai",
+    "website": "oép sai",
     "app": "áp",
 }
