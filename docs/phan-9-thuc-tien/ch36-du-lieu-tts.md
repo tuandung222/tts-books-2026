@@ -551,7 +551,7 @@ assert split_syllable("gì") == ("gi", "i", "huyen")
 assert len(covered) >= sum(rand_cov) / len(rand_cov)
 ```
 
-Với kho ngữ liệu nhỏ trong ví dụ, tham lam phủ 97 đơn vị so với trung bình khoảng 85 của chọn ngẫu nhiên với cùng ngân sách. Trên kho ứng viên thật hàng trăm nghìn câu, khoảng cách này lớn hơn nhiều, nhất là với các vần hiếm. Khi chạy ở quy mô lớn, hãy cài đặt bằng hàng đợi ưu tiên với cập nhật lười (*lazy greedy*): vì lợi ích biên chỉ giảm dần (tính submodular), điểm cũ của một câu là cận trên của điểm mới, nên chỉ cần tính lại câu đứng đầu hàng đợi.
+Với kho ngữ liệu nhỏ trong ví dụ, tham lam phủ 97 đơn vị so với trung bình khoảng 85 của chọn ngẫu nhiên với cùng ngân sách. Trên kho ứng viên thật hàng trăm nghìn câu, khoảng cách này thường rõ rệt hơn, nhất là với các vần hiếm. Khi chạy ở quy mô lớn, hãy cài đặt bằng hàng đợi ưu tiên với cập nhật lười (*lazy greedy*): vì lợi ích biên chỉ giảm dần (tính submodular), điểm cũ của một câu là cận trên của điểm mới, nên mỗi bước thường chỉ phải tính lại vài câu ở đầu hàng đợi thay vì toàn bộ kho (Bài tập 3).
 
 ## 36.6 Chia tập và rò rỉ dữ liệu
 
