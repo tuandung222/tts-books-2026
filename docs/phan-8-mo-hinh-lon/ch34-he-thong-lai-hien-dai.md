@@ -382,3 +382,81 @@ $$
 $$
 
 trong đó $n_{\text{tok}}$ là số token cần cho chunk đầu (kể cả lookahead). Công thức cho thấy các "núm vặn" độ trễ: chunk nhỏ hơn, ít bước ODE hơn, LM nhanh hơn. [Chương 35](ch35-streaming-speech-llm.md) phân tích chi tiết ngân sách độ trễ của một hệ thống hội thoại hoàn chỉnh.
+
+## 34.7 Các hệ thống tiêu biểu và không gian thiết kế
+
+Mục này điểm qua một số hệ thống tiêu biểu. Mục tiêu không phải ghi nhớ chi tiết, mà là luyện cách **đọc một hệ thống mới qua lăng kính các trục thiết kế**: token gì, LM nào, bộ giải mã gì, thông tin người nói đi vào ở đâu, có streaming không. Mọi mô tả dưới đây tóm tắt từ báo cáo gốc tính đến thời điểm biên soạn (2026); các chi tiết có thể khác ở phiên bản mã nguồn mở hoặc phiên bản sau.
+
+### Dòng CosyVoice
+
+**CosyVoice** (Du và cộng sự, 2024a) là hình mẫu "chuẩn" của kiến trúc lai: token ngữ nghĩa có giám sát từ bộ mã hóa ASR, LM Transformer sinh token với x-vector ở đầu chuỗi, bộ giải mã flow matching có điều kiện (embedding người nói, mel prompt) sinh mel, và vocoder. Mô hình hỗ trợ nhân bản giọng không cần huấn luyện thêm (*zero-shot*), đa ngôn ngữ, và có biến thể nhận chỉ dẫn bằng ngôn ngữ tự nhiên.
+
+**CosyVoice 2** (Du và cộng sự, 2024b) giữ khung kiến trúc nhưng thay đổi ở ba điểm đã phân tích: (1) FSQ thay cho VQ trong bộ token hóa; (2) LM khởi tạo từ LLM văn bản, bỏ bộ mã hóa văn bản riêng và x-vector; (3) bộ giải mã flow matching nhân quả nhận biết chunk, cùng LM xen kẽ văn bản và token, để thống nhất chế độ streaming và không streaming trong một mô hình.
+
+**CosyVoice 3** (Du và cộng sự, 2025) được công bố năm 2025. Theo báo cáo, các thay đổi chính gồm mở rộng mạnh quy mô dữ liệu và mô hình, một bộ token hóa mới được huấn luyện đa nhiệm (không chỉ ASR mà cả các nhiệm vụ hiểu tiếng nói khác) và một phương pháp hậu huấn luyện tối ưu phần thưởng khả vi gọi là DiffRO. Vì báo cáo còn mới, bạn nên đọc trực tiếp bản gốc để nắm chi tiết.
+
+### Seed-TTS
+
+**Seed-TTS** (Anastassiou và cộng sự, 2024) là một họ mô hình của ByteDance. Theo báo cáo, hệ thống gồm bốn khối: bộ token hóa tiếng nói, LM token tự hồi quy, mô hình khuếch tán sinh biểu diễn âm học liên tục từ token, và vocoder âm học. Về khung kiến trúc, đây vẫn là "LM + bộ giải mã sinh liên tục", chỉ khác ở chỗ bộ giải mã là khuếch tán thay vì flow matching. Báo cáo đáng chú ý ở mấy điểm:
+
+- **Một biến thể hoàn toàn không tự hồi quy** (Seed-TTS$_{\text{DiT}}$) dùng một Transformer khuếch tán sinh thẳng biểu diễn âm học từ văn bản, không qua token, chỉ cần tổng thời lượng. Đây là bằng chứng rằng hai trường phái ở Mục 34.1 có thể đạt chất lượng tương đương khi đủ dữ liệu.
+- **Fine-tune theo người nói** (*speaker fine-tuning*): tinh chỉnh mô hình gốc trên dữ liệu của một giọng cụ thể để tăng độ giống và độ ổn định so với zero-shot thuần.
+- **Hậu huấn luyện bằng học tăng cường**: báo cáo so sánh các phương pháp dùng mô hình phần thưởng ngoài (như PPO, REINFORCE) với DPO, dùng các tín hiệu như WER, độ giống giọng và bộ phân loại cảm xúc (Mục 34.8).
+- **Bộ đánh giá Seed-TTS-eval**: gồm tập tiếng Anh lấy từ Common Voice, tập tiếng Trung lấy từ DiDiSpeech và một tập câu khó (lặp từ, câu líu lưỡi); đo WER bằng mô hình ASR (Whisper-large-v3 cho tiếng Anh, Paraformer cho tiếng Trung) và độ giống giọng bằng embedding từ một mô hình WavLM tinh chỉnh cho xác minh người nói. Bộ này về sau được nhiều công trình dùng làm chuẩn so sánh ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)).
+
+Seed-TTS không công bố mã nguồn và trọng số; các con số trong báo cáo vì vậy khó tái lập độc lập.
+
+### Fish-Speech
+
+**Fish-Speech** (Liao và cộng sự, 2024) đi theo hướng "LLM thuần" hơn: dùng LLM xử lý trực tiếp văn bản thô, không cần G2P, và một kiến trúc **Dual-AR**: một Transformer "chậm" chạy theo trục thời gian và một Transformer "nhanh" sinh các token của nhiều sổ mã trong cùng một khung (ý tưởng tương tự RQ-Transformer). Token đến từ một codec dùng biến thể lượng tử hóa vô hướng theo nhóm, và bộ giải mã là một vocoder họ GAN, tức hệ thống **không dùng flow matching**. Fish-Speech là ví dụ cho thấy "LM + bộ giải mã tất định" vẫn cạnh tranh được khi codec giữ đủ thông tin. Các phiên bản sau được phát hành dưới tên thương mại khác; hãy kiểm tra giấy phép của từng phiên bản trọng số.
+
+### Spark-TTS
+
+**Spark-TTS** (Wang và cộng sự, 2025) đề xuất codec **BiCodec** tách tiếng nói thành hai loại token: **token ngữ nghĩa** tốc độ thấp mang nội dung, và **token toàn cục** độ dài cố định mang đặc trưng người nói. LM (khởi tạo từ Qwen2.5 theo báo cáo) sinh cả hai loại trong một dòng duy nhất, và bộ giải mã của BiCodec biến chúng thành dạng sóng mà không cần flow matching. Thiết kế này cho phép một kiểu điều khiển thú vị: LM có thể sinh nhãn thuộc tính thô (giới tính, mức cao độ, tốc độ) rồi đến giá trị chi tiết, rồi mới đến token, theo lối "chuỗi suy luận" (*chain-of-thought*), nên người dùng có thể tạo giọng mới bằng mô tả thuộc tính thay vì âm thanh mẫu.
+
+### MiniMax-Speech
+
+**MiniMax-Speech** (MiniMax, 2025) nhấn mạnh vào một **bộ mã hóa người nói học được** (*learnable speaker encoder*) huấn luyện chung với LM tự hồi quy, thay vì dùng embedding cố định từ mô hình xác minh người nói. Bộ mã hóa này chỉ nhận âm thanh tham chiếu, không cần bản ghi văn bản của nó, nên mô hình nhân bản giọng được ngay cả khi không có transcript, điều mà các hệ thống dựa trên prompt văn bản + prompt token (như CosyVoice) không làm được trực tiếp. Theo báo cáo, phía sau LM là một mô hình flow matching sinh biến ẩn liên tục của một bộ tự mã hóa biến phân kết hợp flow (gọi là Flow-VAE) thay vì sinh mel. Hệ thống là sản phẩm thương mại; báo cáo không đi kèm trọng số mở.
+
+### IndexTTS
+
+**IndexTTS** (Deng và cộng sự, 2025) của Bilibili phát triển từ dòng XTTS/Tortoise ([Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md)): LM kiểu GPT sinh token tiếng nói, bộ mã hóa điều kiện dựa trên Conformer trích thông tin người nói từ âm thanh mẫu, và một bộ giải mã họ BigVGAN sinh dạng sóng trực tiếp từ biểu diễn ẩn của LM. Với tiếng Trung, mô hình cho phép trộn ký tự Hán và pinyin trong đầu vào để sửa cách đọc các chữ đa âm, một ý tưởng hữu ích tương tự việc trộn chữ và phiên âm cho từ mượn trong tiếng Việt. Phiên bản IndexTTS2 (2025), theo báo cáo, bổ sung khả năng điều khiển trường độ ngay trong LM tự hồi quy và tách bạch cảm xúc khỏi âm sắc.
+
+### Các hướng khác cần biết
+
+- **LLM + token đơn sổ mã + bộ giải mã codec**, như Llasa (dùng codec X-codec 2) hay các mô hình dựa trên Llama sinh token SNAC; xem [Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md).
+- **LM sinh biến ẩn liên tục** thay vì token rời rạc: mỗi bước tự hồi quy, một "đầu khuếch tán" nhỏ sinh véc-tơ biến ẩn liên tục của bước đó. Hướng này bỏ qua hoàn toàn lượng tử hóa; một ví dụ là VibeVoice của Microsoft (2025), theo báo cáo dùng bộ token hóa liên tục tốc độ khung rất thấp (7,5 Hz) để sinh hội thoại nhiều người nói dài nhiều phút.
+- **NAR quy mô lớn** (F5-TTS, MaskGCT) vẫn là lựa chọn mạnh khi không cần streaming; xem [Chương 33](../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon.md).
+
+### Bản đồ không gian thiết kế
+
+Bảng sau đặt các hệ thống trên vào cùng một hệ trục. Ô ghi "không công bố rõ" nghĩa là báo cáo không nêu đủ chi tiết hoặc chúng tôi không chắc chắn; đừng điền vào đó bằng suy đoán.
+
+| Hệ thống | Token trung gian | Phần tự hồi quy | Phần sinh âm học | Thông tin người nói đi vào | Streaming |
+|---|---|---|---|---|---|
+| CosyVoice | Ngữ nghĩa có giám sát (VQ) | Transformer từ đầu | Flow matching → mel → vocoder | x-vector (LM và flow), prompt | Không phải trọng tâm |
+| CosyVoice 2 | Ngữ nghĩa có giám sát (FSQ, 25 Hz) | Khởi tạo từ LLM văn bản | Flow matching nhận biết chunk → mel → vocoder | Prompt token (LM); x-vector + mel prompt (flow) | Có |
+| Seed-TTS | Token tiếng nói (không công bố rõ) | LM token | Khuếch tán → biểu diễn liên tục → vocoder | Prompt; fine-tune theo người nói | Không công bố rõ |
+| Fish-Speech | Codec nhiều sổ mã | Dual-AR | Bộ giải mã codec (GAN) | Prompt | Có thể, nhờ AR |
+| Spark-TTS | BiCodec: ngữ nghĩa + toàn cục | Khởi tạo từ LLM văn bản | Bộ giải mã BiCodec | Token toàn cục | Không phải trọng tâm |
+| MiniMax-Speech | Token âm thanh (không công bố rõ) | Transformer AR | Flow matching → biến ẩn Flow-VAE | Bộ mã hóa người nói học được | Không công bố rõ |
+| IndexTTS | Token tiếng nói kiểu XTTS | LM kiểu GPT | Bộ giải mã BigVGAN từ biểu diễn ẩn LM | Bộ mã hóa Conformer | Không công bố rõ |
+| F5-TTS (đối chiếu) | Không có (ký tự + mel) | Không có | Flow matching DiT → mel → vocoder | Mel prompt (điền khuyết) | Không |
+
+Từ bảng này có thể rút ra các trục thiết kế chính mà bạn sẽ gặp lại ở mọi hệ thống mới:
+
+1. **Loại token**: âm học, SSL, ngữ nghĩa có giám sát, tách đôi, hay liên tục.
+2. **Kích thước và khởi tạo LM**: từ đầu hay từ LLM văn bản; vài trăm triệu hay vài tỉ tham số.
+3. **Bộ giải mã**: sinh (flow matching, khuếch tán) hay tất định (codec, GAN), sinh mel hay biến ẩn.
+4. **Điều kiện người nói**: embedding cố định, bộ mã hóa học được, token toàn cục, hay học trong ngữ cảnh từ prompt.
+5. **Streaming**: có hay không, độ trễ tối thiểu, có chế độ ngoại tuyến chất lượng cao hơn không.
+6. **Đa ngôn ngữ**: tập ngôn ngữ của dữ liệu, của tokenizer văn bản và của bộ token hóa tiếng nói. Ba tập này có thể khác nhau!
+
+### Đối chiếu: các mô hình nhỏ gọn
+
+Không phải dự án nào cũng cần một hệ thống vài trăm triệu tham số. Song song với các hệ thống lớn, các mô hình nhỏ vẫn được dùng rất nhiều:
+
+- **Kokoro** (một mô hình khoảng 82 triệu tham số, phát hành năm 2024–2025 theo giấy phép Apache 2.0 tính đến thời điểm biên soạn) dựa trên kiến trúc StyleTTS 2 ([Chương 29](../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach.md)) với bộ giải mã kiểu iSTFTNet. Mô hình không nhân bản giọng zero-shot mà dùng một tập giọng định sẵn; số ngôn ngữ hỗ trợ hạn chế.
+- **VITS và Piper** ([Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)), **Matcha-TTS** ([Chương 23](../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md)): huấn luyện được trên một GPU với vài chục giờ dữ liệu một người nói, chạy nhanh trên CPU.
+
+Các mô hình nhỏ thua hệ thống lai ở khả năng nhân bản giọng, độ biểu cảm và xử lý ngữ cảnh dài, nhưng thắng ở chi phí, độ trễ, khả năng chạy trên thiết bị và **tính dự đoán được**: chúng ít khi "bịa" ra âm thanh lạ như LM. Với một trợ lý ảo tiếng Việt chỉ cần một giọng cố định, chất lượng ổn định, một mô hình VITS huấn luyện tốt có thể là lựa chọn hợp lý hơn một hệ thống lai cỡ lớn.
