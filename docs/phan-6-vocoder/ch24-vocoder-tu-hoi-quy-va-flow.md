@@ -484,7 +484,7 @@ for p in pulses:
     near[max(p - 2, 0): p + 3] = True
 ratio = np.sum(e[near] ** 2) / np.sum(e ** 2)
 print(f"{ratio:.1%} năng lượng phần dư nằm trong ±2 mẫu quanh xung ({near.mean():.1%} số mẫu)")
-assert gain > 10 and ratio > 0.9 or ratio > 0.5
+assert gain > 10 and ratio > 0.5
 ```
 
 Lưu ý quy ước dấu: `librosa.lpc` trả về $[1, a_1, \ldots, a_M]$ của *bộ lọc ngược* $A(z) = 1 + \sum_i a_i z^{-i}$, nên phần dư là $e_n = s_n + \sum_i a_i s_{n-i}$ (ngược dấu so với công thức ở trên). Với tín hiệu tổng hợp đúng theo mô hình toàn cực như ở đây, độ lợi dự đoán rất cao (khoảng 40 dB); với tiếng nói thật con số thấp hơn nhiều, nhưng phần dư vẫn "dễ" hơn tín hiệu gốc.
