@@ -426,7 +426,7 @@ Hàm mất mát trường độ $\mathcal{L}_{\text{dur}}$ là âm của cận n
 - $q_\phi$ là một flow nhỏ biến nhiễu Gauss hai kênh thành $(\mathbf{z}_u, \boldsymbol{\nu})$ (có điều kiện theo $\mathbf{d}$ và văn bản), rồi $\mathbf{u} = \operatorname{sigmoid}(\mathbf{z}_u)$ để ép vào $(0, 1)$. Log-mật độ $\log q_\phi$ gồm log-mật độ Gauss của nhiễu trừ log-định thức Jacobian của flow và của hàm sigmoid ($\log\sigma(z) + \log\sigma(-z)$ cho mỗi phần tử).
 - $p_\theta$ là flow chính. Trước khi vào các lớp coupling, kênh trường độ được lấy log: flow thực chất mô hình hóa $\log(\mathbf{d} - \mathbf{u})$, và Jacobian của phép log đóng góp $-\sum_i \log(d_i - u_i)$ vào log-định thức.
 - Các lớp coupling dùng **neural spline flow** (spline hữu tỷ bậc hai đơn điệu; Durkan và cộng sự, 2019) thay cho affine, với khối tích chập giãn nở tách sâu (*DDSConv*) để tiết kiệm tham số mà vẫn có trường tiếp nhận rộng.
-- Đầu vào điều kiện $\mathbf{h}^{\text{text}}$ được **chặn gradient** (*stop-gradient*, trong mã là `torch.detach`): huấn luyện bộ dự đoán trường độ không được làm ảnh hưởng đến bộ mã hóa văn bản. Lý do: trường độ chỉ là "khách hàng" của biểu diễn văn bản; nếu cho phép gradient chảy ngược, bộ mã hóa văn bản có thể hy sinh chất lượng prior để làm trường độ dễ đoán hơn.
+- Đầu vào điều kiện $\mathbf{h}^{\text{text}}$ được **chặn gradient** (*stop-gradient*, trong mã là `torch.detach`): huấn luyện bộ dự đoán trường độ không được làm ảnh hưởng đến bộ mã hóa văn bản. Có thể hiểu lý do như sau: trường độ chỉ là "khách hàng" của biểu diễn văn bản; nếu cho phép gradient chảy ngược, bộ mã hóa văn bản có thể hy sinh chất lượng prior để làm trường độ dễ đoán hơn.
 
 ### 27.5.3. Suy luận trường độ: vì sao làm tròn lên
 
@@ -436,10 +436,10 @@ $$
 \hat{d}_i = \big\lceil \exp(\log \hat{w}_i) \cdot \alpha \big\rceil,
 $$
 
-với $\alpha$ là `length_scale` (tốc độ đọc: $\alpha > 1$ là chậm hơn). Vì sao **làm tròn lên** mà không làm tròn thông thường? Vì flow học phân phối của $d_i - u_i \in (d_i - 1, d_i]$; lấy trần của một mẫu trong khoảng này trả về đúng $d_i$. Chi tiết nhỏ này là hệ quả trực tiếp của phép khử lượng tử hóa.
+với $\alpha$ là `length_scale` (tốc độ đọc: $\alpha > 1$ là chậm hơn). Vì sao **làm tròn lên** mà không làm tròn thông thường? Một cách giải thích tự nhiên: flow học phân phối của $d_i - u_i \in (d_i - 1, d_i]$; lấy trần của một mẫu trong khoảng này trả về đúng $d_i$. Chi tiết nhỏ này là hệ quả trực tiếp của phép khử lượng tử hóa.
 
 !!! example "SDP hay DDP?"
-    Theo báo cáo gốc, VITS với DDP đạt MOS thấp hơn một chút so với SDP (4,39 so với 4,43 trên LJSpeech) nhưng nhanh hơn. Trong thực tế, nhiều người huấn luyện VITS cho tiếng Việt vẫn dùng SDP mặc định, rồi tinh chỉnh `noise_scale_w` khi suy luận: giảm về 0,3–0,6 nếu nhịp điệu quá "phiêu" với văn bản tin tức, giữ khoảng 0,8 cho văn kể chuyện. Đây là kinh nghiệm thực hành, không phải quy tắc; hãy nghe thử trên tập kiểm tra của chính bạn.
+    Theo báo cáo gốc, VITS với DDP đạt MOS thấp hơn một chút so với SDP (4,39 so với 4,43 trên LJSpeech) nhưng nhanh hơn. Nếu dùng SDP, `noise_scale_w` là núm điều chỉnh hữu ích khi suy luận: thử giảm xuống khoảng 0,3–0,6 nếu nhịp điệu quá "phiêu" với văn bản tin tức, giữ quanh 0,8 cho văn kể chuyện. Đây là gợi ý để thử, không phải quy tắc; hãy nghe trên tập kiểm tra của chính bạn.
 
 ## 27.6. Bộ giải mã, huấn luyện theo cửa sổ và huấn luyện đối kháng
 
@@ -449,7 +449,7 @@ Bộ giải mã $G$ về cơ bản là bộ sinh HiFi-GAN V1 ([Chương 25](../p
 
 ### 27.6.2. Huấn luyện theo cửa sổ
 
-Chạy HiFi-GAN trên cả câu dài 10 giây với batch 64 là không khả thi về bộ nhớ. VITS chọn ngẫu nhiên một đoạn 32 khung của $\mathbf{z}$ cho mỗi câu, giải mã thành 8192 mẫu, và cắt đoạn sóng thật **tương ứng** (vị trí bắt đầu nhân với $H$) làm mục tiêu cho cả mất mát mel lẫn bộ phân biệt. Điều quan trọng là đoạn $\mathbf{z}$ lấy từ **hậu nghiệm**: bộ giải mã chỉ bao giờ thấy $\mathbf{z}$ sinh từ âm thanh thật khi huấn luyện. Mã dưới đây cài đặt phép cắt và kiểm tra hai đoạn (ẩn và sóng) thật sự khớp nhau về thời gian.
+Chạy HiFi-GAN trên cả câu dài 10 giây với batch 64 là không khả thi về bộ nhớ. VITS chọn ngẫu nhiên một đoạn 32 khung của $\mathbf{z}$ cho mỗi câu, giải mã thành 8192 mẫu, và cắt đoạn sóng thật **tương ứng** (vị trí bắt đầu nhân với $H$) làm mục tiêu cho cả mất mát mel lẫn bộ phân biệt. Điều quan trọng là đoạn $\mathbf{z}$ lấy từ **hậu nghiệm**: khi huấn luyện, bộ giải mã chỉ thấy $\mathbf{z}$ sinh từ âm thanh thật. Mã dưới đây cài đặt phép cắt và kiểm tra hai đoạn (ẩn và sóng) thật sự khớp nhau về thời gian.
 
 ```python
 import torch
