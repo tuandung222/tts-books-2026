@@ -73,6 +73,7 @@ _ABBR_RE = re.compile(
 )
 _PHONE_RE = re.compile(r"(?<![\w.,+])(\+84 ?|0)(\d{2,4}(?:[ .-]?\d{2,4}){1,3})(?![\w])")
 _DATE_DMY_RE = re.compile(r"(?<![\d/.-])(\d{1,2})([/.-])(\d{1,2})\2(\d{4})(?![\d/.-]?\d)")
+_DATE_ISO_RE = re.compile(r"(?<![\d/.-])(\d{4})-(\d{1,2})-(\d{1,2})(?![\d/.-]?\d)")
 _DATE_MY_RE = re.compile(r"(?<![\d/.-])(\d{1,2})/(\d{4})(?![\d/])")
 _DATE_DM_RE = re.compile(r"(?i:\b(ngày|mùng|mồng|hôm|sáng|trưa|chiều|tối|đêm))\s+(\d{1,2})/(\d{1,2})(?![\d/])")
 _TIME_COLON_RE = re.compile(r"(?<![\d:])(\d{1,2}):(\d{2})(?::(\d{2}))?(?![\d:])")
@@ -162,7 +163,9 @@ def normalize_text(text: str, *, tone_style: str = "old",
 
     # Ngày tháng
     def dmy(m: re.Match[str]) -> str:
-        d, mo, y = int(m[1]), int(m[3]), int(m[4])
+        return dmy_values(m, int(m[1]), int(m[3]), int(m[4]))
+
+    def dmy_values(m: re.Match[str], d: int, mo: int, y: int) -> str:
         if not (1 <= d <= 31 and 1 <= mo <= 12):
             return m.group(0)
         before = m.string[:m.start()].rstrip().lower()
@@ -183,6 +186,7 @@ def normalize_text(text: str, *, tone_style: str = "old",
             return m.group(0)
         return f"{m[1]} {number_to_words(d, st)} tháng {month_to_words(mo, st)}"
 
+    text = _DATE_ISO_RE.sub(lambda m: dmy_values(m, int(m[3]), int(m[2]), int(m[1])), text)
     text = _DATE_DMY_RE.sub(dmy, text)
     text = _DATE_MY_RE.sub(my, text)
     text = _DATE_DM_RE.sub(dm, text)
