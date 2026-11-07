@@ -122,7 +122,7 @@ Trong trợ lý giọng nói, văn bản cần đọc do một LLM sinh ra từn
 3. **Từ nhiều âm tiết.** Tiếng Việt viết cách nhau từng âm tiết, nhưng một từ có thể gồm nhiều âm tiết ("học sinh", "thành phố"). Cắt giữa hai âm tiết của một từ làm ngắt nghỉ sai chỗ.
 4. **Chi phí trên mỗi lần gọi.** Mỗi lần gọi TTS có chi phí cố định (nạp prompt, khởi động bộ giải mã). Cụm quá ngắn làm tổng chi phí tăng và RTF xấu đi.
 
-Đây là một bài toán **ra quyết định trực tuyến**: tại mỗi thời điểm, đã đọc đủ văn bản để phát âm phần đầu chưa, hay nên chờ thêm? Bài toán có cùng cấu trúc với dịch máy đồng thời, nơi chiến lược *wait-k* (Ma và cộng sự, 2019) chỉ dịch từ thứ $i$ khi đã đọc được $i + k$ từ nguồn. Ma và cộng sự (2020) áp dụng ý tưởng "tiền tố sang tiền tố" này cho TTS tăng dần (*incremental TTS*): chỉ tổng hợp từ thứ $i$ khi đã nhìn thấy trước $k$ từ.
+Đây là một bài toán **ra quyết định trực tuyến**: tại mỗi thời điểm, đã đọc đủ văn bản để phát âm phần đầu chưa, hay nên chờ thêm? Bài toán có cùng cấu trúc với dịch máy đồng thời, nơi chiến lược *wait-k* (Ma và cộng sự, 2019) luôn đi sau văn bản nguồn $k$ từ: từ đích thứ $i$ chỉ được sinh khi đã đọc $i + k - 1$ từ nguồn. Ma và cộng sự (2020) áp dụng ý tưởng "tiền tố sang tiền tố" này cho TTS tăng dần (*incremental TTS*): chỉ tổng hợp một từ khi đã nhìn thấy thêm một số từ phía sau nó.
 
 ### Bốn chiến lược
 
