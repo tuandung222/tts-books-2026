@@ -220,7 +220,7 @@ print("log|det J| =", float(logdet))
 assert abs(float(logdet)) < 1e-4
 ```
 
-Vì sao bảo toàn thể tích là đủ? Mục tiêu của flow ở đây không phải là biến một phân phối phức tạp thành $\mathcal{N}(\mathbf{0}, \mathbf{I})$ như trong Glow, vì phần "co giãn" đã có $\boldsymbol{\sigma}_\theta$ của bộ mã hóa văn bản đảm nhận. Flow chỉ cần *bẻ cong* không gian để hậu nghiệm khớp với prior bậc thang. Bài báo gốc nói rõ đây là lựa chọn "cho đơn giản"; VITS2 (Mục 27.9) vẫn giữ nguyên tinh thần này và chỉ thêm khối Transformer vào mạng con.
+Vì sao bảo toàn thể tích là đủ? Mục tiêu của flow ở đây không phải là biến một phân phối phức tạp thành $\mathcal{N}(\mathbf{0}, \mathbf{I})$ như trong Glow, vì phần "co giãn" đã có $\boldsymbol{\sigma}_\theta$ của bộ mã hóa văn bản đảm nhận. Flow chỉ cần *bẻ cong* không gian để hậu nghiệm khớp với prior bậc thang. Bài báo gốc nói rõ đây là lựa chọn "cho đơn giản", và nó có thêm một lợi ích thực tế: không có số hạng co giãn nên không có nguy cơ $\exp(\cdot)$ của hệ số co giãn bùng nổ khi huấn luyện fp16. VITS2 (Mục 27.9) cải tiến flow theo hướng khác: tăng sức biểu diễn của mạng con bằng khối Transformer.
 
 ### 27.3.3. Suy ra số hạng KL như mã chính thức tính
 
