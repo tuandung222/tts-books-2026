@@ -304,7 +304,7 @@ Ký hiệu $\ell_r = D(\mathbf{x}_{\text{thật}})$, $\ell_f = D(G(\mathbf{z}))$
 
 | Biến thể | Loss của $D$ | Loss của $G$ | Dùng trong TTS |
 |---|---|---|---|
-| GAN gốc (NS) | $-\log\sigma(\ell_r) - \log(1 - \sigma(\ell_f))$ | $-\log\sigma(\ell_f)$ | GAN-TTS, nhiều mô hình nghiên cứu |
+| GAN gốc (NS) | $-\log\sigma(\ell_r) - \log(1 - \sigma(\ell_f))$ | $-\log\sigma(\ell_f)$ | Công thức nền tảng, dùng trong nhiều nghiên cứu |
 | LSGAN (0/1/1) | $(\ell_r - 1)^2 + \ell_f^2$ | $(\ell_f - 1)^2$ | Parallel WaveGAN, HiFi-GAN, VITS |
 | Hinge | $\max(0, 1 - \ell_r) + \max(0, 1 + \ell_f)$ | $-\ell_f$ | MelGAN |
 | WGAN-GP | $\ell_f - \ell_r + \lambda\,\text{GP}$ | $-\ell_f$ | Ít dùng cho vocoder |
@@ -387,3 +387,263 @@ for _ in range(20):
     sn(torch.randn(1, 64))                               # mỗi lần forward ở chế độ train cập nhật u, v
 print(f"chuẩn phổ của W/sigma(W): {torch.linalg.matrix_norm(sn.weight.detach(), ord=2):.3f}")
 ```
+
+## 9.7. Các kỹ thuật ổn định hóa
+
+### 9.7.1. Chuẩn hóa phổ
+
+Ý tưởng chung của WGAN, phạt gradient và nhiều kỹ thuật khác là **giữ cho bộ phân biệt mượt**: một bộ phân biệt thay đổi quá đột ngột cho gradient vô nghĩa hoặc bùng nổ. Một cách đo độ mượt là hằng số Lipschitz. Với một mạng là hợp của các lớp tuyến tính và các hàm kích hoạt 1-Lipschitz (ReLU, LeakyReLU), hằng số Lipschitz của cả mạng bị chặn trên bởi **tích** các chuẩn phổ $\sigma(\mathbf{W}_l)$, tức giá trị kỳ dị lớn nhất của từng ma trận trọng số. **Chuẩn hóa phổ** (*spectral normalization*, SN; Miyato và cộng sự, 2018) chia mỗi ma trận cho chuẩn phổ của nó:
+
+$$
+\bar{\mathbf{W}} = \mathbf{W} / \sigma(\mathbf{W}),
+$$
+
+để mỗi lớp có hằng số Lipschitz không quá 1. Tính chính xác $\sigma(\mathbf{W})$ bằng SVD ở mỗi bước là quá đắt, nên SN dùng **phép lặp lũy thừa** (*power iteration*): giữ hai véc-tơ $\mathbf{u}, \mathbf{v}$ qua các bước huấn luyện, mỗi bước cập nhật $\mathbf{v} \leftarrow \mathbf{W}^\top\mathbf{u} / \lVert \mathbf{W}^\top\mathbf{u} \rVert$, $\mathbf{u} \leftarrow \mathbf{W}\mathbf{v} / \lVert \mathbf{W}\mathbf{v} \rVert$, rồi ước lượng $\sigma(\mathbf{W}) \approx \mathbf{u}^\top\mathbf{W}\mathbf{v}$. Vì $\mathbf{W}$ thay đổi chậm giữa các bước, một lần lặp mỗi bước là đủ. Trong PyTorch, dùng `torch.nn.utils.parametrizations.spectral_norm`, như ở cuối đoạn mã mục 9.6.4.
+
+Hai lưu ý thực tế. Với lớp tích chập, PyTorch áp SN lên kernel được "duỗi" thành ma trận kích thước $C_{\text{out}} \times (C_{\text{in}} \cdot k)$; đại lượng này không đúng bằng chuẩn của toán tử tích chập, nên SN ở đây là một xấp xỉ hữu ích chứ không phải bảo đảm chặt. Và các véc-tơ $\mathbf{u}$ được lưu như buffer trong `state_dict`, nên checkpoint phải lưu cả chúng. Trong vocoder, SN và weight normalization ([Chương 3](../phan-1-nen-tang/ch03-toi-uu-va-ky-thuat-huan-luyen.md)) thường được dùng thay cho BatchNorm trong bộ phân biệt; HiFi-GAN, theo báo cáo gốc, dùng SN cho bộ phân biệt con đầu tiên của bộ phân biệt đa thang và weight normalization cho các bộ còn lại ([Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)).
+
+### 9.7.2. Phạt gradient R1
+
+Mescheder và cộng sự (2018) đề xuất phạt chuẩn gradient của bộ phân biệt **chỉ trên dữ liệu thật**:
+
+$$
+R_1(\psi) = \frac{\gamma}{2}\, \mathbb{E}_{\mathbf{x} \sim p_{\text{data}}}\Big[ \big\lVert \nabla_{\mathbf{x}} D_\psi(\mathbf{x}) \big\rVert_2^2 \Big].
+$$
+
+Trực giác: tại điểm cân bằng $p_g = p_{\text{data}}$, ta muốn bộ phân biệt **phẳng** trên dữ liệu, để không có gradient nào đẩy bộ sinh ra khỏi dữ liệu thật. Không có điều chuẩn, bộ phân biệt có thể duy trì độ dốc lớn quanh dữ liệu và làm hệ dao động mãi như trò chơi song tuyến tính ở mục 9.5.2; các tác giả chứng minh rằng với R1 (và biến thể R2 trên dữ liệu giả), động lực học trở nên hội tụ cục bộ. R1 được dùng rộng rãi trong các GAN ảnh hiện đại; StyleGAN2 chỉ tính nó mỗi vài bước (*lazy regularization*) để giảm chi phí lan truyền ngược hai lần (Karras và cộng sự, 2020).
+
+Thí nghiệm sau huấn luyện một LSGAN trên dữ liệu một chiều có hai mode tại $\pm 2$, so sánh không phạt và phạt R1 với $\gamma = 2$:
+
+```python
+import torch
+import torch.nn as nn
+
+def sample_real(n):
+    """Dữ liệu thật: hỗn hợp hai mode tại -2 và +2, độ lệch chuẩn 0.25."""
+    sign = torch.where(torch.rand(n, 1) < 0.5, -1.0, 1.0)
+    return 2.0 * sign + 0.25 * torch.randn(n, 1)                      # (n, 1)
+
+def mlp(d_in, d_out):
+    return nn.Sequential(nn.Linear(d_in, 64), nn.LeakyReLU(0.2),
+                         nn.Linear(64, 64), nn.LeakyReLU(0.2), nn.Linear(64, d_out))
+
+def train_lsgan(r1_gamma=0.0, steps=2000, seed=0):
+    torch.manual_seed(seed)
+    G, D = mlp(4, 1), mlp(1, 1)                       # G: z (4 chiều) -> x; D: x -> điểm số (không sigmoid)
+    opt_g = torch.optim.Adam(G.parameters(), lr=1e-3, betas=(0.5, 0.9))
+    opt_d = torch.optim.Adam(D.parameters(), lr=1e-3, betas=(0.5, 0.9))
+    for _ in range(steps):
+        x_real = sample_real(256).requires_grad_(r1_gamma > 0)
+        x_fake = G(torch.randn(256, 4))
+        # --- Bước D: LSGAN, nhãn thật = 1, giả = 0 (quy ước của HiFi-GAN) ---
+        d_real = D(x_real)
+        d_loss = ((d_real - 1) ** 2).mean() + (D(x_fake.detach()) ** 2).mean()
+        if r1_gamma > 0:                              # phạt R1: (gamma/2) * E ||grad_x D(x_real)||^2
+            grad, = torch.autograd.grad(d_real.sum(), x_real, create_graph=True)
+            d_loss = d_loss + 0.5 * r1_gamma * grad.pow(2).sum(dim=1).mean()
+        opt_d.zero_grad(); d_loss.backward(); opt_d.step()
+        # --- Bước G: muốn D(G(z)) tiến về 1 ---
+        g_loss = ((D(x_fake) - 1) ** 2).mean()
+        opt_g.zero_grad(); g_loss.backward(); opt_g.step()
+    with torch.no_grad():
+        x = G(torch.randn(10_000, 4)).squeeze(1)
+    return {"mode -2": ((x + 2).abs() < 0.75).float().mean().item(),
+            "mode +2": ((x - 2).abs() < 0.75).float().mean().item(),
+            "vùng giữa": (x.abs() < 1.0).float().mean().item()}
+
+for gamma in (0.0, 2.0):
+    stats = train_lsgan(r1_gamma=gamma)
+    print(f"R1 gamma={gamma}: " + "  ".join(f"{k}={v:.3f}" for k, v in stats.items()))
+```
+
+Với hạt giống 0, LSGAN không phạt **sụp mode** hoàn toàn: gần 100% mẫu nằm ở mode $-2$, mode $+2$ bị bỏ quên. Có R1, mẫu chia đều cho hai mode. Đây không phải may rủi của một hạt giống: khi người biên soạn lặp lại với 8 hạt giống, bản không phạt sụp mode ở 7/8 lần, bản có R1 phủ cả hai mode ở cả 8 lần. (Cũng trong thử nghiệm đó, chỉ đổi sang tốc độ học kiểu TTUR ở mục 9.7.3 không đủ để tránh sụp mode, còn cho bộ phân biệt nhìn từng cặp mẫu theo kiểu PacGAN thì có tác dụng.) Con số cụ thể có thể khác trên máy của bạn, nhưng xu hướng thì rõ ràng.
+
+Chú ý cột "vùng giữa": bản có R1 vẫn đặt vài phần trăm mẫu vào khoảng $(-1, 1)$, nơi dữ liệu thật gần như không có. Lý do mang tính tô-pô: $G$ là một hàm liên tục từ không gian nhiễu **liên thông** sang trục số, nên ảnh của nó cũng liên thông và không thể tách làm hai mảnh rời nhau; một ít khối lượng xác suất buộc phải "bắc cầu" qua khoảng trống. Với dữ liệu thật có nhiều cụm tách biệt, đây là một giới hạn cố hữu của bộ sinh liên tục.
+
+### 9.7.3. Cập nhật hai thang thời gian (TTUR)
+
+Heusel và cộng sự (2017) chứng minh, dưới một số giả định, rằng huấn luyện GAN hội tụ về một cân bằng Nash cục bộ nếu $D$ và $G$ dùng **tốc độ học khác nhau** sao cho $D$ "theo kịp" $G$ (cập nhật hai thang thời gian, TTUR). Cùng bài báo đó giới thiệu thước đo FID ([Chương 7](ch07-tong-quan-mo-hinh-sinh.md)). Trong thực hành, nhiều GAN ảnh đặt tốc độ học của $D$ lớn hơn của $G$ (ví dụ SAGAN, theo báo cáo gốc, dùng $4 \times 10^{-4}$ cho $D$ và $10^{-4}$ cho $G$; Zhang và cộng sự, 2019). Như thí nghiệm ở mục trên gợi ý, TTUR một mình không phải thuốc chữa bách bệnh; nó thường được kết hợp với các điều chuẩn khác.
+
+### 9.7.4. Feature matching
+
+Salimans và cộng sự (2016) đề xuất cho $G$ một mục tiêu phụ: khớp **thống kê** của các đặc trưng trung gian $\mathbf{f}(\cdot)$ của bộ phân biệt giữa dữ liệu thật và dữ liệu giả, $\lVert \mathbb{E}_{p_{\text{data}}}\mathbf{f}(\mathbf{x}) - \mathbb{E}_{\mathbf{z}}\mathbf{f}(G(\mathbf{z})) \rVert_2^2$. Thay vì "đánh lừa $D$ ở đầu ra", $G$ được yêu cầu tạo ra mẫu có biểu diễn bên trong $D$ giống dữ liệu thật.
+
+Các vocoder GAN dùng một **biến thể có cặp**: vì mỗi mel-spectrogram có đúng một dạng sóng thật tương ứng, ta so sánh feature map của dạng sóng thật $\mathbf{s}$ và dạng sóng sinh $G(\mathbf{m})$ (với $\mathbf{m}$ là mel điều kiện) **theo từng lớp**, bằng khoảng cách L1:
+
+$$
+\mathcal{L}_{\text{FM}}(G; D) = \mathbb{E}\Big[ \sum_{i=1}^{L_D} \frac{1}{N_i} \big\lVert D^{(i)}(\mathbf{s}) - D^{(i)}(G(\mathbf{m})) \big\rVert_1 \Big],
+$$
+
+trong đó $D^{(i)}$ là feature map ở lớp thứ $i$ của bộ phân biệt và $N_i$ là số phần tử của nó (Kumar và cộng sự, 2019; Kong và cộng sự, 2020). Loss này hoạt động như một **khoảng cách cảm nhận được học**: bộ phân biệt học ra những đặc trưng phân biệt thật–giả, và bộ sinh được yêu cầu khớp chính những đặc trưng đó. Nó cung cấp gradient dày đặc và ổn định hơn loss đối kháng thuần. Hàm `feature_matching_loss` ở mục 9.6.4 cài đặt đúng công thức này; lưu ý feature map của mẫu thật được `detach()` vì loss chỉ dùng để cập nhật $G$. Ý tưởng dùng đặc trưng của bộ phân biệt làm thước đo tương đồng cũng xuất hiện sớm trong VAE-GAN (Larsen và cộng sự, 2016).
+
+### 9.7.5. Các mẹo khác
+
+- **Adam với $\beta_1$ nhỏ**: $\beta_1 = 0.9$ mặc định có thể làm dao động mạnh hơn trong trò chơi; các lựa chọn như $0.5$ (DCGAN; Radford và cộng sự, 2016) hoặc $0.8$ (HiFi-GAN, theo báo cáo gốc) phổ biến hơn.
+- **Không dùng BatchNorm trong bộ phân biệt** khi mẫu thật và mẫu giả được đưa vào thành các batch riêng: thống kê batch "tố cáo" batch đó là thật hay giả. Ưu tiên SN, weight normalization hoặc không chuẩn hóa.
+- **EMA của trọng số bộ sinh** ([Chương 3](../phan-1-nen-tang/ch03-toi-uu-va-ky-thuat-huan-luyen.md)) thường cho mẫu ổn định hơn so với trọng số tại bước cuối, vì nó làm trơn dao động của trò chơi.
+- **Cẩn thận với mixed precision**: loss đối kháng và phạt gradient dễ tràn số trong fp16; dùng bf16 nếu phần cứng hỗ trợ, hoặc GradScaler riêng cho mỗi bộ tối ưu.
+
+## 9.8. GAN có điều kiện
+
+### 9.8.1. Đưa điều kiện vào cả hai mạng
+
+**GAN có điều kiện** (cGAN; Mirza và Osindero, 2014) cho cả hai mạng nhìn thấy điều kiện $\mathbf{c}$: bộ sinh $G(\mathbf{z}, \mathbf{c})$ và bộ phân biệt $D(\mathbf{x}, \mathbf{c})$. Bộ phân biệt giờ không chỉ hỏi "mẫu này có thật không" mà hỏi "mẫu này có thật **và khớp với điều kiện** không". Cách đưa $\mathbf{c}$ vào $D$ ảnh hưởng đáng kể đến chất lượng: ghép (*concatenate*) $\mathbf{c}$ vào đầu vào là cách đơn giản nhất; **bộ phân biệt chiếu** (*projection discriminator*; Miyato và Koyama, 2018) cộng thêm vào đầu ra một số hạng tích vô hướng $\mathbf{e}(\mathbf{c})^\top \boldsymbol{\phi}(\mathbf{x})$ giữa embedding của điều kiện và đặc trưng của mẫu, được thúc đẩy bởi dạng của log-tỉ số mật độ có điều kiện.
+
+### 9.8.2. Loss tái tạo cộng loss đối kháng
+
+Khi dữ liệu có cặp (điều kiện, đáp án), như ảnh–ảnh trong pix2pix (Isola và cộng sự, 2017) hay mel–dạng sóng trong vocoder, công thức hiệu quả nhất là **kết hợp** một loss tái tạo với loss đối kháng:
+
+$$
+\mathcal{L}_G = \mathcal{L}_{\text{adv}}(G; D) + \lambda_{\text{FM}}\, \mathcal{L}_{\text{FM}}(G; D) + \lambda_{\text{rec}}\, \mathcal{L}_{\text{rec}}(G).
+$$
+
+Hai loại loss chia nhau công việc rất rõ ràng, và sự phân công này nối thẳng về [Chương 7](ch07-tong-quan-mo-hinh-sinh.md):
+
+- **Loss tái tạo** (L1 trên mel, hay loss STFT đa độ phân giải) bảo đảm phần **được điều kiện quyết định**: đường bao phổ, nội dung, cấu trúc tần số thấp. Đây là phần gần như một–một, nơi hồi quy không gây hại. Đặt loss trên **biên độ** phổ thay vì trên dạng sóng giúp nó bất biến với pha, nên không rơi vào bẫy "trung bình pha bằng im lặng".
+- **Loss đối kháng** (và feature matching) xử lý phần **một–nhiều còn lại**: pha, cấu trúc hài tinh, các chi tiết tần số cao mà bất kỳ loss khoảng cách nào cũng sẽ làm nhòe.
+
+Một quan sát thú vị: bộ sinh của MelGAN và HiFi-GAN **không nhận nhiễu đầu vào**; với cùng một mel, chúng luôn cho cùng một dạng sóng. Các tác giả MelGAN báo cáo rằng thêm nhiễu vào bộ sinh hầu như không tạo ra khác biệt cảm nhận được (Kumar và cộng sự, 2019). Ở đây loss đối kháng **không** được dùng để tạo đa dạng, mà như một **hàm mất mát được học** không trung bình hóa: trong vô số dạng sóng tương thích với một mel (khác nhau ở pha), bộ sinh chỉ cần chọn ra *một* dạng sóng nghe thật, thay vì trung bình của tất cả.
+
+### 9.8.3. GAN trong mô hình âm học và hệ thống end-to-end
+
+Ngoài vocoder, loss đối kháng xuất hiện ở nhiều chỗ khác trong TTS: làm bộ hậu lọc chống trơn quá mức cho đặc trưng phổ trong tổng hợp tham số (Kaneko và cộng sự, 2017; Saito và cộng sự, 2018); làm thành phần giải mã của VITS, nơi bộ sinh HiFi-GAN được huấn luyện trực tiếp từ biến ẩn ([Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)); và trong StyleTTS 2, nơi các mô hình tiếng nói tiền huấn luyện lớn được dùng làm bộ phân biệt ([Chương 29](../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach.md)).
+
+## 9.9. GAN cho âm thanh: vì sao cần nhiều bộ phân biệt và loss phổ
+
+Áp dụng GAN trực tiếp lên dạng sóng gặp những khó khăn riêng mà ảnh không có. Phần này chỉ phác thảo lý do; kiến trúc cụ thể ở [Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md).
+
+- **Chuỗi rất dài.** Một giây âm thanh ở 22 050 Hz có hơn 22 nghìn mẫu. Một bộ phân biệt với trường tiếp nhận hữu hạn ([Chương 4](../phan-1-nen-tang/ch04-cnn-rnn-mo-hinh-chuoi.md)) chỉ "nhìn" được một cửa sổ nhỏ.
+- **Cấu trúc ở nhiều thang thời gian.** Chu kỳ cao độ (vài mili giây), đường bao formant (hàng chục mili giây), năng lượng của âm tiết và cụm từ (hàng trăm mili giây) đều quan trọng với tai người. Một bộ phân biệt đơn lẻ khó nhạy với tất cả.
+- **Tính tuần hoàn.** Giọng hữu thanh là tín hiệu gần tuần hoàn; lỗi chu kỳ nhỏ nghe rất rõ thành tiếng rè, tiếng "kim loại".
+- **Pha.** Hai dạng sóng nghe giống hệt nhau có thể khác nhau hoàn toàn về giá trị từng mẫu.
+
+Các giải pháp đã thành chuẩn:
+
+1. **Bộ phân biệt đa thang** (*multi-scale discriminator*, MSD; MelGAN): cùng một kiến trúc áp lên dạng sóng gốc và các phiên bản lấy mẫu xuống ×2, ×4, mỗi bộ chuyên về một dải thời gian–tần số.
+2. **Bộ phân biệt đa chu kỳ** (*multi-period discriminator*, MPD; HiFi-GAN): xếp lại dạng sóng một chiều thành mảng hai chiều theo các chu kỳ $p$ (theo bài báo gốc là các số nguyên tố 2, 3, 5, 7, 11) rồi dùng tích chập hai chiều, để bắt cấu trúc tuần hoàn ở nhiều chu kỳ khác nhau.
+3. **Bộ phân biệt trên phổ** ở nhiều độ phân giải (UnivNet và các hậu duệ), nhìn tín hiệu trong miền thời gian–tần số.
+4. **Loss phổ phụ trợ**: loss STFT đa độ phân giải (Parallel WaveGAN; Yamamoto và cộng sự, 2020) hoặc mel L1 (HiFi-GAN). Chúng cung cấp tín hiệu dày đặc, ổn định ngay từ đầu, khớp với cảm nhận của tai người, giúp hội tụ nhanh hơn nhiều so với chỉ dùng loss đối kháng.
+
+```mermaid
+flowchart LR
+    M["Mel-spectrogram"] --> G["Bộ sinh G (upsampling)"]
+    G --> W["Dạng sóng sinh"]
+    S["Dạng sóng thật"] --> MPD["MPD (đa chu kỳ)"]
+    S --> MSD["MSD (đa thang)"]
+    W --> MPD
+    W --> MSD
+    MPD --> ADV["Loss đối kháng + feature matching"]
+    MSD --> ADV
+    W --> MEL["Mel của dạng sóng sinh"]
+    MEL --> L1["Mel L1 với mel thật"]
+    ADV --> TOT["Tổng loss của G"]
+    L1 --> TOT
+```
+
+Lịch sử các thử nghiệm GAN cho âm thanh cũng phản ánh những khó khăn này: WaveGAN (Donahue và cộng sự, 2019) sinh dạng sóng ngắn không điều kiện; GANSynth (Engel và cộng sự, 2019) sinh biểu diễn phổ cho âm nhạc; GAN-TTS (Bińkowski và cộng sự, 2020) dùng một tập các bộ phân biệt trên các cửa sổ ngẫu nhiên. Công thức "nhiều bộ phân biệt + loss phổ" của MelGAN, Parallel WaveGAN và HiFi-GAN là bước đột phá đưa vocoder GAN thành lựa chọn mặc định của các hệ thống TTS hai giai đoạn.
+
+!!! note "Góc tiếng Việt"
+    - **Vocoder phải giữ nguyên đường F0.** Thanh điệu tiếng Việt được mang chủ yếu bởi đường F0 và chất giọng. Một vocoder GAN tái tạo F0 lệch chút ít có thể làm thanh sắc nghe như thanh ngang, hoặc làm mất điểm trũng của thanh hỏi. Khi đánh giá vocoder cho tiếng Việt, ngoài MOS hãy đo sai số F0 và thử các cặp tối thiểu thanh điệu ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)).
+    - **Giọng thanh quản hóa là "ca khó".** Thanh ngã và thanh nặng (đặc biệt ở giọng Bắc) thường đi kèm hiện tượng thanh quản hóa, với các xung thanh môn không đều. Bộ phân biệt đa chu kỳ được thiết kế để thưởng cho tính tuần hoàn; trên những đoạn chủ ý *không* tuần hoàn, vocoder có thể sinh tiếng rè hoặc "làm đều" xung thanh môn. Hãy bảo đảm dữ liệu fine-tune có đủ những âm tiết này, và nghe kỹ chúng khi kiểm tra.
+    - **Vocoder "phổ quát" và dữ liệu tiếng Việt.** Các vocoder tiền huấn luyện trên dữ liệu đa ngôn ngữ lớn thường dùng tốt ngay cho tiếng Việt, nhưng quãng F0 rộng và các đường cong cao độ dốc của một số thanh có thể nằm ở rìa phân phối huấn luyện. Fine-tune vocoder trên mel do chính mô hình âm học của bạn sinh ra (*ground-truth-aligned*, [Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)) với dữ liệu tiếng Việt thường là bước cải thiện rẻ và hiệu quả.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Quên `detach()` mẫu giả ở bước cập nhật $D$.** Gradient của loss $D$ sẽ chảy vào $G$, vừa tốn tính toán vừa làm sai cập nhật nếu bộ tối ưu của $G$ vô tình được gọi. Luôn dùng `D(x_fake.detach())` ở bước $D$, và `D(x_fake)` (không detach) ở bước $G$.
+- **Gradient của $D$ tích lũy từ bước $G$.** Lan truyền ngược loss của $G$ đi xuyên qua $D$ và ghi gradient vào tham số của $D$. Nếu không gọi `opt_d.zero_grad()` trước bước $D$ kế tiếp, các gradient này bị cộng dồn. Có thể tạm đặt `requires_grad_(False)` cho tham số của $D$ trong bước $G$ để tiết kiệm bộ nhớ.
+- **Dùng `sigmoid` + `BCELoss`.** Không ổn định số học khi logit lớn. Dùng `BCEWithLogitsLoss` hoặc `logsigmoid` như trong mã ở mục 9.6.4.
+- **Đọc loss như đọc loss của bài toán cực tiểu.** Loss của $D$ tiến về 0 nghĩa là $D$ đã thắng hoàn toàn, thường là dấu hiệu xấu; loss của $G$ tăng chưa chắc là xấu. Đánh giá bằng mẫu và các loss phụ trợ.
+- **Không phát hiện sụp mode.** Với GAN không điều kiện, sinh nhiều mẫu và đo độ đa dạng; với vocoder, sụp mode thường hiện ra dưới dạng âm sắc "đồng phục" hoặc tiếng ù lặp lại ở mọi câu.
+- **Bộ phân biệt học thuộc dữ liệu nhỏ.** Với vài giờ dữ liệu, $D$ có thể học thuộc tập huấn luyện: điểm số của $D$ trên dữ liệu thật ở tập validation giảm dần so với tập huấn luyện. Biện pháp: tăng cường dữ liệu, điều chuẩn mạnh hơn (R1, SN), hoặc khởi đầu từ một vocoder đã tiền huấn luyện.
+- **Cân bằng trọng số các loss.** Trọng số của loss tái tạo quá lớn làm mẫu trở về nhòe; quá nhỏ làm huấn luyện bất ổn và chậm. Bắt đầu từ trọng số của một công thức đã được kiểm chứng (ví dụ của HiFi-GAN, [Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)) rồi mới điều chỉnh.
+- **Tạo tác bàn cờ** (*checkerboard*) do tích chập chuyển vị với kernel không chia hết cho stride ([Chương 4](../phan-1-nen-tang/ch04-cnn-rnn-mo-hinh-chuoi.md)) nghe thành tiếng rít ở một tần số cố định; bộ phân biệt có thể không đủ mạnh để loại bỏ hoàn toàn.
+
+## Tóm tắt
+
+- GAN học một bộ sinh ngầm định $\mathbf{x} = G(\mathbf{z})$ bằng cách đối kháng với một bộ phân biệt; lấy mẫu chỉ cần một lượt truyền xuôi, nhưng không có mật độ $p_g(\mathbf{x})$.
+- Bộ phân biệt tối ưu là $D^\ast = p_{\text{data}}/(p_{\text{data}} + p_g)$, tức một bộ ước lượng tỉ số mật độ; với $D$ tối ưu, trò chơi minimax tương đương cực tiểu $2\,\mathrm{JSD} - \log 4$.
+- Mục tiêu minimax gốc bão hòa khi $D$ từ chối mẫu giả một cách tự tin; mục tiêu không bão hòa sửa điều đó nhưng tương ứng với một tổ hợp chứa KL ngược, giải thích xu hướng "sắc nét nhưng thiếu đa dạng".
+- Sụp mode và dao động là hai bệnh cố hữu: phản ứng tốt nhất của $G$ với một $D$ cố định là một Dirac, và gradient descent trên trò chơi có thể xoắn ốc hoặc quay vòng thay vì hội tụ.
+- LSGAN, hinge và WGAN(-GP) thay đổi phân kỳ được tối ưu và tính chất gradient; LSGAN với mã hóa 0/1/1 là lựa chọn của nhiều vocoder.
+- Chuẩn hóa phổ, phạt R1, TTUR và feature matching giữ cho bộ phân biệt mượt và có thông tin; trong thí nghiệm đồ chơi, R1 ngăn sụp mode một cách nhất quán.
+- Với dữ liệu có cặp, công thức "loss tái tạo trên biên độ phổ + loss đối kháng + feature matching" phân công rõ: phần được điều kiện quyết định cho loss tái tạo, phần một–nhiều (pha, chi tiết tinh) cho loss đối kháng.
+- Vocoder GAN cần bộ phân biệt đa thang, đa chu kỳ hoặc trên phổ, cùng loss phổ phụ trợ, để xử lý chuỗi dài, cấu trúc nhiều thang và tính tuần hoàn của tiếng nói.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Chứng minh lại $D^\ast_G(\mathbf{x}) = p_{\text{data}}(\mathbf{x}) / (p_{\text{data}}(\mathbf{x}) + p_g(\mathbf{x}))$ và chỉ ra rằng tại điểm cân bằng $p_g = p_{\text{data}}$ ta có $D^\ast \equiv 1/2$, $V = -\log 4$. Điều gì xảy ra với $D^\ast$ tại những điểm $\mathbf{x}$ có $p_{\text{data}}(\mathbf{x}) > 0$ nhưng $p_g(\mathbf{x}) = 0$?
+
+??? success "Lời giải"
+    Xem mục 9.3.1. Khi $p_g = p_{\text{data}}$: $D^\ast = p/(2p) = 1/2$, và $V = \mathbb{E}_p[\log \tfrac12] + \mathbb{E}_p[\log \tfrac12] = -2\log 2 = -\log 4$. Tại điểm có $p_g = 0 < p_{\text{data}}$: $D^\ast = 1$, bộ phân biệt chắc chắn đó là mẫu thật. Nếu phần lớn giá của dữ liệu nằm ngoài giá của $p_g$ (và ngược lại), $D^\ast$ chỉ nhận giá trị 0 hoặc 1: bộ phân biệt hoàn hảo, nguồn gốc của hiện tượng gradient biến mất ở mục 9.3.3.
+
+**Bài 2 [Cơ bản].** Với $D(G(\mathbf{z})) = 0.001$, tính đạo hàm theo logit của (a) mục tiêu minimax gốc $\log(1 - D)$, (b) mục tiêu không bão hòa $-\log D$, (c) mục tiêu LSGAN của $G$ $(\ell - 1)^2$ nếu $D$ là LSGAN với logit $\ell = -2$. Nhận xét.
+
+??? success "Lời giải"
+    (a) $-\sigma(\ell) = -0.001$. (b) $-(1 - \sigma(\ell)) = -0.999$. (c) $2(\ell - 1) = -6$. Mục tiêu gốc gần như không có gradient; NS và LSGAN cho gradient lớn, với LSGAN tỉ lệ với khoảng cách từ $\ell$ tới nhãn mục tiêu, nên mẫu càng "tệ" càng bị kéo mạnh.
+
+**Bài 3 [Cơ bản].** Chứng minh $0 \le \mathrm{JSD}(p \Vert q) \le \log 2$ và JSD đạt $\log 2$ khi $p$ và $q$ có giá rời nhau.
+
+??? success "Lời giải"
+    JSD là trung bình của hai KL không âm nên không âm. Với cận trên: $\mathrm{JSD} = \tfrac12\mathbb{E}_p[\log \tfrac{2p}{p+q}] + \tfrac12\mathbb{E}_q[\log \tfrac{2q}{p+q}]$, và vì $\tfrac{p}{p+q} \le 1$, $\tfrac{q}{p+q} \le 1$, mỗi số hạng không vượt quá $\tfrac12\log 2$. Khi giá rời nhau, tại nơi $p > 0$ thì $q = 0$, nên $\tfrac{2p}{p+q} = 2$; tương tự cho $q$. Do đó JSD $= \tfrac12\log 2 + \tfrac12\log 2 = \log 2$.
+
+**Bài 4 [Nâng cao].** Với LSGAN tổng quát (nhãn $a, b, c$): (a) suy ra $D^\ast$; (b) suy ra biểu thức $2C(G)$ ở mục 9.6.1; (c) chứng minh rằng với mã hóa $a = 0, b = 1, c = 1$, giá trị $C(G)$ vẫn đạt cực tiểu khi $p_g = p_{\text{data}}$, dù nó không còn là một phân kỳ $\chi^2$ theo đúng nghĩa của bài báo.
+
+??? tip "Gợi ý"
+    (c) Với $a = 0, b = c = 1$: tử số là $(0 \cdot p_{\text{data}} - p_g)^2 = p_g^2$, nên $2C(G) = \int p_g^2/(p_{\text{data}} + p_g)\, d\mathbf{x}$. Đặt $r = p_g / (p_{\text{data}} + p_g)$ và dùng bất đẳng thức Cauchy–Schwarz với ràng buộc $\int p_g = 1$, $\int (p_{\text{data}} + p_g) = 2$ để chứng minh $2C(G) \ge 1/2$, dấu bằng khi $r$ là hằng số, tức $p_g = p_{\text{data}}$.
+
+**Bài 5 [Nâng cao].** Cho $p_{\text{data}} = \delta_0$ và $p_\theta = \delta_\theta$ trên $\mathbb{R}$. Tính $D_{\mathrm{KL}}(p_{\text{data}} \Vert p_\theta)$, $\mathrm{JSD}(p_{\text{data}} \Vert p_\theta)$ và $W(p_{\text{data}}, p_\theta)$ theo $\theta$. Hàm nào cho gradient hữu ích để đưa $\theta$ về 0? Liên hệ với tình huống mel-spectrogram thật và sinh ra nằm trên hai đa tạp ít chiều khác nhau.
+
+??? success "Lời giải"
+    Với $\theta \ne 0$: KL $= +\infty$ (dữ liệu có khối lượng ở nơi mô hình bằng 0); JSD $= \log 2$ (giá rời nhau, Bài 3); $W = \lvert\theta\rvert$ (phải dời khối lượng một đoạn $\lvert\theta\rvert$). Với $\theta = 0$ cả ba bằng 0. Chỉ $W$ có gradient $\operatorname{sign}(\theta)$ khác 0 và chỉ đúng hướng. Khi hai phân phối nằm trên những đa tạp ít chiều gần như không giao nhau, tình huống tương tự xảy ra trên quy mô lớn: JSD không phân biệt "gần" với "xa", là động lực của WGAN và của các phép điều chuẩn làm $D$ mượt.
+
+**Bài 6 [Nâng cao].** Với trò chơi $\min_x\max_y xy$: (a) viết ma trận cập nhật của gradient descent–ascent đồng thời và luân phiên với tốc độ học $\eta$; (b) tính định thức và vết, suy ra mô-đun các trị riêng; (c) giải thích vì sao cập nhật luân phiên không phân kỳ nhưng cũng không hội tụ khi $\eta < 2$.
+
+??? success "Lời giải"
+    (a) Đồng thời: $\mathbf{M}_s = \begin{pmatrix} 1 & -\eta \\ \eta & 1 \end{pmatrix}$. Luân phiên: $x' = x - \eta y$, $y' = y + \eta x' = \eta x + (1 - \eta^2) y$, nên $\mathbf{M}_a = \begin{pmatrix} 1 & -\eta \\ \eta & 1 - \eta^2 \end{pmatrix}$. (b) $\det \mathbf{M}_s = 1 + \eta^2$, trị riêng $1 \pm i\eta$ có mô-đun $\sqrt{1 + \eta^2} > 1$: phân kỳ. $\det \mathbf{M}_a = 1$, $\operatorname{tr}\mathbf{M}_a = 2 - \eta^2$. (c) Với $\eta < 2$, $\lvert \operatorname{tr} \rvert < 2$ nên hai trị riêng là cặp phức liên hợp có tích bằng 1, tức mô-đun đúng bằng 1: quỹ đạo quay quanh gốc trên một đường cong kín, không phân kỳ cũng không hội tụ. Cần thêm một cơ chế "giảm chấn" (điều chuẩn, phương pháp optimistic, phạt gradient) để hội tụ.
+
+**Bài 7 [Lập trình].** Mở rộng thí nghiệm ở mục 9.7.2: dùng các hàm `d_loss_fn`, `g_loss_fn` ở mục 9.6.4 để so sánh bốn biến thể (NS, LSGAN, hinge, WGAN-GP), mỗi biến thể có và không có R1, trên 4 hạt giống. Đếm số lần phủ đủ hai mode (ví dụ mỗi mode nhận ít nhất 30% mẫu). Ghi lại thời gian chạy của mỗi cấu hình.
+
+??? tip "Gợi ý"
+    Với WGAN-GP, dùng `gradient_penalty` thay cho R1 và có thể cập nhật critic vài bước cho mỗi bước của bộ sinh. Để so sánh công bằng, giữ nguyên kiến trúc, số bước và tốc độ học. Báo cáo kết quả dưới dạng bảng "số lần phủ đủ / 4".
+
+**Bài 8 [Lập trình].** Cài đặt ý tưởng PacGAN cho thí nghiệm ở mục 9.7.2: bộ phân biệt nhận $k = 2$ mẫu cùng lúc (đầu vào 2 chiều), cả thật lẫn giả đều được "đóng gói" theo cặp bằng `x.view(-1, 2)`. So sánh tỉ lệ sụp mode với bản gốc trên vài hạt giống và giải thích trực giác: vì sao nhìn hai mẫu một lúc giúp $D$ phát hiện sụp mode?
+
+??? tip "Gợi ý"
+    Nếu $G$ sụp về một mode, mọi cặp mẫu giả đều có hai phần tử gần nhau, trong khi cặp mẫu thật có xác suất 1/2 gồm hai phần tử ở hai mode khác nhau. Bộ phân biệt nhìn cặp nên phát hiện được sự khác biệt về **phân phối đồng thời** này, điều mà bộ phân biệt nhìn từng mẫu riêng lẻ không thể làm.
+
+**Bài 9 [Lập trình].** Viết lớp `MultiScaleDiscriminator` cho dạng sóng (đầu vào `(B, 1, L)`): ba bộ phân biệt con giống nhau (vài lớp `Conv1d` có stride, LeakyReLU, bọc weight normalization), lần lượt nhận dạng sóng gốc và dạng sóng đã qua `AvgPool1d(4, 2, padding=2)` một và hai lần. Mỗi bộ trả về điểm số và danh sách feature map. Viết hàm tính tổng loss LSGAN của $D$, của $G$ và loss feature matching trên cả ba thang, kèm kiểm thử hình dạng với `L = 8192`.
+
+## Tài liệu tham khảo
+
+1. Goodfellow, I. và cộng sự (2014). *Generative Adversarial Nets*. NeurIPS.
+2. Goodfellow, I. (2016). *NIPS 2016 Tutorial: Generative Adversarial Networks*. arXiv.
+3. Arjovsky, M., Bottou, L. (2017). *Towards Principled Methods for Training Generative Adversarial Networks*. ICLR.
+4. Arjovsky, M., Chintala, S., Bottou, L. (2017). *Wasserstein Generative Adversarial Networks*. ICML.
+5. Gulrajani, I. và cộng sự (2017). *Improved Training of Wasserstein GANs*. NeurIPS.
+6. Villani, C. (2008). *Optimal Transport: Old and New*. Springer.
+7. Nowozin, S., Cseke, B., Tomioka, R. (2016). *f-GAN: Training Generative Neural Samplers using Variational Divergence Minimization*. NeurIPS.
+8. Mao, X. và cộng sự (2017). *Least Squares Generative Adversarial Networks*. ICCV.
+9. Lim, J. H., Ye, J. C. (2017). *Geometric GAN*. arXiv.
+10. Brock, A., Donahue, J., Simonyan, K. (2019). *Large Scale GAN Training for High Fidelity Natural Image Synthesis*. ICLR.
+11. Miyato, T., Kataoka, T., Koyama, M., Yoshida, Y. (2018). *Spectral Normalization for Generative Adversarial Networks*. ICLR.
+12. Miyato, T., Koyama, M. (2018). *cGANs with Projection Discriminator*. ICLR.
+13. Mescheder, L., Geiger, A., Nowozin, S. (2018). *Which Training Methods for GANs do actually Converge?* ICML.
+14. Karras, T. và cộng sự (2020). *Analyzing and Improving the Image Quality of StyleGAN*. CVPR.
+15. Heusel, M. và cộng sự (2017). *GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium*. NeurIPS.
+16. Zhang, H., Goodfellow, I., Metaxas, D., Odena, A. (2019). *Self-Attention Generative Adversarial Networks*. ICML.
+17. Salimans, T. và cộng sự (2016). *Improved Techniques for Training GANs*. NeurIPS.
+18. Lin, Z., Khetan, A., Fanti, G., Oh, S. (2018). *PacGAN: The Power of Two Samples in Generative Adversarial Networks*. NeurIPS.
+19. Metz, L., Poole, B., Pfau, D., Sohl-Dickstein, J. (2017). *Unrolled Generative Adversarial Networks*. ICLR.
+20. Radford, A., Metz, L., Chintala, S. (2016). *Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks*. ICLR.
+21. Larsen, A. B. L. và cộng sự (2016). *Autoencoding beyond Pixels using a Learned Similarity Metric*. ICML.
+22. Mirza, M., Osindero, S. (2014). *Conditional Generative Adversarial Nets*. arXiv.
+23. Isola, P., Zhu, J.-Y., Zhou, T., Efros, A. A. (2017). *Image-to-Image Translation with Conditional Adversarial Networks*. CVPR.
+24. Kaneko, T. và cộng sự (2017). *Generative Adversarial Network-Based Postfilter for Statistical Parametric Speech Synthesis*. ICASSP.
+25. Saito, Y., Takamichi, S., Saruwatari, H. (2018). *Statistical Parametric Speech Synthesis Incorporating Generative Adversarial Networks*. IEEE/ACM Transactions on Audio, Speech, and Language Processing.
+26. Donahue, C., McAuley, J., Puckette, M. (2019). *Adversarial Audio Synthesis*. ICLR.
+27. Engel, J. và cộng sự (2019). *GANSynth: Adversarial Neural Audio Synthesis*. ICLR.
+28. Bińkowski, M. và cộng sự (2020). *High Fidelity Speech Synthesis with Adversarial Networks*. ICLR.
+29. Kumar, K. và cộng sự (2019). *MelGAN: Generative Adversarial Networks for Conditional Waveform Synthesis*. NeurIPS.
+30. Yamamoto, R., Song, E., Kim, J.-M. (2020). *Parallel WaveGAN: A Fast Waveform Generation Model Based on Generative Adversarial Networks with Multi-Resolution Spectrogram*. ICASSP.
+31. Kong, J., Kim, J., Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS.
+32. Kim, J., Kong, J., Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML.
