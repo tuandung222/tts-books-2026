@@ -318,3 +318,271 @@ def load_vn_frontend() -> TextFrontend | None:
 
 !!! warning "Front-end lúc phục vụ phải giống lúc huấn luyện"
     Nếu bản ghi lời của dữ liệu huấn luyện được chuẩn hóa bằng `vn_frontend` phiên bản X, dịch vụ cũng phải dùng đúng phiên bản X. Một thay đổi nhỏ, chẳng hạn đọc "2025" là "hai nghìn không trăm hai mươi lăm" thay vì "hai không hai lăm", đủ làm mô hình gặp chuỗi ký hiệu chưa từng thấy. Hãy ghim phiên bản front-end cùng phiên bản mô hình ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md)).
+
+### 4.2. Chia đoạn với trần độ dài tăng dần
+
+`chunk_text` làm bốn việc theo thứ tự. Đầu tiên nó tách câu và chuẩn hóa từng câu, rồi bỏ các "câu" không có chữ hay số nào (chỉ gồm dấu câu). Sau đó, với đoạn thứ $k$, trần độ dài là $\min(\text{max\_chars},\ \text{first\_max\_chars}\cdot g^{k})$, đúng tinh thần của Mục 1.2. Ở đây số ký tự được dùng thay cho thời lượng, vì tốc độ nói gần như không đổi. Câu nào dài hơn trần thì được cắt, **ưu tiên ranh giới cụm** (dấu phẩy, chấm phẩy, hai chấm, gạch ngang); chỉ khi một cụm vẫn quá dài mới cắt theo ranh giới từ. Cuối cùng, các câu ngắn liền nhau được gộp miễn là chưa vượt trần.
+
+```python
+def chunk_text(text: str, config: ChunkConfig | None = None,
+               frontend: TextFrontend | None = None) -> list[str]:
+    """Tách câu, chuẩn hóa rồi gom thành các đoạn có trần độ dài tăng dần."""
+    config = config or ChunkConfig()
+    fe = frontend or default_frontend()
+    sentences = [fe.normalize(s) for s in fe.split_sentences(text)]
+    queue = deque(s for s in sentences if s and _has_content(s))
+    chunks: list[str] = []
+    while queue:
+        limit = config.limit(len(chunks))
+        s = queue.popleft()
+        if len(s) > limit:
+            head, *rest = split_long(s, limit)
+            queue.extendleft(reversed(rest))  # phần còn lại xử lý ở vòng sau (trần lớn hơn)
+            chunks.append(head)
+            continue
+        while queue and len(s) + 1 + len(queue[0]) <= limit:  # gộp câu ngắn
+            s = f"{s} {queue.popleft()}"
+        chunks.append(s)
+    return chunks
+```
+
+Chạy thử với cấu hình `ChunkConfig(first_max_chars=40, max_chars=120)` và bộ front-end tối giản (để kết quả không phụ thuộc phiên bản Dự án 1):
+
+```python
+import sys
+sys.path.insert(0, "code")  # chạy từ thư mục gốc của kho
+from tts_service.text import BASIC_FRONTEND, ChunkConfig, IncrementalChunker, chunk_text
+
+text = ("Chào mừng bạn đến với bản tin sáng nay. Trời Hà Nội nhiều mây, có mưa rào "
+        "và dông vài nơi, gió đông nam cấp hai đến cấp ba, nhiệt độ cao nhất khoảng "
+        "ba mươi độ. Ra đường nhớ mang áo mưa nhé!")
+cfg = ChunkConfig(first_max_chars=40, max_chars=120, growth=2.0)
+for k, c in enumerate(chunk_text(text, cfg, BASIC_FRONTEND)):
+    print(k, cfg.limit(k), len(c), repr(c))
+```
+
+```text
+0 40 39 'Chào mừng bạn đến với bản tin sáng nay.'
+1 80 50 'Trời Hà Nội nhiều mây, có mưa rào và dông vài nơi,'
+2 120 99 'gió đông nam cấp hai đến cấp ba, nhiệt độ cao nhất khoảng ba mươi độ. Ra đường nhớ mang áo mưa nhé!'
+```
+
+Đoạn đầu là một câu ngắn trọn vẹn. Câu thứ hai dài 103 ký tự, vượt trần 80, nên bị cắt sau dấu phẩy thứ hai chứ không cắt giữa cụm. Đoạn cuối gộp phần còn lại với câu cuối vì trần đã lên 120. Kiểm thử `test_chunk_text_limits_and_preserves_words` khẳng định hai bất biến quan trọng: mọi đoạn đều nằm dưới trần của nó, và ghép các đoạn lại thì được đúng dãy từ ban đầu (không mất, không đảo, không cắt giữa âm tiết).
+
+!!! note "Góc tiếng Việt"
+    - **Dấu chấm và dấu phẩy trong số.** Tiếng Việt dùng dấu chấm phân cách hàng nghìn (1.500.000) và dấu phẩy cho phần thập phân (3,5). Một bộ tách câu ngây thơ cắt sau mọi dấu chấm sẽ chặt đôi "1.500.000". Bộ tách cụm mà cắt sau mọi dấu phẩy sẽ chặt đôi "3,5". Mã của ta chỉ cắt khi sau dấu câu có **khoảng trắng**, và chuẩn hóa số thành chữ trước khi tổng hợp.
+    - **Chữ viết tắt có dấu chấm** như "TP.", "PGS.", "ThS." hay chữ cái đầu tên "Nguyễn V. A." không kết thúc câu. Bộ dự phòng có một danh sách nhỏ; `vn_frontend` xử lý đầy đủ hơn bằng từ điển viết tắt.
+    - **Tiểu từ cuối câu** (à, ạ, nhé, nhỉ, chứ...) mang ngữ điệu của cả câu ([Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)). Đừng bao giờ cắt đoạn ngay trước chúng. Quy tắc "chỉ cắt ở dấu câu, nếu buộc phải cắt thì ưu tiên dấu phẩy" tự động tránh được điều này trong đa số trường hợp.
+
+### 4.3. Văn bản đến dần: khi đầu vào là một LLM
+
+Trong trợ lý ảo, văn bản cần đọc thường do một LLM sinh ra từng token. Chờ LLM viết xong cả câu trả lời rồi mới đọc sẽ cộng toàn bộ thời gian sinh văn bản vào độ trễ. `IncrementalChunker` nhận từng mảnh văn bản và nhả ra một đoạn ngay khi đoạn đó **chắc chắn** đã xong.
+
+Chữ "chắc chắn" ở đây quan trọng. Khi bộ đệm kết thúc bằng "tăng 1.", ta chưa biết đó là hết câu hay là "1.500.000". Chỉ khi thấy khoảng trắng sau dấu chấm ta mới cắt. Cái giá phải trả là thêm độ trễ bằng đúng một token. Nếu bộ đệm dài quá trần mà vẫn chưa có ranh giới câu, ta cắt ở dấu phẩy gần nhất, không có thì cắt ở ranh giới từ.
+
+```python
+inc = IncrementalChunker(cfg)
+for delta in ["Giá vàng hôm nay tăng 1.", "500.000 đồng mỗi lượng",
+              ", cao nhất từ đầu năm. Nhà đầu", " tư nên thận trọng."]:
+    print(repr(delta), "->", inc.push(delta))
+print("flush ->", inc.flush())
+```
+
+```text
+'Giá vàng hôm nay tăng 1.' -> []
+'500.000 đồng mỗi lượng' -> ['Giá vàng hôm nay tăng 1.500.000 đồng mỗi']
+', cao nhất từ đầu năm. Nhà đầu' -> ['lượng, cao nhất từ đầu năm.']
+' tư nên thận trọng.' -> []
+flush -> ['Nhà đầu tư nên thận trọng.']
+```
+
+Kết quả cho thấy cả ưu lẫn nhược điểm. Ưu điểm: "1." không bị cắt nhầm, và "Nhà đầu" được giữ lại chờ " tư". Nhược điểm: vì trần đoạn đầu chỉ 40 ký tự, bộ chia buộc phải cắt "mỗi | lượng" giữa một cụm danh từ, nghe sẽ không tự nhiên. Đó là cái giá của TTFB thấp. Trong thực tế nên đặt `first_max_chars` cho chế độ này lớn hơn (60–100 ký tự), hoặc yêu cầu LLM viết câu đầu ngắn. Trên WebSocket, client gửi `{"type": "text", ...}` cho từng mảnh và `{"type": "flush"}` khi xong. Cách chia đoạn của chế độ này có thể khác chế độ trọn văn bản, vì nó không nhìn được phía trước. Bàn sâu hơn về streaming văn bản từ LLM có ở [Chương 35](../phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md).
+
+## 5. Âm thanh trên đường truyền: PCM, WAV và biên đoạn
+
+**Định dạng.** Dịch vụ gửi PCM 16-bit có dấu, little-endian, một kênh (`pcm_s16le`). So với float32, cách này nhẹ hơn một nửa và mọi thiết bị phát đều hiểu. Lưu lượng là $f_s \times 16$ bit/s. Ở 22 050 Hz, con số đó là 352,8 kbit/s, quá đủ cho mạng nội bộ nhưng đáng kể với di động. Khi băng thông quan trọng, hãy nén bằng Opus (RFC 6716), một codec được thiết kế cho thoại độ trễ thấp và chỉ cần vài chục kbit/s cho tiếng nói chất lượng tốt. Việc này được để làm bài tập.
+
+!!! warning "Bẫy byte order: `audio/L16`"
+    Rất nhiều người gắn nhãn PCM của mình là `audio/L16`. Nhưng theo đặc tả RTP (RFC 3551), L16 là PCM 16-bit theo **thứ tự byte mạng (big-endian)**, ngược với `pcm_s16le` mà numpy, WAV và hầu hết card âm thanh dùng. Client tin vào nhãn sẽ phát ra tiếng rè. Dịch vụ của ta vì vậy dùng `application/octet-stream` và mô tả định dạng tường minh trong header `X-Sample-Rate`, `X-Audio-Encoding` (HTTP) hoặc thông điệp `ready` (WebSocket).
+
+**WAV khi chưa biết độ dài.** Header WAV chứa kích thước dữ liệu. Khi streaming, ta chưa biết con số này. Quy ước phổ biến là đặt các trường kích thước bằng `0xFFFFFFFF`. ffmpeg và trình duyệt chấp nhận quy ước này và đọc tới khi hết luồng. Hàm `wav_header(sample_rate, num_samples=None)` làm đúng như vậy. Client đo TTFB phải bỏ qua 44 byte header này (xem `client.py`).
+
+**Biên đoạn.** Mỗi đoạn được sinh độc lập, nên mẫu cuối của đoạn này và mẫu đầu của đoạn sau hiếm khi khớp nhau. Bước nhảy biên độ tạo ra tiếng "tách" (*click*) rất dễ nghe. Vì ta cắt ở ranh giới câu/cụm, nơi vốn có khoảng lặng, một fade nửa chu kỳ cosin vài mili-giây ở hai đầu đoạn là đủ:
+
+```python
+def apply_fade(audio: np.ndarray, sample_rate: int, fade_ms: float = 5.0) -> np.ndarray:
+    x = np.asarray(audio, dtype=np.float32).copy()  # (L,)
+    n = min(int(sample_rate * fade_ms / 1000.0), len(x) // 2)
+    if n <= 0:
+        return x
+    ramp = 0.5 - 0.5 * np.cos(np.linspace(0.0, np.pi, n, dtype=np.float32))  # 0 -> 1
+    x[:n] *= ramp
+    x[-n:] *= ramp[::-1]
+    return x
+```
+
+Nếu sau này bạn cắt đoạn *giữa* một âm thanh liên tục, như khi dùng mô hình streaming theo khối khung, fade không còn đủ. Khi đó cần ghép chồng (*overlap-add*) với cửa sổ chéo ([Chương 35](../phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md)).
+
+**Một khác biệt tinh tế giữa streaming và không streaming.** Chia đoạn làm *thay đổi* âm thanh. Mô hình thật sinh mỗi đoạn với ngữ cảnh hẹp hơn, nên ngôn điệu ở ranh giới đoạn có thể khác so với khi sinh cả văn bản một lần. Trong dịch vụ của ta, endpoint trọn tệp cũng đi qua cùng bộ chia đoạn. Nhờ vậy hai kiểu trả kết quả cho âm thanh **giống nhau từng byte**, và kiểm thử khẳng định điều đó. Đây là một lựa chọn có chủ ý: người dùng không nghe hai giọng đọc khác nhau tùy endpoint.
+
+## 6. Bộ máy streaming
+
+`TTSEngine.stream` là trái tim của dịch vụ. Nó nhận một dãy đoạn văn bản (danh sách, hoặc dãy bất đồng bộ khi văn bản đến dần) và trả về dãy `AudioChunk`:
+
+```python
+async def stream(self, chunks, *, speaker=None, speed=1.0, stats=None):
+    queue: asyncio.Queue = asyncio.Queue(maxsize=self.prefetch)
+    end = object()
+
+    async def producer() -> None:
+        try:
+            index = 0
+            async for text in _as_async(chunks):
+                audio, wait_s, compute_s = await self.synthesize_chunk(text, speaker, speed)
+                audio = apply_fade(audio, self.sample_rate, self.fade_ms)
+                await queue.put(AudioChunk(index, text, float_to_pcm16(audio),
+                                           len(audio), compute_s, wait_s))
+                index += 1
+            await queue.put(end)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:          # chuyển lỗi sang phía tiêu thụ
+            await queue.put(exc)
+
+    task = asyncio.create_task(producer())
+    try:
+        while True:
+            item = await queue.get()
+            if item is end:
+                break
+            if isinstance(item, Exception):
+                raise item
+            if stats is not None:         # cập nhật số đoạn, số mẫu, thời gian tính/chờ
+                stats.n_chunks += 1
+                stats.audio_samples += item.n_samples
+                stats.compute_s += item.compute_s
+                stats.queue_wait_s += item.queue_wait_s
+                if stats.t_first_audio is None and item.n_samples > 0:
+                    stats.t_first_audio = time.perf_counter()  # TTFB phía máy chủ
+            yield item
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+```
+
+Đây là mẫu *người sản xuất – người tiêu thụ* (*producer–consumer*) kinh điển. Mỗi chi tiết nhỏ trong đó giải quyết một vấn đề thật:
+
+- **Đường ống (*pipeline*).** Tác vụ `producer` sinh đoạn $k+1$ trong khi phía tiêu thụ đang gửi đoạn $k$. Đây chính là giả thiết "một bộ sinh chạy liên tục" của Mục 1.2. Nếu sinh và gửi tuần tự, thời gian gửi (nhỏ nhưng khác 0) sẽ cộng dồn vào mỗi đoạn.
+- **Hàng đợi có giới hạn tạo áp lực ngược (*backpressure*).** `maxsize=prefetch` (mặc định 1) nghĩa là bộ sinh chạy trước tối đa khoảng một–hai đoạn. Nếu client đọc chậm (mạng yếu), lệnh gửi bị chặn bởi bộ đệm TCP, hàng đợi đầy, `producer` dừng lại và **nhường mô hình cho người khác**. Hàng đợi không giới hạn thì ngược lại: một client chậm có thể chiếm mô hình để sinh trước cả bài văn dài, vừa tốn bộ nhớ vừa bất công với người khác.
+- **Hủy dây chuyền.** Khối `finally` hủy `producer` khi phía tiêu thụ dừng, dù vì xong việc, vì lỗi hay vì client ngắt kết nối. Muốn khối này chạy *ngay* (chứ không phải lúc bộ dọn rác thu hồi generator), phía gọi phải dùng `contextlib.aclosing`. Mọi endpoint trong `server.py` đều làm vậy: `async with aclosing(engine.stream(...)) as agen: ...`.
+- **Lỗi đi theo dữ liệu.** Ngoại lệ trong `producer` được đặt vào hàng đợi và ném lại ở phía tiêu thụ. Nhờ vậy endpoint có thể báo lỗi cho client, thay vì để tác vụ nền chết lặng lẽ.
+
+Phần gọi mô hình:
+
+```python
+async def synthesize_chunk(self, text, speaker, speed):
+    """Chạy Synthesizer trong thread pool; trả về (audio, thời_gian_chờ, thời_gian_tính)."""
+    loop = asyncio.get_running_loop()
+    t_submit = time.perf_counter()
+
+    def job():
+        t0 = time.perf_counter()
+        audio = self.synthesizer.synthesize(text, speaker=speaker, speed=speed)
+        return audio, t0 - t_submit, time.perf_counter() - t0
+
+    return await loop.run_in_executor(self._executor, job)
+```
+
+trong đó `self._executor = ThreadPoolExecutor(max_workers=max_concurrency)`. Thread pool riêng với số luồng bằng giới hạn đồng thời là một lựa chọn có lý do. Cách "hiển nhiên" là dùng `asyncio.Semaphore` quanh `asyncio.to_thread(...)`, nhưng cách đó có một lỗi tinh vi. Khi yêu cầu bị hủy, `CancelledError` thoát khỏi khối `async with semaphore` và **trả semaphore ngay**, trong khi luồng chạy mô hình vẫn chạy tiếp (Python không thể dừng cưỡng bức một luồng). Yêu cầu kế tiếp lấy được semaphore và bắt đầu chạy song song, nên giới hạn đồng thời bị vượt đúng lúc hệ thống đang chịu tải nhất (người dùng sốt ruột thường hủy rồi gửi lại). Với thread pool riêng, số luồng **là** giới hạn: lời gọi bị hủy chạy nốt trong luồng của nó, nhưng không lời gọi mới nào chen vào được. Bài `test_engine_respects_max_concurrency` kiểm tra rằng tại mọi thời điểm không quá `max_concurrency` lời gọi `synthesize` chạy cùng lúc. Hàm `job` còn đo riêng *thời gian chờ* (từ lúc nộp tới lúc bắt đầu chạy) và *thời gian tính*. Đây là hai con số cần tách bạch khi chẩn đoán chậm.
+
+!!! tip "Bao nhiêu luồng là đủ?"
+    Với một GPU và mô hình không batch, `max_concurrency` bằng 1–2 thường cho thông lượng tốt nhất. Hai lời gọi chen nhau trên cùng GPU hiếm khi nhanh hơn chạy lần lượt, mà còn làm TTFB của cả hai tệ đi. Trên CPU, hãy cân đối `max_concurrency × số luồng nội bộ của mô hình` (`OMP_NUM_THREADS`, `torch.set_num_threads`, `intra_op_num_threads` của ONNX Runtime) với số lõi. Nếu vượt số lõi (*oversubscription*), mọi thứ chậm đi đột ngột. Muốn tăng thông lượng thật sự trên GPU thì cần **batching động**: gom đoạn của nhiều yêu cầu vào một lần chạy ([Chương 39](../phan-9-thuc-tien/ch39-trien-khai-production.md)).
+
+## 7. Giao diện lập trình (API)
+
+Dịch vụ cung cấp ba cách lấy âm thanh. Mỗi cách đánh đổi giữa độ đơn giản và độ trễ:
+
+| Endpoint | Kiểu | TTFB | Báo lỗi giữa chừng | Ngắt lời | Khi nào dùng |
+|---|---|---|---|---|---|
+| `POST /v1/tts` | Trả trọn tệp WAV/PCM | Bằng toàn bộ thời gian tổng hợp | Có (mã HTTP) | Không | Tạo tệp sách nói, xử lý theo lô, tích hợp đơn giản |
+| `POST /v1/tts/stream` | HTTP chunked | Bằng thời gian sinh đoạn đầu | Không (chỉ thấy luồng bị cắt) | Đóng kết nối | Phát trong trình duyệt, client HTTP sẵn có |
+| `WS /v1/tts/ws` | WebSocket hai chiều | Bằng thời gian sinh đoạn đầu | Có (thông điệp `error`) | Có (`cancel`) | Trợ lý ảo, hội thoại, văn bản đến dần từ LLM |
+
+Ngoài ra có `GET /health` (trạng thái, mô hình và front-end đang dùng) và `GET /metrics` (định dạng Prometheus, Mục 11). Đầu vào HTTP được kiểm tra bằng Pydantic: `text` không rỗng, `speed` trong $[0{,}5;\, 2]$. Văn bản dài hơn `max_text_chars` (mặc định 5 000) bị từ chối với mã 413. Văn bản không có chữ đọc được bị từ chối với mã 422. Giới hạn độ dài không chỉ để chống lạm dụng: nó chặn trước những yêu cầu sẽ chiếm mô hình hàng phút.
+
+### 7.1. HTTP chunked và giới hạn của nó
+
+```python
+@app.post("/v1/tts/stream")
+async def tts_stream(req: TTSRequest) -> StreamingResponse:
+    chunks = plan_or_raise(req.text)              # 413/422 được trả TRƯỚC khi bắt đầu stream
+    stats = StreamStats(sr, n_chars=len(req.text))
+
+    async def body():
+        status = "cancelled"
+        metrics.stream_started()
+        try:
+            if req.format == "wav":
+                yield wav_header(sr, None)        # header "không rõ độ dài"
+            async with aclosing(engine.stream(chunks, speaker=req.speaker, speed=req.speed,
+                                              stats=stats)) as agen:
+                async for chunk in agen:
+                    yield chunk.pcm
+            status = "ok"
+        except Exception:
+            status = "error"
+            raise
+        finally:
+            stats.t_end = time.perf_counter()
+            metrics.stream_finished("stream", status, stats)
+
+    return StreamingResponse(body(), media_type="audio/wav", headers={
+        "X-Sample-Rate": str(sr), "Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+```
+
+Hãy để ý hai điều. Thứ nhất, mọi kiểm tra đầu vào chạy **trước** khi trả `StreamingResponse`. Một khi mã 200 và header đã gửi đi, giao thức HTTP không còn cách nào báo "thực ra có lỗi". Lỗi giữa chừng chỉ hiện ra như một luồng bị cắt cụt, và client phải tự đoán. Thứ hai, header `X-Accel-Buffering: no` bảo nginx đừng gom phản hồi vào bộ đệm. Nếu thiếu header này (hoặc thiếu `proxy_buffering off`), proxy sẽ giữ âm thanh lại cho tới khi đủ bộ đệm hoặc hết luồng, và streaming mất tác dụng mà không có lỗi nào xuất hiện.
+
+### 7.2. Giao thức WebSocket
+
+WebSocket (RFC 6455) cho kênh hai chiều trên một kết nối dài hạn. Nhờ vậy client có thể gửi lệnh *trong lúc* đang nhận âm thanh, điều HTTP không làm được. Ta thiết kế giao thức với thông điệp điều khiển là JSON dạng văn bản, còn âm thanh là khung nhị phân:
+
+| Chiều | Thông điệp | Ý nghĩa |
+|---|---|---|
+| máy chủ → client | `{"type": "ready", "sample_rate", "encoding": "pcm_s16le", "channels": 1}` | Gửi ngay khi kết nối; client cấu hình bộ phát theo đây |
+| client → máy chủ | `{"type": "synthesize", "text", "speaker", "speed", "request_id"}` | Tổng hợp trọn một văn bản |
+| client → máy chủ | `{"type": "text", "text"}` … `{"type": "flush"}` | Văn bản đến dần (từ LLM); `flush` báo hết |
+| máy chủ → client | `{"type": "start", "request_id"}` | Bắt đầu một yêu cầu |
+| máy chủ → client | `{"type": "chunk", "index", "text", "samples"}` + các khung nhị phân | Siêu dữ liệu của đoạn, theo sau là PCM của nó (chia khung 200 ms) |
+| máy chủ → client | `{"type": "end", "stats": {...}}` | Xong; kèm TTFB, RTF, thời lượng do máy chủ đo |
+| client → máy chủ | `{"type": "cancel"}` | Ngắt lời: dừng ngay, máy chủ đáp `{"type": "cancelled"}` |
+| máy chủ → client | `{"type": "error", "message"}` | Lỗi; kết nối **vẫn mở** cho yêu cầu sau |
+
+Thông điệp `chunk` mang theo văn bản của đoạn. Client có thể dùng nó để hiện phụ đề đồng bộ, hoặc để biết chính xác người dùng đã nghe tới đâu khi họ ngắt lời. Thông tin này hữu ích cho LLM ở lượt hội thoại sau.
+
+Vòng lặp chính của handler (rút gọn từ `server.py`) nhận thông điệp và điều phối một tác vụ `run` đang hoạt động:
+
+```python
+while True:
+    msg = json.loads(await ws.receive_text())      # (bản đầy đủ có bắt lỗi JSON)
+    kind = msg.get("type")
+    busy = active is not None and not active.done()
+    if kind == "synthesize":
+        if busy:
+            await error("Đang xử lý một yêu cầu khác; gửi 'cancel' trước")
+            continue
+        chunks = engine.plan(str(msg.get("text", "")))
+        active = asyncio.create_task(run(request_id, chunks, StreamStats(sr), speaker, speed))
+    elif kind == "cancel" and busy:
+        active.cancel()                            # CancelledError lan vào run -> engine.stream
+        with suppress(asyncio.CancelledError):
+            await active
+        await send_json({"type": "cancelled", "request_id": request_id})
+    # ... "text" / "flush": đẩy đoạn từ IncrementalChunker vào một asyncio.Queue
+```
+
+Tác vụ `run` gửi `start`, lặp qua `engine.stream(...)` để gửi `chunk` và các khung nhị phân, rồi gửi `end`. Vì cả `run` lẫn vòng lặp chính đều có thể ghi vào socket (ví dụ một thông điệp `error` "đang bận" chen giữa lúc đang stream), mọi lệnh gửi đi qua một `asyncio.Lock`. Lock này bảo đảm thông điệp `chunk` và các khung nhị phân của nó không bị thông điệp khác xen vào giữa.
+
+**Ngắt lời (*barge-in*)** là tính năng quyết định trải nghiệm hội thoại: người dùng nói chen, trợ lý phải im **ngay**. `active.cancel()` ném `CancelledError` vào `run` ở điểm `await` gần nhất. Lỗi lan vào `engine.stream`, khối `finally` hủy `producer`, và đoạn đang sinh trong thread pool chạy nốt rồi bị bỏ. Phía client còn một việc nữa: xóa bộ đệm phát của chính nó. Âm thanh đã nhận nhưng chưa phát vẫn nằm đó. Kiểm thử `test_websocket_cancel_then_reuse_connection` dùng `simulated_rtf=0.3` để các đoạn sinh chậm. Nó gửi `cancel` sau đoạn đầu, khẳng định còn nhiều đoạn chưa được gửi, rồi dùng lại chính kết nối đó cho yêu cầu mới.
