@@ -16,7 +16,7 @@
     - [Chương 2](../phan-1-nen-tang/ch02-hoc-may-va-mang-no-ron.md) và [Chương 3](../phan-1-nen-tang/ch03-toi-uu-va-ky-thuat-huan-luyen.md): MLP, lan truyền ngược, Adam.
     - [Chương 7](ch07-tong-quan-mo-hinh-sinh.md): MLE và KL, bài toán một–nhiều, hiện tượng trơn quá mức, mạng mật độ hỗn hợp.
 
-[Chương 7](ch07-tong-quan-mo-hinh-sinh.md) kết luận rằng tiếng nói chứa một lượng lớn thông tin mà văn bản không quyết định, và một mô hình hồi quy sẽ "trung bình hóa" qua lượng thông tin đó. Chương này đi theo một ý tưởng rất trực tiếp: **đặt tên** cho phần thông tin còn thiếu bằng một biến ẩn $\mathbf{z}$, rồi học cách suy ra nó từ dữ liệu. Công cụ toán học để làm điều đó là suy diễn biến phân (*variational inference*), và mô hình kết quả là Variational Autoencoder (VAE) (Kingma và Welling, 2014; Rezende và cộng sự, 2014). VAE và các biến thể của nó có mặt ở rất nhiều nơi trong TTS: VITS là một VAE có điều kiện, các bộ mã hóa tham chiếu cho ngôn điệu là VAE, và VQ-VAE là tổ tiên trực tiếp của các neural audio codec.
+[Chương 7](ch07-tong-quan-mo-hinh-sinh.md) kết luận rằng tiếng nói chứa một lượng lớn thông tin mà văn bản không quyết định, và một mô hình hồi quy sẽ "trung bình hóa" qua lượng thông tin đó. Chương này đi theo một ý tưởng rất trực tiếp: **đặt tên** cho phần thông tin còn thiếu bằng một biến ẩn $\mathbf{z}$, rồi học cách suy ra nó từ dữ liệu. Công cụ toán học để làm điều đó là suy diễn biến phân (*variational inference*), và mô hình kết quả là Variational Autoencoder (VAE) (Kingma và Welling, 2014; Rezende và cộng sự, 2014); Kingma và Welling (2019) là một bài tổng quan dễ đọc để tham khảo thêm. VAE và các biến thể của nó có mặt ở rất nhiều nơi trong TTS: VITS là một VAE có điều kiện, các bộ mã hóa tham chiếu cho ngôn điệu là VAE, và VQ-VAE là tổ tiên trực tiếp của các neural audio codec.
 
 Trong các mục tổng quát, $\mathbf{x}$ là một điểm dữ liệu (theo [bảng ký hiệu](../gioi-thieu/ky-hieu.md)); khi áp dụng vào TTS ở mục 8.8, dữ liệu là $\mathbf{Y}$ và điều kiện là văn bản $\mathbf{x}$.
 
@@ -732,7 +732,6 @@ Sau khi huấn luyện VQ-VAE, người ta huấn luyện **một mô hình tự
 23. Child, R. (2021). *Very Deep VAEs Generalize Autoregressive Models and Can Outperform Them on Images*. ICLR.
 24. van den Oord, A., Vinyals, O., Kavukcuoglu, K. (2017). *Neural Discrete Representation Learning*. NeurIPS.
 25. Bengio, Y., Léonard, N., Courville, A. (2013). *Estimating or Propagating Gradients Through Stochastic Neurons for Conditional Computation*. arXiv.
-26. Razavi, A., van den Oord, A., Vinyals, O. (2019). *Generating Diverse High-Fidelity Images with VQ-VAE-2*. NeurIPS.
-27. Kim, J., Kong, J., Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML.
-28. Zhang, Y.-J., Pan, S., He, L., Ling, Z.-H. (2019). *Learning Latent Representations for Style Control and Transfer in End-to-End Speech Synthesis*. ICASSP.
-29. Hsu, W.-N. và cộng sự (2019). *Hierarchical Generative Modeling for Controllable Speech Synthesis*. ICLR.
+26. Kim, J., Kong, J., Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML.
+27. Zhang, Y.-J., Pan, S., He, L., Ling, Z.-H. (2019). *Learning Latent Representations for Style Control and Transfer in End-to-End Speech Synthesis*. ICASSP.
+28. Hsu, W.-N. và cộng sự (2019). *Hierarchical Generative Modeling for Controllable Speech Synthesis*. ICLR.
