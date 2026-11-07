@@ -33,8 +33,8 @@ Tên gọi *normalizing* xuất phát từ chiều ngược lại: phép $g_\the
 
 ```mermaid
 flowchart LR
-    X["Dữ liệu x"] -- "g₁" --> H1["h₁"] -- "g₂" --> H2["h₂"] -- "…" --> Z["Nhiễu z ~ N(0, I)"]
-    Z -. "f = g⁻¹ (sinh mẫu)" .-> X
+    X["Dữ liệu x"] -->|"g₁"| H1["h₁"] -->|"g₂"| H2["h₂"] -->|"…"| Z["Nhiễu z ~ N(0, I)"]
+    Z -.->|"f = g⁻¹ (sinh mẫu)"| X
 ```
 
 So với các họ mô hình khác ở [Chương 7](../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh.md), flow có ba ưu điểm hiếm khi đi cùng nhau:
@@ -156,7 +156,7 @@ Công thức trên áp đặt ba yêu cầu lên mỗi lớp $g_m$:
 2. **Nghịch đảo rẻ** — để sinh mẫu $\mathbf{x} = f(\mathbf{z})$ nhanh.
 3. **Log-det rẻ** — tính $\det$ của ma trận $D \times D$ tổng quát tốn $O(D^3)$. Với một mel-spectrogram 80 kênh × 500 khung, $D = 40\,000$: một lần phân rã LU tốn cỡ $10^{13}$ phép tính, cho **mỗi** mẫu, **mỗi** bước huấn luyện. Hoàn toàn bất khả thi.
 
-Ngoài ra còn một giới hạn tô-pô ít được nhắc tới: phép biến đổi liên tục khả nghịch không thể "xé" một phân phối liên thông thành nhiều mảnh rời nhau. Để mô hình hóa hai cụm tách biệt từ một Gaussian, flow buộc phải kéo một "cầu nối" mật độ thấp giữa hai cụm. Bạn sẽ thấy hiện tượng này trong thí nghiệm ở mục 10.9.
+Ngoài ra còn một giới hạn tô-pô ít được nhắc tới: phép biến đổi liên tục khả nghịch không thể "xé" một phân phối liên thông thành nhiều mảnh rời nhau. Để mô hình hóa hai cụm tách biệt từ một Gaussian, flow buộc phải kéo một "cầu nối" mật độ thấp giữa hai cụm. Bạn sẽ thấy hiện tượng này trong thí nghiệm ở mục 10.10.
 
 ## 10.3 Jacobian tam giác và phép biến đổi tự hồi quy
 
