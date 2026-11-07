@@ -416,8 +416,6 @@ Trên dữ liệu giả, gom ngẫu nhiên 16 mẫu cho hiệu suất khoảng 5
 Khi dùng `batch_sampler`, sampler chạy trong **tiến trình chính**, nên `set_epoch` có tác dụng ngay cả khi worker là persistent. Một bẫy liên quan đến số ngẫu nhiên trong worker: PyTorch cấp cho mỗi worker một seed khác nhau cho RNG của `torch`, `random` và (trong các phiên bản gần đây) cả RNG toàn cục của NumPy. Nhưng nếu `Dataset` **tự giữ một đối tượng RNG** tạo trong `__init__` — rất thường gặp với tăng cường dữ liệu — thì mọi worker được sao chép **cùng một trạng thái**, và các worker sinh ra cùng một chuỗi "ngẫu nhiên":
 
 ```python
-from torch.utils.data import get_worker_info
-
 class OwnRNG(Dataset):                            # SAI: RNG tạo trước khi tách worker
     def __init__(self):
         self.rng = np.random.default_rng(0)
@@ -522,3 +520,424 @@ def validate(model, batches):
 ```
 
 Khi validation cho một mô hình thật, hãy dùng một **tập câu cố định** (ghi ID vào cấu hình) để các mẫu âm thanh so sánh được giữa các checkpoint, gồm cả câu khó: câu rất dài, câu có số và từ viết tắt, câu hỏi, và với tiếng Việt là các cặp tối thiểu về thanh điệu ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)). Với mô hình tự hồi quy, ghi cả kết quả teacher forcing **và** kết quả tự sinh ([Chương 4](ch04-cnn-rnn-mo-hinh-chuoi.md)).
+
+### 6.5.3 Checkpoint: lưu, xoay vòng và resume chính xác
+
+Huấn luyện một mô hình TTS kéo dài từ vài giờ tới nhiều tuần; máy có thể bị thu hồi, mất điện, hay bạn muốn dừng để sửa một lỗi. Một checkpoint dùng để **resume** phải chứa đủ mọi thứ để quá trình tiếp tục **như chưa từng bị ngắt**:
+
+| Thành phần | Vì sao cần |
+|---|---|
+| `model.state_dict()` | Hiển nhiên |
+| `optimizer.state_dict()` | AdamW giữ mô-men bậc một, bậc hai cho từng tham số; mất chúng là "khởi động lạnh" lại bộ tối ưu |
+| `scheduler.state_dict()` | Tốc độ học phụ thuộc số bước (warmup, cosine) |
+| `scaler.state_dict()` (fp16) | Hệ số loss scaling hiện tại |
+| Trọng số EMA (nếu có) | Thường là trọng số tốt nhất để suy luận ([Chương 3](ch03-toi-uu-va-ky-thuat-huan-luyen.md)) |
+| `step`, `epoch`, số batch đã dùng trong epoch | Để tiếp tục đúng chỗ trong luồng dữ liệu |
+| Trạng thái RNG (torch, CUDA, `random`) | Để dropout và tăng cường dữ liệu tiếp tục cùng chuỗi ngẫu nhiên |
+| Cấu hình | Để biết checkpoint này là gì |
+
+Ba nguyên tắc kỹ thuật:
+
+1. **Ghi nguyên tử.** Ghi ra tệp tạm rồi `os.replace` sang tên thật. Nếu máy chết giữa chừng, bạn có tệp tạm hỏng chứ không có checkpoint "mới nhất" bị hỏng.
+2. **Xoay vòng.** Giữ $k$ checkpoint gần nhất (cộng vài checkpoint "tốt nhất" theo validation) để không đầy đĩa.
+3. **Nạp an toàn.** Từ PyTorch 2.6, `torch.load` mặc định `weights_only=True`: chỉ cho phép tensor và các kiểu Python cơ bản, không thực thi mã tùy ý trong tệp pickle. Đây là thay đổi đúng đắn về bảo mật — đừng nạp checkpoint tải từ Internet với `weights_only=False`. Hệ quả thực hành: hãy chỉ lưu các kiểu "an toàn". Ví dụ, trạng thái RNG của `torch` (một tensor byte) và của `random` (một tuple số nguyên) nạp được, nhưng trạng thái của `np.random.get_state()` (chứa mảng NumPy) sẽ bị từ chối khi nạp với mặc định này.
+
+```python
+import glob
+from dataclasses import dataclass, asdict
+
+def save_checkpoint(path, model, optimizer, scheduler, step, epoch, batch_in_epoch, cfg, scaler=None):
+    state = {
+        "model": model.state_dict(), "optimizer": optimizer.state_dict(),
+        "scheduler": scheduler.state_dict(),
+        "scaler": scaler.state_dict() if scaler is not None else None,
+        "step": step, "epoch": epoch, "batch_in_epoch": batch_in_epoch, "config": asdict(cfg),
+        "rng": {"torch": torch.get_rng_state(), "python": random.getstate(),
+                "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else []},
+    }
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    torch.save(state, path + ".tmp")
+    os.replace(path + ".tmp", path)               # đổi tên nguyên tử: không để lại tệp dở dang
+
+def rotate_checkpoints(ckpt_dir, keep_last):
+    """Chỉ giữ keep_last checkpoint mới nhất (tên dạng step_00001000.pt)."""
+    for old in sorted(glob.glob(os.path.join(ckpt_dir, "step_*.pt")))[:-keep_last]:
+        os.remove(old)
+
+def latest_checkpoint(ckpt_dir):
+    files = sorted(glob.glob(os.path.join(ckpt_dir, "step_*.pt")))
+    return files[-1] if files else None
+
+def load_checkpoint(path, model, optimizer=None, scheduler=None, scaler=None, restore_rng=True):
+    state = torch.load(path, map_location="cpu", weights_only=True)   # không thực thi mã lạ
+    model.load_state_dict(strip_prefixes(state["model"]))
+    if optimizer is not None:
+        optimizer.load_state_dict(state["optimizer"])
+    if scheduler is not None:
+        scheduler.load_state_dict(state["scheduler"])
+    if scaler is not None and state["scaler"] is not None:
+        scaler.load_state_dict(state["scaler"])
+    if restore_rng:
+        torch.set_rng_state(state["rng"]["torch"])
+        random.setstate(state["rng"]["python"])
+        if torch.cuda.is_available() and state["rng"]["cuda"]:
+            torch.cuda.set_rng_state_all(state["rng"]["cuda"])
+    return state
+```
+
+Bây giờ ghép mọi mảnh thành một vòng huấn luyện: cấu hình dạng `dataclass`, AdamW với warmup, bucketing sampler, AMP (bf16 trên CPU trong ví dụ này; trên GPU đổi `device_type="cuda"`), cắt gradient, logging, validation định kỳ, checkpoint định kỳ, và resume giữa epoch.
+
+```python
+import shutil
+
+@dataclass
+class TrainConfig:
+    lr: float = 2e-3
+    warmup_steps: int = 10
+    max_frames: int = 6000
+    grad_clip: float = 1.0
+    amp_dtype: str = "bfloat16"   # GPU không hỗ trợ bf16: "float16" + GradScaler (mục 6.6)
+    seed: int = 1234
+    ckpt_dir: str = "ckpt_demo"
+    save_every: int = 5
+    keep_last: int = 2
+    val_every: int = 10
+
+def train(cfg, total_steps, resume=False, logger=None):
+    torch.manual_seed(cfg.seed)
+    random.seed(cfg.seed)
+    model = TinyTTS()
+    opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr)
+    sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(1.0, (s + 1) / cfg.warmup_steps))
+    sampler = FrameBudgetBucketSampler(ds.mel_lens.tolist(), cfg.max_frames, seed=cfg.seed)
+    loader = DataLoader(ds, batch_sampler=sampler, collate_fn=tts_collate,
+                        generator=torch.Generator())    # KHÔNG rút số từ RNG toàn cục (xem dưới)
+    val_batches = [tts_collate([ds[i] for i in range(j, j + 8)]) for j in (0, 8)]
+    step, epoch, start = 0, 0, 0
+    ckpt = latest_checkpoint(cfg.ckpt_dir) if resume else None
+    if ckpt:
+        st = load_checkpoint(ckpt, model, opt, sched)
+        step, epoch, start = st["step"], st["epoch"], st["batch_in_epoch"]
+    while step < total_steps:
+        sampler.set_epoch(epoch, start_batch=start)
+        for b_idx, batch in enumerate(loader, start=start):
+            with torch.autocast(device_type="cpu", dtype=getattr(torch, cfg.amp_dtype)):
+                pred = model(batch["text"], batch["text_lens"], batch["mel_lens"])
+            loss = masked_l1(pred.float(), batch["mel"], batch["mel_mask"])    # mất mát ở fp32
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            gnorm = nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
+            opt.step()
+            sched.step()
+            step += 1
+            if logger:
+                logger.scalar("train/loss", loss.item(), step)          # .item(): không giữ đồ thị
+                logger.scalar("train/grad_norm", gnorm.item(), step)
+                if step % cfg.val_every == 0:
+                    logger.scalar("val/loss", validate(model, val_batches), step)
+            if step % cfg.save_every == 0 or step == total_steps:
+                save_checkpoint(os.path.join(cfg.ckpt_dir, f"step_{step:08d}.pt"), model, opt,
+                                sched, step, epoch, b_idx + 1, cfg)
+                rotate_checkpoints(cfg.ckpt_dir, cfg.keep_last)
+            if step == total_steps:
+                return model
+        epoch, start = epoch + 1, 0
+    return model
+```
+
+Phép kiểm thử quan trọng nhất cho mã checkpoint: **chạy liền $S$ bước** phải cho tham số **giống hệt** (từng bit) với **chạy $S_1 < S$ bước, dừng, rồi resume tới $S$**. Ở đây $S = 40$, $S_1 = 23$, và mỗi epoch có khoảng 33 batch, nên phép thử bao gồm cả resume **giữa epoch** lẫn việc vượt ranh giới epoch.
+
+```python
+cfg = TrainConfig()
+log = Logger("runs_demo", verbose=False)
+shutil.rmtree(cfg.ckpt_dir, ignore_errors=True)
+straight = train(cfg, total_steps=40, logger=log)        # chạy liền 40 bước
+shutil.rmtree(cfg.ckpt_dir, ignore_errors=True)
+train(cfg, total_steps=23, logger=log)                   # "bị ngắt" sau 23 bước (đã lưu ở bước 23)
+resumed = train(cfg, total_steps=40, resume=True, logger=log)   # chạy tiếp từ checkpoint mới nhất
+same = all(torch.equal(a, b) for a, b in zip(straight.state_dict().values(),
+                                             resumed.state_dict().values()))
+print("Resume cho kết quả giống hệt chạy liền:", same)
+print("Checkpoint còn lại:", sorted(os.listdir(cfg.ckpt_dir)))
+assert same
+log.audio("val/sine", 0.3 * torch.sin(torch.linspace(0, 2000, 22050)), step=0, sr=22050)
+```
+
+!!! tip "Vì sao cần `generator=torch.Generator()` cho `DataLoader`?"
+    Mỗi lần bạn bắt đầu duyệt một `DataLoader` (tức là gọi `iter(loader)`, ở đầu mỗi epoch và **ngay sau khi resume**), PyTorch rút một số ngẫu nhiên để làm seed gốc cho các worker. Nếu không truyền `generator`, số này được rút từ **RNG toàn cục** — và lần rút "thừa" khi resume giữa epoch làm lệch toàn bộ chuỗi dropout phía sau. Trong thí nghiệm của chúng tôi, bỏ tham số `generator` ở mã trên làm phép kiểm thử resume **thất bại**. Truyền một `torch.Generator()` riêng cách ly hoàn toàn `DataLoader` khỏi RNG toàn cục. Đây là loại lỗi chỉ lộ ra khi bạn **viết kiểm thử resume**; hãy viết nó cho mọi dự án.
+
+Lưu ý: bit-exact resume như trên khả thi trên CPU; trên GPU, một số phép toán không tất định (mục 6.9) khiến hai lần chạy — kể cả không có resume — lệch nhau ở mức sai số làm tròn. Khi đó tiêu chí hợp lý là đường cong mất mát sau resume khớp với đường cong chạy liền trong phạm vi nhiễu.
+
+## 6.6 Tăng tốc: AMP và `torch.compile`
+
+### 6.6.1 Độ chính xác hỗn hợp tự động (AMP)
+
+[Chương 3](ch03-toi-uu-va-ky-thuat-huan-luyen.md) đã trình bày lý thuyết; ở đây là cách dùng trong PyTorch. `torch.autocast(device_type, dtype)` là một vùng ngữ cảnh: bên trong, các phép toán "an toàn" (nhân ma trận, tích chập) chạy ở fp16/bf16, còn các phép toán nhạy cảm (softmax, log, các hàm mất mát, phép cộng dồn lớn) được tự động giữ ở fp32. Bạn không đổi kiểu của tham số — bộ tối ưu vẫn cập nhật bản fp32.
+
+- **bf16**: dùng trực tiếp như trong `train()` ở trên; thường không cần loss scaling.
+- **fp16**: cần `GradScaler` để nhân mất mát lên trước khi lan truyền ngược (tránh gradient nhỏ bị làm tròn về 0) rồi chia lại trước khi cập nhật.
+
+```python
+# Phác thảo (cần GPU CUDA): fp16 + GradScaler. Không chạy trong notebook CPU của chương này.
+scaler = torch.amp.GradScaler("cuda")
+for batch in loader:
+    with torch.autocast(device_type="cuda", dtype=torch.float16):
+        pred = model(batch["text"].cuda(), batch["text_lens"].cuda(), batch["mel_lens"].cuda())
+    loss = masked_l1(pred.float(), batch["mel"].cuda(), batch["mel_mask"].cuda())
+    opt.zero_grad(set_to_none=True)
+    scaler.scale(loss).backward()
+    scaler.unscale_(opt)                          # bỏ hệ số tỷ lệ TRƯỚC khi cắt gradient
+    nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    scaler.step(opt)                              # tự bỏ qua bước nếu gradient có inf/NaN
+    scaler.update()
+```
+
+Những chỗ nên **ép fp32** trong mô hình TTS: trích STFT/mel (như `LogMel` ở mục 6.2), các hàm mất mát phổ đa phân giải của vocoder, log-likelihood và log-determinant của normalizing flow ([Chương 10](../phan-2-mo-hinh-sinh/ch10-normalizing-flows.md)), và các phép tính có `exp` của số lớn. Dùng `with torch.autocast(device_type=..., enabled=False):` kèm `.float()` cho đầu vào.
+
+### 6.6.2 `torch.compile`
+
+`torch.compile(model)` (Ansel và cộng sự, 2024) bắt đồ thị tính toán từ mã Python (TorchDynamo) và sinh mã tối ưu (mặc định bằng TorchInductor), thường bằng cách gộp nhiều phép toán nhỏ thành ít kernel. Lợi ích lớn nhất với các mô hình có nhiều phép toán theo từng phần tử (chuẩn hóa, kích hoạt, cộng dư) — đúng kiểu của vocoder và Transformer. Ba điều cần biết khi dùng với dữ liệu tiếng nói:
+
+1. **Lần gọi đầu rất chậm** (biên dịch), và **mỗi hình dạng mới có thể gây biên dịch lại**. Với dữ liệu độ dài thay đổi, PyTorch thử chuyển sang đồ thị có kích thước động sau lần biên dịch lại đầu tiên; bạn cũng có thể chủ động đánh dấu chiều động (`torch._dynamo.mark_dynamic`) hoặc đệm độ dài lên bội số của một hằng số để giới hạn số hình dạng khác nhau. Bucketing giúp ích ở đây.
+2. **Ngắt đồ thị** (*graph break*): những đoạn mã Dynamo không bắt được (ví dụ chuyển tensor thành số Python bằng `.item()` hay `int(tensor)`) chia mô hình thành nhiều đồ thị nhỏ, giảm lợi ích. Trong `TinyTTS`, dòng `int(mel_lens.max())` gây đúng một lần ngắt như vậy; cách sửa là để `collate_fn` trả sẵn độ dài lớn nhất dưới dạng số Python và truyền vào `forward`.
+3. **Gỡ lỗi**: đặt biến môi trường `TORCH_LOGS="recompiles,graph_breaks"` để xem khi nào và vì sao biên dịch lại hay ngắt đồ thị.
+
+```python
+import time
+
+torch.manual_seed(0)
+model = TinyTTS().eval()
+compiled = torch.compile(model)                   # mặc định: backend "inductor"
+with torch.no_grad():
+    for i, b in zip(range(4), DataLoader(ds, batch_size=8, collate_fn=tts_collate)):
+        t0 = time.perf_counter()
+        out = compiled(b["text"], b["text_lens"], b["mel_lens"])
+        dt = time.perf_counter() - t0
+        assert torch.allclose(out, model(b["text"], b["text_lens"], b["mel_lens"]), atol=1e-4)
+        print(f"batch {i}: T = {out.shape[1]:4d}, {dt * 1000:8.1f} ms")
+```
+
+Kết quả điển hình: batch đầu mất vài giây (biên dịch), batch thứ hai (hình dạng mới) lại mất thời gian biên dịch lại — lần này với kích thước động — còn từ batch thứ ba trở đi chỉ vài mili-giây, dù độ dài vẫn thay đổi. Con số cụ thể phụ thuộc máy; điều quan trọng là **hình dạng** của đường thời gian này. Khi đo hiệu năng, luôn bỏ qua vài lần chạy đầu. Việc dùng `torch.compile` khi **triển khai** (cùng `torch.export`, ONNX) được bàn ở [Chương 39](../phan-9-thuc-tien/ch39-trien-khai-production.md).
+
+## 6.7 Huấn luyện phân tán với DDP và `torchrun`
+
+### 6.7.1 Khái niệm
+
+**DistributedDataParallel** (DDP; Li và cộng sự, 2020) là cách chuẩn để huấn luyện trên nhiều GPU:
+
+- Mỗi GPU chạy **một tiến trình** riêng với **một bản sao đầy đủ** của mô hình.
+- Mỗi tiến trình xử lý **một phần khác nhau** của dữ liệu (sampler phải chia dữ liệu theo `rank`).
+- Trong lượt lan truyền ngược, DDP **all-reduce** (lấy trung bình) gradient giữa các tiến trình, chồng lấp việc truyền thông với việc tính gradient của các lớp còn lại. Sau bước cập nhật, mọi bản sao vẫn giống hệt nhau.
+
+`torchrun` khởi chạy các tiến trình và đặt các biến môi trường `RANK`, `LOCAL_RANK`, `WORLD_SIZE`, `MASTER_ADDR`, `MASTER_PORT`; mã của bạn chỉ cần gọi `dist.init_process_group(...)`.
+
+Danh sách kiểm tra khi chuyển một vòng huấn luyện sang DDP:
+
+1. **Sampler chia theo rank**, mọi rank cùng số batch (như `FrameBudgetBucketSampler(num_replicas=world, rank=rank)`), và gọi `set_epoch` mỗi epoch.
+2. **Chỉ rank 0** ghi log, ghi mẫu âm thanh và lưu checkpoint — lưu `model.module.state_dict()` để không có tiền tố `module.`. Dùng `dist.barrier()` nếu các rank khác cần đọc tệp do rank 0 ghi.
+3. **Tích lũy gradient** (*gradient accumulation*): bọc các micro-batch không phải cuối trong `model.no_sync()` để không all-reduce thừa.
+4. **Batch hiệu dụng** $=$ batch mỗi GPU × số GPU × số bước tích lũy. Khi tăng batch hiệu dụng, thường phải điều chỉnh tốc độ học (quy tắc tăng tuyến tính kèm warmup của Goyal và cộng sự, 2017 là một điểm khởi đầu, không phải định luật).
+5. **BatchNorm** tính thống kê riêng trên từng GPU; nếu batch mỗi GPU nhỏ, cân nhắc `nn.SyncBatchNorm.convert_sync_batchnorm(model)`.
+6. **Tham số không dùng tới** trong một số bước (ví dụ nhánh chỉ chạy khi có embedding người nói) làm DDP báo lỗi hoặc treo; dùng `find_unused_parameters=True` (tốn thêm chi phí) hoặc thiết kế lại để mọi tham số đều tham gia.
+
+### 6.7.2 Bộ khung tối thiểu
+
+Tệp dưới đây chạy được trên CPU (backend `gloo`) và trên GPU (backend `nccl`). Nó kiểm chứng rằng sau một bước cập nhật có tích lũy gradient, tham số trên mọi rank giống hệt nhau.
+
+```python
+# ddp_demo.py — chạy bằng torchrun (không chạy trực tiếp trong notebook):
+#   torchrun --standalone --nproc_per_node=2 ddp_demo.py
+import contextlib
+import os
+import torch
+import torch.distributed as dist
+import torch.nn as nn
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+def main():
+    use_cuda = torch.cuda.is_available()
+    dist.init_process_group("nccl" if use_cuda else "gloo")       # gloo: chạy thử được trên CPU
+    rank, world = dist.get_rank(), dist.get_world_size()
+    local_rank = int(os.environ["LOCAL_RANK"])                     # torchrun đặt sẵn biến này
+    device = torch.device("cuda", local_rank) if use_cuda else torch.device("cpu")
+    if use_cuda:
+        torch.cuda.set_device(device)
+
+    torch.manual_seed(0)
+    model = DDP(nn.Linear(8, 1).to(device), device_ids=[local_rank] if use_cuda else None)
+    opt = torch.optim.SGD(model.parameters(), lr=0.1)
+
+    g = torch.Generator().manual_seed(100 + rank)                  # mỗi rank một phần dữ liệu riêng
+    x, y = torch.randn(16, 8, generator=g).to(device), torch.randn(16, 1, generator=g).to(device)
+    accum = 2                                                      # tích lũy gradient 2 micro-batch
+    for micro in range(accum):
+        sl = slice(micro * 8, (micro + 1) * 8)
+        sync = micro == accum - 1                                  # chỉ all-reduce ở micro-batch cuối
+        with (contextlib.nullcontext() if sync else model.no_sync()):
+            loss = nn.functional.mse_loss(model(x[sl]), y[sl]) / accum
+            loss.backward()
+    opt.step()
+
+    w = model.module.weight.detach().clone()                       # .module: mô hình gốc bên trong
+    gathered = [torch.zeros_like(w) for _ in range(world)]
+    dist.all_gather(gathered, w)
+    if rank == 0:                                                  # chỉ rank 0 ghi log/lưu checkpoint
+        assert all(torch.equal(gathered[0], t) for t in gathered)
+        print(f"world_size={world}: tham số giống hệt nhau trên mọi rank sau all-reduce")
+        # torch.save(model.module.state_dict(), "ckpt.pt")   # lưu .module để không có tiền tố "module."
+    dist.barrier()
+    dist.destroy_process_group()
+
+if __name__ == "__main__":
+    main()
+```
+
+```bash
+# Một máy, 2 tiến trình (CPU hoặc 2 GPU)
+torchrun --standalone --nproc_per_node=2 ddp_demo.py
+# Nhiều máy: chạy trên mỗi máy với --nnodes, --node_rank, --rdzv_endpoint phù hợp (xem tài liệu torchrun)
+```
+
+DDP giả định mỗi GPU chứa vừa toàn bộ mô hình và trạng thái bộ tối ưu. Với các TTS dựa trên LLM cỡ hàng tỷ tham số, người ta dùng các kỹ thuật phân mảnh như FSDP; chúng nằm ngoài phạm vi chương này nhưng giữ nguyên các nguyên tắc ở trên (sampler theo rank, chỉ rank 0 ghi, lưu/nạp checkpoint cẩn thận).
+
+## 6.8 Profiling và bộ nhớ
+
+### 6.8.1 Tìm nút thắt
+
+Trước khi tối ưu, hãy **đo**. Câu hỏi đầu tiên luôn là: GPU có đang "đói" dữ liệu không? Cách đơn giản: đo thời gian chờ lấy batch (`next(iterator)`) so với thời gian bước huấn luyện. Nếu thời gian chờ đáng kể, nút thắt ở đường ống dữ liệu (tăng `num_workers`, tính trước đặc trưng nặng, đọc từ đĩa nhanh hơn), không phải ở mô hình. Khi cần chi tiết, `torch.profiler` cho biết thời gian và bộ nhớ của từng phép toán; `record_function` gắn nhãn cho các đoạn mã của bạn.
+
+```python
+from torch.profiler import profile, ProfilerActivity, record_function
+
+model = TinyTTS()
+batch = next(iter(DataLoader(ds, batch_size=8, collate_fn=tts_collate)))
+with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
+    for _ in range(3):
+        with record_function("forward"):
+            pred = model(batch["text"], batch["text_lens"], batch["mel_lens"])
+        with record_function("loss+backward"):
+            masked_l1(pred, batch["mel"], batch["mel_mask"]).backward()
+print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=6))
+```
+
+Trên GPU, thêm `ProfilerActivity.CUDA` và xuất trace (`prof.export_chrome_trace(...)`) để xem dòng thời gian của CPU và GPU song song: những khoảng trống trên dòng GPU chính là thời gian lãng phí.
+
+### 6.8.2 Bộ nhớ: các bẫy thường gặp
+
+- **Giữ tham chiếu tới đồ thị tính toán.** `total_loss += loss` (thay vì `loss.item()` hoặc `loss.detach()`) giữ lại toàn bộ đồ thị của mọi bước — bộ nhớ tăng dần tới khi tràn.
+- **Validation không có `torch.no_grad()`** (hoặc `torch.inference_mode()`): lưu kích hoạt cho lan truyền ngược không bao giờ xảy ra.
+- **Attention trên chuỗi dài.** Bộ nhớ cho ma trận điểm (nếu không dùng FlashAttention) là $B \times h \times T^2 \times$ số byte. Với $B = 16$, $h = 8$, $T = 1500$ khung, fp16: $16 \times 8 \times 1500^2 \times 2 \approx 5{,}8 \times 10^8$ byte cho **một** lớp — nhân với số lớp, và lưu thêm cho lan truyền ngược. Đây là lý do giới hạn độ dài câu (thường lọc bỏ các câu quá dài khỏi tập huấn luyện) và dùng SDPA ([Chương 5](ch05-transformer.md)).
+- **Phân mảnh bộ nhớ với độ dài thay đổi.** Bộ cấp phát có bộ nhớ đệm của PyTorch có thể bị phân mảnh khi hình dạng tensor thay đổi liên tục; triệu chứng là lỗi hết bộ nhớ dù `torch.cuda.memory_allocated()` còn xa giới hạn. Bucketing theo ngân sách khung giúp ổn định hình dạng; các phiên bản PyTorch gần đây có tùy chọn `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` giảm phân mảnh (kiểm tra tài liệu phiên bản của bạn).
+- **Đo đúng.** `torch.cuda.max_memory_allocated()` (kèm `reset_peak_memory_stats()`) cho đỉnh bộ nhớ của một bước; `torch.cuda.empty_cache()` hầu như không giúp được gì cho việc huấn luyện, chỉ trả bộ nhớ đệm về cho tiến trình khác.
+- **Đổi tính toán lấy bộ nhớ.** *Activation checkpointing* (`torch.utils.checkpoint.checkpoint`; Chen và cộng sự, 2016) không lưu kích hoạt của một đoạn mạng mà tính lại trong lượt lan truyền ngược — hữu ích cho Transformer sâu trên chuỗi dài.
+
+## 6.9 Tính tái lập
+
+Hai lần chạy cùng mã, cùng dữ liệu nên cho cùng kết quả — điều kiện tiên quyết để so sánh hai thí nghiệm một cách công bằng và để gỡ lỗi. Các nguồn ngẫu nhiên cần kiểm soát: khởi tạo trọng số, thứ tự dữ liệu, dropout, tăng cường dữ liệu, và **các phép toán không tất định trên GPU** (ví dụ một số phép cộng dồn nguyên tử trong scatter/index_add, một số thuật toán cuDNN được chọn tự động).
+
+```python
+def seed_everything(seed, deterministic=False):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)                       # seed cả CPU và mọi GPU
+    if deterministic:
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")   # cần cho cuBLAS tất định
+        torch.use_deterministic_algorithms(True)  # báo lỗi nếu gặp phép toán không tất định
+        torch.backends.cudnn.benchmark = False
+
+def seed_worker(worker_id):
+    """Đồng bộ seed của numpy/random trong worker với seed torch mà DataLoader đã cấp."""
+    s = torch.initial_seed() % 2**32
+    np.random.seed(s)
+    random.seed(s)
+
+class NoisyAug(Dataset):                          # "tăng cường dữ liệu" dùng numpy RNG
+    def __len__(self):
+        return 8
+    def __getitem__(self, i):
+        return torch.tensor([i, np.random.randint(1000)])
+
+def run(seed):
+    seed_everything(seed)
+    g = torch.Generator().manual_seed(seed)
+    dl = DataLoader(NoisyAug(), batch_size=2, num_workers=2, worker_init_fn=seed_worker,
+                    generator=g, shuffle=True)
+    return torch.cat(list(dl))
+
+a, b = run(0), run(0)
+assert torch.equal(a, b)                          # cùng seed => cùng thứ tự và cùng "nhiễu"
+print(a[:, 1].tolist())
+```
+
+Vài lưu ý thực tế:
+
+- `torch.use_deterministic_algorithms(True)` có thể làm chậm và sẽ **báo lỗi** khi gặp phép toán chưa có cài đặt tất định — điều này tốt: bạn biết chính xác chỗ nào không tất định. Biến `CUBLAS_WORKSPACE_CONFIG` phải được đặt **trước** khi CUDA khởi tạo (tốt nhất là trong lệnh chạy).
+- `cudnn.benchmark=True` chọn thuật toán tích chập nhanh nhất cho từng hình dạng — tăng tốc khi hình dạng ít thay đổi, nhưng mất tính tất định và, với độ dài thay đổi liên tục, có thể mất thời gian dò tìm cho mỗi hình dạng mới.
+- Tính tái lập **từng bit** chỉ được kỳ vọng trên cùng phần cứng, cùng phiên bản thư viện. Giữa các GPU hay phiên bản khác nhau, mục tiêu thực tế là **tái lập thống kê**: chạy vài seed và báo cáo trung bình, độ lệch ([Chương 37](../phan-9-thuc-tien/ch37-huan-luyen-va-debug.md), [Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)).
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Lệch cấu hình mel giữa mô hình âm học và vocoder** (thang HTK/Slaney, `norm`, `f_max`, `center`, cơ số log, cách đệm). Định nghĩa trích mel ở **một** chỗ duy nhất, lưu cấu hình vào checkpoint, và viết kiểm thử so khớp.
+- **Nhầm bố cục** `(L, C)` của `soundfile` với `(C, L)` của PyTorch; nhầm `(B, T, F)` với `(B, F, T)`. Kiểm thử với các kích thước đôi một khác nhau.
+- **Mất mát không có mặt nạ** hoặc chia cho tổng số phần tử kể cả phần đệm: mất mát phụ thuộc vào cách gom batch, mô hình học "dự đoán phần đệm".
+- **Bucketing không đồng đều giữa các rank DDP** → một rank hết dữ liệu trước, chương trình treo ở all-reduce mà không báo lỗi.
+- **Quên `sampler.set_epoch(epoch)`**: mọi epoch có cùng thứ tự dữ liệu.
+- **RNG trong `Dataset` tạo trước khi tách worker**: các worker sinh cùng chuỗi tăng cường dữ liệu (mục 6.4.4).
+- **Checkpoint thiếu trạng thái bộ tối ưu hoặc lịch tốc độ học**: sau resume, mất mát nhảy vọt rồi mới giảm lại.
+- **Không truyền `generator` cho `DataLoader`** khi cần resume chính xác (hộp mẹo ở mục 6.5.3).
+- **Nạp checkpoint lạ với `weights_only=False`**: có thể thực thi mã tùy ý. Chỉ làm vậy với tệp do chính bạn tạo.
+- **Khóa `state_dict` lệch tiền tố** (`module.`, `_orig_mod.`) hoặc lệch kiểu weight norm cũ/mới. Đừng "chữa" bằng `strict=False` — cách đó im lặng bỏ qua trọng số không khớp; hãy ánh xạ tên khóa rõ ràng rồi nạp với `strict=True`.
+- **Gọi `.item()` mỗi bước trên GPU** để log: buộc đồng bộ CPU–GPU. Log mỗi $n$ bước, hoặc cộng dồn trên GPU rồi mới `.item()`.
+- **STFT/mel tính dưới autocast fp16**: sai số hoặc lỗi kích thước FFT. Ép fp32.
+- **`torch.compile` biên dịch lại liên tục** với độ dài thay đổi: dùng bucketing, đánh dấu chiều động, xem `TORCH_LOGS=recompiles`.
+- **Đánh giá tốc độ không đồng bộ GPU**: luôn `torch.cuda.synchronize()` trước khi bấm giờ, bỏ qua vài lần chạy khởi động.
+
+## Tóm tắt
+
+- Bố cục tensor (`(B, T, F)` và `(B, F, T)`), tính liên tục bộ nhớ, và kiểu dữ liệu (fp32/fp16/bf16, int64 cho token, int16 cho PCM) là nền tảng; tránh đồng bộ CPU–GPU không cần thiết trong vòng lặp.
+- Tham số được học, buffer thì không; buffer tính lại được từ cấu hình nên `persistent=False`. `state_dict` có thể bị đổi tên khóa bởi DDP, `torch.compile`, weight norm — lưu mô hình gốc và bóc tiền tố khi nạp.
+- Dùng `soundfile` cho I/O (API I/O của torchaudio đã chuyển sang TorchCodec), `torchaudio` cho tái lấy mẫu và mel; mặc định mel của torchaudio và librosa khác nhau — cấu hình mel phải được định nghĩa một chỗ và lưu cùng checkpoint.
+- Với dữ liệu độ dài thay đổi: `collate_fn` đệm và trả mặt nạ; mất mát luôn lấy trung bình trên phần tử hợp lệ; bucketing theo ngân sách khung nâng hiệu suất tính toán từ khoảng 50% lên 80–90% và giữ bộ nhớ ổn định.
+- Sampler có thứ tự xác định bởi `(seed, epoch)`, chia đều cho các rank DDP, hỗ trợ bắt đầu giữa epoch là chìa khóa cho resume chính xác và huấn luyện phân tán không treo.
+- Checkpoint để resume gồm mô hình, bộ tối ưu, lịch tốc độ học, scaler, EMA, bước/epoch/vị trí trong epoch, trạng thái RNG và cấu hình; ghi nguyên tử, xoay vòng, nạp với `weights_only=True`; và luôn có kiểm thử "chạy liền = dừng rồi chạy tiếp".
+- AMP (bf16, hoặc fp16 + GradScaler) và `torch.compile` tăng tốc đáng kể nhưng có bẫy riêng: ép fp32 cho STFT và mất mát nhạy cảm; tránh ngắt đồ thị và biên dịch lại liên tục.
+- DDP: một tiến trình mỗi GPU, all-reduce gradient, sampler theo rank, chỉ rank 0 ghi, `no_sync` khi tích lũy gradient; `torchrun` lo việc khởi chạy.
+- Đo trước khi tối ưu (profiler, thời gian chờ dữ liệu), cẩn thận với các bẫy bộ nhớ, và kiểm soát mọi nguồn ngẫu nhiên để thí nghiệm tái lập được.
+
+## Bài tập
+
+1. **[Cơ bản]** Một câu dài 7,3 giây ở $f_s = 22\,050$ Hz, hop 256, `center=True`. Có bao nhiêu khung mel? Nếu mô hình giới hạn 1 000 khung mỗi câu, độ dài tối đa của câu là bao nhiêu giây?
+
+    ??? success "Lời giải"
+        $L = 7{,}3 \times 22\,050 = 160\,965$ mẫu, $T = 1 + \lfloor 160\,965 / 256 \rfloor = 1 + 628 = 629$ khung. Với 1 000 khung: $L \le 999 \times 256 + 255 = 255\,999$ mẫu, khoảng 11,6 giây.
+
+2. **[Cơ bản]** Giải thích vì sao filterbank mel nên là buffer với `persistent=False`, còn trung bình/độ lệch chuẩn của mel (ước lượng từ tập huấn luyện) thì phải được lưu. Điều gì xảy ra nếu bạn làm ngược lại?
+
+3. **[Nâng cao]** Chứng minh rằng với $B$ biến ngẫu nhiên độc lập phân phối đều trên $[0, \ell_{\max}]$, $\mathbb{E}[\max] = \tfrac{B}{B+1}\ell_{\max}$, và từ đó suy ra hiệu suất đệm $\tfrac{B+1}{2B}$ của batch ngẫu nhiên. Ước lượng này là xấp xỉ ở chỗ nào (gợi ý: tỷ số của các kỳ vọng so với kỳ vọng của tỷ số)?
+
+    ??? tip "Gợi ý"
+        $P(\max \le x) = (x / \ell_{\max})^B$, lấy đạo hàm để có mật độ rồi tính kỳ vọng. Hiệu suất thật của một batch là $\frac{\sum_i \ell_i}{B \max_i \ell_i}$; ta đã thay kỳ vọng của tỷ số bằng tỷ số của các kỳ vọng.
+
+4. **[Nâng cao]** `FrameBudgetBucketSampler` bỏ bớt một vài batch cuối để số batch chia hết cho số rank. Đề xuất một cách khác không bỏ dữ liệu (ví dụ lặp lại vài batch, hoặc tách batch lớn) và phân tích ảnh hưởng của mỗi cách tới tính không thiên lệch của gradient trong một epoch.
+
+5. **[Nâng cao]** Liệt kê mọi nguồn ngẫu nhiên trong vòng huấn luyện của một mô hình VITS (gợi ý: lấy đoạn ngẫu nhiên của dạng sóng cho bộ giải mã, dropout, nhiễu trong luồng chuẩn hóa, tăng cường dữ liệu, thứ tự dữ liệu, các phép toán GPU). Với mỗi nguồn, nêu cách làm cho nó tái lập được khi resume.
+
+6. **[Lập trình]** Thêm vào `train()`: (a) tích lũy gradient qua $k$ micro-batch; (b) EMA của trọng số (lưu vào checkpoint); (c) lưu thêm checkpoint "tốt nhất" theo mất mát validation. Viết lại kiểm thử resume và bảo đảm nó vẫn cho kết quả giống hệt.
+
+7. **[Lập trình]** Viết một vòng lặp đo thời gian chờ dữ liệu và thời gian tính toán của mỗi bước, với `num_workers` $\in \{0, 1, 2, 4\}$. Làm cho `FakeTTSDataset.__getitem__` "nặng" hơn (ví dụ tính một STFT trên dạng sóng giả dài vài giây) và quan sát khi nào dữ liệu trở thành nút thắt.
+
+8. **[Lập trình]** Sửa `TinyTTS.forward` và `tts_collate` để không còn ngắt đồ thị khi dùng `torch.compile` (truyền độ dài lớn nhất dưới dạng số Python). Dùng `TORCH_LOGS="graph_breaks,recompiles"` để kiểm chứng, rồi thử `torch._dynamo.mark_dynamic` trên chiều thời gian và so sánh số lần biên dịch lại.
+
+## Tài liệu tham khảo
+
+1. Ansel, J. và cộng sự (2024). *PyTorch 2: Faster Machine Learning Through Dynamic Python Bytecode Transformation and Graph Compilation*. ASPLOS 2024.
+2. Chen, T., Xu, B., Zhang, C., và Guestrin, C. (2016). *Training Deep Nets with Sublinear Memory Cost*. arXiv:1604.06174.
+3. Goyal, P. và cộng sự (2017). *Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour*. arXiv:1706.02677.
+4. Kong, J., Kim, J., và Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS 2020.
+5. Li, S. và cộng sự (2020). *PyTorch Distributed: Experiences on Accelerating Data Parallel Training*. Proceedings of the VLDB Endowment, 13(12).
+6. McFee, B. và cộng sự (2015). *librosa: Audio and Music Signal Analysis in Python*. Proceedings of the 14th Python in Science Conference (SciPy 2015).
+7. Micikevicius, P. và cộng sự (2018). *Mixed Precision Training*. ICLR 2018.
+8. Paszke, A. và cộng sự (2019). *PyTorch: An Imperative Style, High-Performance Deep Learning Library*. NeurIPS 2019.
+9. Yang, Y.-Y. và cộng sự (2022). *TorchAudio: Building Blocks for Audio and Speech Processing*. ICASSP 2022.
+10. Tài liệu chính thức của PyTorch (tính đến thời điểm biên soạn, 2026): các mục *Reproducibility*, *Automatic Mixed Precision*, *torch.compile*, *DistributedDataParallel*, *torchrun*, *torch.profiler*, *Serialization semantics* (`torch.load` và `weights_only`). https://docs.pytorch.org
+11. Tài liệu của `soundfile` (python-soundfile) và TorchCodec (tính đến thời điểm biên soạn, 2026).
