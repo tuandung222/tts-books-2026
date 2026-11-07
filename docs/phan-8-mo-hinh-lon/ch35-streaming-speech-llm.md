@@ -110,3 +110,260 @@ assert simulate_stream(equal, 1.2)[1] > 0.0     # RTF > 1: chắc chắn ngắt 
 ```
 
 Kết quả chạy cho thấy đúng như lý thuyết: với $\rho = 0{,}3$, lịch "tăng dần" giảm TTFA từ 450 ms xuống 225 ms mà không ngắt quãng; nhưng với $\rho = 0{,}9$, cùng lịch đó gây ngắt quãng (vì chunk thứ hai dài gấp đôi chunk đầu, vi phạm $r \leq 1/\rho \approx 1{,}1$), trong khi chunk đều thì vẫn ổn. Không có lịch chunk nào cứu được một hệ thống có $\rho > 1$.
+
+## 35.2 Văn bản đến theo luồng: TTS tăng dần
+
+### Vì sao không thể đọc từng token một
+
+Trong trợ lý giọng nói, văn bản cần đọc do một LLM sinh ra từng token một. Chờ LLM sinh xong cả câu trả lời rồi mới gọi TTS thì độ trễ tăng theo độ dài câu trả lời. Ngược lại, đưa từng token vào TTS ngay khi nó xuất hiện cũng không được, vì bốn lý do:
+
+1. **Ngôn điệu phụ thuộc phần phía sau.** Ngữ điệu của một từ phụ thuộc vào việc câu là câu hỏi hay câu kể, từ đó có được nhấn mạnh không, phía sau có ngắt nghỉ không. Đọc mà không biết gì về phía sau giống như đọc to một văn bản lạ mà không được nhìn trước.
+2. **Chuẩn hóa văn bản cần nhìn đủ.** Token BPE của LLM có thể cắt "1.000.000" thành "1", ".", "000", ".000". Nếu cắt cụm ngay sau "1." ta sẽ đọc "một chấm" thay vì "một triệu". Tương tự với "3,5%", "TP.HCM", "2/9".
+3. **Từ nhiều âm tiết.** Tiếng Việt viết cách nhau từng âm tiết, nhưng một từ có thể gồm nhiều âm tiết ("học sinh", "thành phố"). Cắt giữa hai âm tiết của một từ làm ngắt nghỉ sai chỗ.
+4. **Chi phí trên mỗi lần gọi.** Mỗi lần gọi TTS có chi phí cố định (nạp prompt, khởi động bộ giải mã). Cụm quá ngắn làm tổng chi phí tăng và RTF xấu đi.
+
+Đây là một bài toán **ra quyết định trực tuyến**: tại mỗi thời điểm, đã đọc đủ văn bản để phát âm phần đầu chưa, hay nên chờ thêm? Bài toán có cùng cấu trúc với dịch máy đồng thời, nơi chiến lược *wait-k* (Ma và cộng sự, 2019) chỉ dịch từ thứ $i$ khi đã đọc được $i + k$ từ nguồn. Ma và cộng sự (2020) áp dụng ý tưởng "tiền tố sang tiền tố" này cho TTS tăng dần (*incremental TTS*): chỉ tổng hợp từ thứ $i$ khi đã nhìn thấy trước $k$ từ.
+
+### Bốn chiến lược
+
+| Chiến lược | Cách làm | Độ trễ | Ngôn điệu | Ghi chú |
+|---|---|---|---|---|
+| Chờ hết câu | Gom đến dấu kết thúc câu | Bằng thời gian LLM sinh câu đầu | Tốt nhất | Đơn giản, phổ biến |
+| Cụm theo dấu câu + ngưỡng độ dài | Cắt ở dấu câu khi cụm đủ dài; cụm đầu ngắn hơn | Thấp | Tốt nếu cụm không quá ngắn | Chiến lược mặc định hợp lý |
+| Nhìn trước $k$ từ (wait-k) | Phát âm từ $i$ khi đã có từ $i + k$ | Thấp, có thể điều chỉnh | Phụ thuộc $k$ và mô hình | Mô hình nên được huấn luyện để chịu được ngữ cảnh cụt |
+| Luồng kép trong mô hình | LM của TTS nhận văn bản xen kẽ với token tiếng nói | Thấp nhất | Mô hình tự học | Cần huấn luyện riêng, ví dụ CosyVoice 2 |
+
+Chiến lược cuối cùng đã được mô tả ở [Chương 34](ch34-he-thong-lai-hien-dai.md): LM của TTS được huấn luyện trên chuỗi xen kẽ một nhóm token văn bản, một nhóm token tiếng nói, nên có thể bắt đầu nói khi văn bản còn đang đến. Ngay cả khi dùng mô hình như vậy, một bộ chia cụm phía ngoài vẫn hữu ích để bảo vệ chuẩn hóa văn bản và để kiểm soát hành vi.
+
+### Một bộ chia cụm cho đầu ra LLM
+
+Bộ chia cụm dưới đây cài chiến lược thứ hai với ba quy tắc, áp dụng theo thứ tự ưu tiên:
+
+1. Gặp **dấu kết thúc câu** (`.`, `!`, `?`, `…`) và từ đó không phải chữ viết tắt đã biết: luôn cắt.
+2. Gặp **dấu ngắt vế** (`,`, `;`, `:`) và cụm đã đủ số từ tối thiểu: cắt. Cụm đầu tiên dùng ngưỡng nhỏ hơn để giảm TTFA.
+3. Cụm đã dài quá số từ tối đa mà chưa gặp dấu câu: cắt cưỡng bức.
+
+Mẹo quan trọng nằm ở chỗ **chỉ cắt tại một khoảng trắng đã đến**. Khi thấy dấu chấm, ta chưa cắt ngay mà chờ ký tự tiếp theo. Nếu đó là khoảng trắng thì dấu chấm kết thúc một từ; nếu đó là chữ số hay chữ cái (như trong "1.000" hay "TP.HCM") thì dấu chấm nằm bên trong một từ. Chỉ cần nhìn trước đúng một ký tự là phân biệt được.
+
+```python
+import random
+import re
+
+SENT_END, CLAUSE_END = ".!?…", ",;:"
+ABBREV = {"tp.", "ts.", "ths.", "pgs.", "gs.", "bs.", "v.v.", "mr.", "dr."}
+
+class StreamingChunker:
+    """Gom luồng token văn bản (từ LLM) thành các cụm đủ dài để đưa vào TTS.
+    Chỉ cắt tại khoảng trắng ĐÃ đến: nhờ "nhìn trước" một ký tự, dấu chấm trong
+    '1.000.000' hay 'TP.HCM' không bao giờ bị hiểu nhầm là hết câu."""
+    def __init__(self, first_min_words=2, min_words=6, max_words=16):
+        self.first_min, self.min, self.max = first_min_words, min_words, max_words
+        self.buf, self.n_out = "", 0
+
+    def push(self, token: str) -> list[str]:
+        self.buf += token
+        out = []
+        while (cut := self._find_cut()) is not None:
+            chunk, self.buf = self.buf[:cut].strip(), self.buf[cut:].lstrip()
+            out.append(chunk)
+            self.n_out += 1
+        return out
+
+    def flush(self) -> list[str]:
+        rest, self.buf = self.buf.strip(), ""
+        return [rest] if rest else []
+
+    def _find_cut(self):
+        min_words = self.first_min if self.n_out == 0 else self.min
+        for m in re.finditer(r"\s+", self.buf):
+            words = self.buf[:m.start()].split()
+            if not words:
+                continue
+            w, n = words[-1], len(words)
+            if w[-1] in SENT_END and w.lower() not in ABBREV:
+                return m.start()                     # hết câu: luôn cắt
+            if w[-1] in CLAUSE_END and n >= min_words:
+                return m.start()                     # hết vế câu, đủ dài: cắt
+            if n >= self.max:
+                return m.start()                     # quá dài mà chưa gặp dấu câu: cắt cưỡng bức
+        return None
+
+def fake_llm_stream(text, seed=0):
+    """Giả lập LLM: nhả văn bản thành các mảnh 1-4 ký tự (như token BPE)."""
+    rng, i = random.Random(seed), 0
+    while i < len(text):
+        k = rng.randint(1, 4)
+        yield text[i:i + k]
+        i += k
+
+text = ("Dạ, em chào anh! Theo báo cáo, doanh thu quý 3 của chi nhánh TP.HCM đạt "
+        "1.000.000 USD, tăng 3,5% so với cùng kỳ năm ngoái. Anh có muốn em gửi "
+        "báo cáo chi tiết qua email không ạ?")
+for seed in range(20):                               # thử nhiều cách cắt token khác nhau
+    ch = StreamingChunker()
+    chunks = [c for tok in fake_llm_stream(text, seed) for c in ch.push(tok)] + ch.flush()
+    assert " ".join(chunks) == text                  # không mất / thêm ký tự
+    assert not any(c.endswith(("TP.", "1.000.")) for c in chunks)
+    assert any("1.000.000 USD" in c for c in chunks)
+for c in chunks:
+    print(repr(c))
+
+long = " ".join(["một"] * 40)                         # văn bản không có dấu câu
+ch = StreamingChunker()
+chunks = [c for tok in fake_llm_stream(long) for c in ch.push(tok)] + ch.flush()
+assert [len(c.split()) for c in chunks] == [16, 16, 8]
+```
+
+Với câu ví dụ, bộ chia cụm cho ra bốn cụm: "Dạ, em chào anh!", "Theo báo cáo, doanh thu quý 3 của chi nhánh TP.HCM đạt 1.000.000 USD,", "tăng 3,5% so với cùng kỳ năm ngoái." và "Anh có muốn em gửi báo cáo chi tiết qua email không ạ?". Cụm đầu không bị cắt sau "Dạ," vì mới có một từ (ngưỡng cụm đầu là 2), và "Theo báo cáo," không bị cắt vì chưa đủ 6 từ. Kiểm thử chạy với 20 cách băm token ngẫu nhiên khác nhau để bảo đảm kết quả không phụ thuộc vào cách LLM tách token. Đừng quên gọi `flush()` khi LLM kết thúc, nếu không phần đuôi không có dấu câu sẽ bị mất, một lỗi rất hay gặp.
+
+Bộ chia cụm này cố ý đơn giản. Một phiên bản dùng trong sản phẩm cần thêm: danh sách chữ viết tắt đầy đủ hơn (lấy từ bộ chuẩn hóa ở [Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md)), xử lý dấu ngoặc và dấu nháy, không cắt bên trong URL hay địa chỉ email, và khi phải cắt cưỡng bức thì ưu tiên ranh giới từ (dùng công cụ tách từ) thay vì khoảng trắng bất kỳ.
+
+!!! note "Góc tiếng Việt"
+    - **Tiểu từ cuối câu mang ngữ điệu cả câu.** Các tiểu từ như "nhé", "nhỉ", "ạ", "à", "chứ", "đấy" quyết định sắc thái và ngữ điệu kết câu ([Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)). Đừng bao giờ để chúng rơi sang một cụm riêng; quy tắc "chỉ cắt ở dấu câu hoặc khi quá dài" đã bảo vệ điều này trong đa số trường hợp, nhưng ngưỡng cắt cưỡng bức cần đủ lớn.
+    - **Ngày tháng và phân số.** "2/9" có thể là "mùng 2 tháng 9" hay "hai phần chín" tùy ngữ cảnh. Nếu bộ chuẩn hóa cần ngữ cảnh phía sau để quyết định, hãy chuẩn hóa *sau khi* đã có cụm hoàn chỉnh, không chuẩn hóa từng token.
+    - **Hướng dẫn LLM "viết cho tai".** Cách rẻ nhất để có đầu vào TTS tốt là yêu cầu LLM (qua lời nhắc hệ thống) trả lời bằng câu ngắn, không dùng định dạng Markdown, bảng, danh sách gạch đầu dòng, và hạn chế ký hiệu. Văn bản viết để đọc bằng mắt thường rất khó đọc thành tiếng.
+
+## 35.3 Sinh âm thanh theo luồng
+
+Khi văn bản đã được chia cụm, phía âm thanh cũng phải sinh theo luồng. Cách làm phụ thuộc vào kiến trúc.
+
+### Codec LM tự hồi quy
+
+Một LM sinh token codec ([Chương 32](ch32-codec-language-model.md)) vốn đã sinh theo thời gian, nên chỉ cần **bộ giải mã codec cũng nhân quả**. Các codec như SoundStream (Zeghidour và cộng sự, 2021) và Mimi (Défossez và cộng sự, 2024) được thiết kế với tích chập nhân quả để giải mã từng khung một. Hai điểm cần lưu ý:
+
+- Với **mẫu trễ** (*delay pattern*) trên $Q$ sổ mã, khung thời gian thứ $j$ chỉ có đủ $Q$ token sau $Q - 1$ bước sinh nữa, nên độ trễ tăng thêm $Q - 1$ khung codec.
+- Tốc độ khung codec đặt giới hạn dưới cho độ trễ: với codec 12,5 Hz, một khung đã là 80 ms âm thanh.
+
+### Bộ giải mã flow matching theo chunk
+
+Như [Chương 34](ch34-he-thong-lai-hien-dai.md) đã trình bày, bộ giải mã flow matching có thể sinh theo chunk nhờ mặt nạ chunk và tích chập nhân quả, có thể kèm nhìn trước vài token. Một biến thể khác là dùng attention **cửa sổ trượt theo khối**: mỗi khối chỉ nhìn một số khối trước và một số nhỏ khối sau, giới hạn cả độ trễ lẫn chi phí; theo báo cáo, Qwen2.5-Omni dùng một DiT với cơ chế như vậy cho phần giải mã âm thanh theo luồng.
+
+### Vocoder: nhân quả có bộ đệm, hoặc cửa sổ có ngữ cảnh
+
+Có hai cách để chạy vocoder theo luồng:
+
+1. **Vocoder nhân quả có bộ đệm trạng thái.** Mọi tích chập đều nhân quả (chỉ đệm bên trái). Khi chạy theo chunk, mỗi lớp giữ lại vài mẫu cuối của đầu vào chunk trước làm "quá khứ" cho chunk sau. Kết quả **trùng khớp chính xác** với chạy toàn chuỗi, không tốn tính toán thừa. Nhược điểm: phải huấn luyện vocoder ở dạng nhân quả, chất lượng có thể giảm nhẹ vì không được nhìn tương lai.
+2. **Vocoder không nhân quả, chạy trên cửa sổ có ngữ cảnh.** Với một vocoder bình thường như HiFi-GAN, cắt mel thành chunk $M$ khung, mỗi lần đưa thêm $c_L$ khung ngữ cảnh bên trái và $c_R$ khung bên phải, rồi bỏ phần âm thanh ứng với vùng ngữ cảnh. Nếu $c_L$, $c_R$ đủ lớn so với trường tiếp nhận thì kết quả gần như trùng chạy toàn chuỗi. Cái giá: tính toán thừa theo tỉ lệ $(c_L + c_R)/M$ và độ trễ thêm $c_R$ khung.
+
+Cách thứ nhất đáng để hiểu kỹ vì nó xuất hiện ở khắp nơi: codec, vocoder, bộ giải mã U-Net nhân quả, cả các mô hình ASR streaming. Xét một lớp tích chập nhân quả kích thước nhân $k$, độ giãn $\delta$. Đầu ra tại thời điểm $t$ là
+
+$$
+y[t] = \sum_{i=0}^{k-1} w_i\, x[t - i\delta],
+$$
+
+chỉ cần các mẫu đầu vào từ $t - (k-1)\delta$ đến $t$. Vậy để tính đầu ra cho một chunk bắt đầu tại $t_0$, ta chỉ cần thêm $(k-1)\delta$ mẫu đầu vào **cuối cùng** của phần trước $t_0$. Đó chính là nội dung của bộ đệm (*cache*). Với một chồng $L$ lớp, mỗi lớp giữ bộ đệm riêng trên *đầu vào của chính nó*; bằng quy nạp theo số lớp, đầu ra của cả chồng khi chạy theo chunk trùng với khi chạy toàn chuỗi. Đoạn mã sau cài đặt và kiểm chứng điều đó với các chunk có độ dài tùy ý, kể cả chunk ngắn hơn kích thước bộ đệm.
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class CausalConv1d(nn.Module):
+    """Conv1d nhân quả, chạy được cả kiểu toàn chuỗi lẫn kiểu streaming có cache."""
+    def __init__(self, c_in, c_out, kernel_size, dilation=1):
+        super().__init__()
+        self.ctx = (kernel_size - 1) * dilation          # số mẫu quá khứ cần nhớ
+        self.conv = nn.Conv1d(c_in, c_out, kernel_size, dilation=dilation)
+
+    def forward(self, x):                                # x: (B, C, T) toàn chuỗi
+        return self.conv(F.pad(x, (self.ctx, 0)))        # đệm bên trái => nhân quả
+
+    def step(self, x, cache=None):                       # x: (B, C, t) một chunk
+        if cache is None:                                # đầu luồng: quá khứ là 0
+            cache = x.new_zeros(x.shape[0], x.shape[1], self.ctx)
+        xx = torch.cat([cache, x], dim=-1)               # (B, C, ctx + t)
+        new_cache = xx[..., xx.shape[-1] - self.ctx:]    # ctx mẫu cuối (đúng cả khi ctx = 0)
+        return self.conv(xx), new_cache                  # (B, C_out, t)
+
+class CausalStack(nn.Module):
+    def __init__(self, C=8, dilations=(1, 2, 4, 8)):
+        super().__init__()
+        self.layers = nn.ModuleList(CausalConv1d(C, C, 3, d) for d in dilations)
+
+    def forward(self, x):                                # (B, C, T)
+        for layer in self.layers:
+            x = x + torch.tanh(layer(x))
+        return x
+
+    def step(self, x, caches):                           # caches: list, mỗi lớp một cache
+        new = []
+        for layer, cache in zip(self.layers, caches):
+            y, c = layer.step(x, cache)
+            x = x + torch.tanh(y)
+            new.append(c)
+        return x, new
+
+torch.manual_seed(0)
+net = CausalStack().eval()
+x = torch.randn(2, 8, 300)                               # (B, C, T)
+with torch.inference_mode():
+    y_full = net(x)
+    caches, outs, s = [None] * len(net.layers), [], 0
+    for t in [1, 7, 30, 2, 100, 160]:                    # chunk có độ dài bất kỳ
+        y, caches = net.step(x[..., s:s + t], caches)
+        outs.append(y)
+        s += t
+    y_stream = torch.cat(outs, dim=-1)
+assert s == 300 and torch.allclose(y_stream, y_full, atol=1e-6)
+print("Streaming có cache == chạy toàn chuỗi. Trường tiếp nhận:",
+      1 + sum(l.ctx for l in net.layers), "khung")
+```
+
+Ba chi tiết đáng chú ý trong mã. Thứ nhất, bộ đệm mới được lấy bằng `xx[..., xx.shape[-1] - self.ctx:]` thay vì `xx[..., -self.ctx:]`: khi `ctx = 0` (nhân kích thước 1), biểu thức thứ hai trả về *toàn bộ* tensor chứ không phải tensor rỗng, một lỗi rất khó phát hiện. Thứ hai, bộ đệm là **trạng thái của từng phiên**: trong máy chủ phục vụ nhiều người dùng, mỗi luồng âm thanh phải có bộ đệm riêng và phải được khởi tạo lại khi bắt đầu câu mới, nếu không âm thanh của người này sẽ "rò" sang người kia. Thứ ba, các lớp tăng mẫu bằng tích chập chuyển vị (`ConvTranspose1d`) cũng cần trạng thái, nhưng theo kiểu khác: phần đầu ra "tràn" sang chunk sau phải được giữ lại để cộng chồng (*overlap-add*) với đầu ra chunk sau (Bài tập 6).
+
+### Ghép các chunk: crossfade
+
+Khi các chunk được sinh **không hoàn toàn nhất quán** (ví dụ vocoder không nhân quả chạy trên cửa sổ, hoặc mỗi chunk của bộ giải mã flow matching dùng nhiễu khởi đầu khác nhau), nối thẳng chúng gây ra bước nhảy biên độ ở ranh giới, nghe thành tiếng "tách". Cách chữa là sinh dư một đoạn chồng lấn $n_o$ mẫu giữa hai chunk liên tiếp và trộn chúng bằng hai cửa sổ: cửa sổ giảm dần $a[n]$ cho chunk trước và tăng dần $b[n]$ cho chunk sau.
+
+Chọn $a$, $b$ thế nào? Gọi $u[n]$, $v[n]$ là hai tín hiệu trong vùng chồng lấn, cùng công suất $\sigma^2$, có hệ số tương quan $\gamma$. Công suất kỳ vọng của tín hiệu trộn là
+
+$$
+\mathbb{E}\big[(a u + b v)^2\big] = \sigma^2 \big(a^2 + b^2 + 2\gamma\, a b\big).
+$$
+
+- Nếu hai chunk gần như **trùng nhau** ($\gamma \approx 1$, trường hợp thường gặp vì chúng cùng mô tả một nội dung), công suất là $\sigma^2 (a + b)^2$: muốn giữ nguyên biên độ thì cần **$a + b = 1$**, tức crossfade tuyến tính (hoặc cửa sổ Hann bình phương).
+- Nếu hai chunk **không tương quan** ($\gamma = 0$), cần **$a^2 + b^2 = 1$**, tức crossfade đẳng công suất $a = \cos\varphi$, $b = \sin\varphi$. Dùng crossfade tuyến tính trong trường hợp này làm công suất giữa vùng chồng lấn tụt còn một nửa ($a = b = 1/2$), tức hụt khoảng 3 dB.
+
+Với âm thanh tiếng nói sinh từ cùng nội dung, trường hợp thứ nhất là phổ biến hơn, nên crossfade tuyến tính là lựa chọn mặc định. Đoạn mã dưới kiểm chứng: (a) với các chunk khớp nhau hoàn toàn, crossfade tuyến tính tái tạo chính xác tín hiệu gốc; (b) khi mỗi chunk lệch nhau một chút (ở đây là một độ lệch một chiều ngẫu nhiên), nối cứng tạo ra bước nhảy lớn, còn crossfade làm bước nhảy trở về cỡ của tín hiệu gốc.
+
+```python
+import torch
+
+def crossfade_concat(chunks: list[torch.Tensor], overlap: int) -> torch.Tensor:
+    """Ghép các đoạn audio 1-D; đoạn k+1 lặp lại `overlap` mẫu cuối của đoạn k.
+    Vùng chồng lấn được trộn bằng cửa sổ tuyến tính: w_out + w_in = 1 tại mọi mẫu."""
+    w_in = (torch.arange(overlap) + 0.5) / overlap        # tăng dần từ ~0 lên ~1, (overlap,)
+    w_out = 1.0 - w_in
+    out = chunks[0]
+    for c in chunks[1:]:
+        mixed = out[-overlap:] * w_out + c[:overlap] * w_in
+        out = torch.cat([out[:-overlap], mixed, c[overlap:]])
+    return out
+
+def split_with_overlap(x, hop, overlap):
+    """Cắt x thành các đoạn dài hop + overlap (đoạn cuối có thể ngắn hơn)."""
+    return [x[s:s + hop + overlap] for s in range(0, len(x) - overlap, hop)]
+
+sr, overlap, hop = 16_000, 160, 1600                     # chồng lấn 10 ms, mỗi chunk 100 ms
+t = torch.arange(sr) / sr
+x = 0.5 * torch.sin(2 * torch.pi * 220 * t)              # 1 giây tín hiệu "thật"
+
+# (a) Các chunk khớp nhau hoàn toàn => ghép lại đúng tín hiệu gốc
+chunks = split_with_overlap(x, hop, overlap)
+assert torch.allclose(crossfade_concat(chunks, overlap), x, atol=1e-6)
+
+# (b) Mỗi chunk được "sinh" độc lập nên lệch nhau chút ít (ở đây: độ lệch DC ngẫu nhiên)
+torch.manual_seed(0)
+noisy = [c + 0.05 * torch.randn(()) for c in chunks]
+hard = torch.cat([c[:-overlap] for c in noisy[:-1]] + [noisy[-1]])   # nối cứng
+soft = crossfade_concat(noisy, overlap)
+max_jump = lambda y: y.diff().abs().max().item()          # bước nhảy lớn nhất giữa 2 mẫu
+print(f"tín hiệu gốc: {max_jump(x):.4f}  nối cứng: {max_jump(hard):.4f}  "
+      f"crossfade: {max_jump(soft):.4f}")
+assert max_jump(soft) < max_jump(hard)
+```
+
+Trong lần chạy của chúng tôi, bước nhảy lớn nhất giữa hai mẫu liên tiếp là khoảng 0,043 với tín hiệu gốc, 0,18 khi nối cứng và 0,044 khi crossfade. Một vùng chồng lấn 5–20 ms thường đủ để che vết nối mà không làm tăng đáng kể chi phí; vùng quá dài có thể gây hiện tượng "hai giọng chồng nhau" nếu hai chunk lệch pha nhiều.
+
+!!! tip "Crossfade không chữa được mọi thứ"
+    Crossfade che được bước nhảy biên độ, nhưng nếu hai chunk khác nhau về *nội dung* (ngữ điệu đứt gãy, cao độ nhảy bậc) thì người nghe vẫn nhận ra. Cách chữa tận gốc là cho mô hình nhìn thấy ngữ cảnh quá khứ (mặt nạ chunk, bộ đệm trạng thái) để các chunk nhất quán ngay từ đầu; crossfade chỉ là lớp bảo vệ cuối cùng.
