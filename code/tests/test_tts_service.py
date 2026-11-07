@@ -136,12 +136,14 @@ def test_syllable_tone_detection():
         ["ngang", "huyen", "sac", "hoi", "nga", "nang", "nang", "huyen"]
 
 
-def _f0_track(x: np.ndarray, sr: int, win: int = 400) -> np.ndarray:
-    """Ước lượng F0 thô bằng số lần cắt qua 0 trên từng cửa sổ (đủ cho âm hài sạch)."""
+def _f0_track(x: np.ndarray, sr: int, win: int = 640) -> np.ndarray:
+    """Ước lượng F0 thô bằng tự tương quan trên từng cửa sổ (đủ cho âm hài sạch)."""
+    lo, hi = sr // 400, sr // 60  # tìm F0 trong khoảng 60–400 Hz
     f0 = []
-    for s in range(0, len(x) - win, win):
-        seg = x[s:s + win]
-        f0.append(np.sum(np.abs(np.diff(np.signbit(seg).astype(int)))) * sr / (2 * win))
+    for s in range(0, len(x) - win, win // 2):
+        seg = x[s:s + win] - x[s:s + win].mean()
+        ac = np.correlate(seg, seg, mode="full")[win - 1:]
+        f0.append(sr / (lo + int(np.argmax(ac[lo:hi]))))
     return np.array(f0)
 
 
@@ -153,6 +155,8 @@ def test_tone_synthesizer_is_deterministic_and_follows_tones():
     sac, huyen = _f0_track(synth._syllable("má", 180.0, 1.0), SR), _f0_track(synth._syllable("mà", 180.0, 1.0), SR)
     assert sac[-1] > sac[0] * 1.15      # thanh sắc đi lên
     assert huyen[-1] < huyen[0] * 0.9   # thanh huyền đi xuống
+    hoi = _f0_track(synth._syllable("mả", 180.0, 1.0), SR)
+    assert hoi.min() < min(hoi[0], hoi[-1])  # thanh hỏi: xuống rồi lên
     # nói nhanh gấp đôi -> ngắn đi khoảng một nửa
     assert len(synth.synthesize("má mà", speed=2.0)) == pytest.approx(len(a) / 2, rel=0.02)
 

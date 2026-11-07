@@ -438,3 +438,314 @@ với $\alpha$ là `length_scale` (tốc độ đọc: $\alpha > 1$ là chậm h
 
 !!! example "SDP hay DDP?"
     Theo báo cáo gốc, VITS với DDP đạt MOS thấp hơn một chút so với SDP (4,39 so với 4,43 trên LJSpeech) nhưng nhanh hơn. Trong thực tế, nhiều người huấn luyện VITS cho tiếng Việt vẫn dùng SDP mặc định, rồi tinh chỉnh `noise_scale_w` khi suy luận: giảm về 0,3–0,6 nếu nhịp điệu quá "phiêu" với văn bản tin tức, giữ khoảng 0,8 cho văn kể chuyện. Đây là kinh nghiệm thực hành, không phải quy tắc; hãy nghe thử trên tập kiểm tra của chính bạn.
+
+## 27.6. Bộ giải mã, huấn luyện theo cửa sổ và huấn luyện đối kháng
+
+### 27.6.1. Bộ giải mã là bộ sinh HiFi-GAN
+
+Bộ giải mã $G$ về cơ bản là bộ sinh HiFi-GAN V1 ([Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)): một chuỗi tích chập chuyển vị tăng mẫu (hệ số $8 \times 8 \times 2 \times 2 = 256 = H$), mỗi tầng theo sau là khối MRF. Khác biệt duy nhất về giao diện: đầu vào là $\mathbf{z}$ có 192 kênh thay vì mel 80 kênh. Điều này có ý nghĩa sâu: bộ giải mã không bị buộc phải đi qua mel, nên $\mathbf{z}$ có thể mang những thông tin mà mel đã vứt bỏ (ví dụ một phần cấu trúc pha), miễn là có ích cho việc dựng sóng.
+
+### 27.6.2. Huấn luyện theo cửa sổ
+
+Chạy HiFi-GAN trên cả câu dài 10 giây với batch 64 là không khả thi về bộ nhớ. VITS chọn ngẫu nhiên một đoạn 32 khung của $\mathbf{z}$ cho mỗi câu, giải mã thành 8192 mẫu, và cắt đoạn sóng thật **tương ứng** (vị trí bắt đầu nhân với $H$) làm mục tiêu cho cả mất mát mel lẫn bộ phân biệt. Điều quan trọng là đoạn $\mathbf{z}$ lấy từ **hậu nghiệm**: bộ giải mã chỉ bao giờ thấy $\mathbf{z}$ sinh từ âm thanh thật khi huấn luyện. Mã dưới đây cài đặt phép cắt và kiểm tra hai đoạn (ẩn và sóng) thật sự khớp nhau về thời gian.
+
+```python
+import torch
+
+def slice_segments(x, ids_str, segment_size):
+    """Cắt đoạn dài segment_size bắt đầu từ ids_str[b]. x: (B, C, T) -> (B, C, segment_size)."""
+    idx = ids_str[:, None] + torch.arange(segment_size, device=x.device)[None, :]   # (B, S)
+    return torch.gather(x, 2, idx[:, None, :].expand(-1, x.size(1), -1))
+
+def rand_slice_segments(x, x_lengths, segment_size):
+    """Chọn ngẫu nhiên vị trí bắt đầu sao cho đoạn cắt nằm trọn trong phần hợp lệ."""
+    ids_str_max = (x_lengths - segment_size + 1).clamp(min=1)                  # (B,)
+    ids_str = (torch.rand(x.size(0), device=x.device) * ids_str_max).long()
+    return slice_segments(x, ids_str, segment_size), ids_str
+
+torch.manual_seed(0)
+hop, seg_frames = 256, 32                      # segment_size = 32 * 256 = 8192 mẫu
+B, C, T = 3, 192, 100
+lengths = torch.tensor([100, 64, 40])          # số khung hợp lệ của từng câu
+# Gán "nhãn thời gian" để kiểm chứng: khung t có giá trị t, mẫu n có giá trị n // hop
+z = torch.arange(T).float().expand(B, C, T).clone()                  # (B, C, T)
+wav = (torch.arange(T * hop) // hop).float().expand(B, 1, -1).clone()  # (B, 1, L)
+
+z_slice, ids = rand_slice_segments(z, lengths, seg_frames)           # (B, 192, 32)
+wav_slice = slice_segments(wav, ids * hop, seg_frames * hop)         # (B, 1, 8192)
+assert z_slice.shape == (B, C, seg_frames) and wav_slice.shape == (B, 1, seg_frames * hop)
+assert torch.all(ids + seg_frames <= lengths)                        # không cắt vào vùng đệm
+# Mẫu đầu của mỗi hop trong đoạn sóng phải "thuộc" đúng khung tương ứng của đoạn ẩn
+assert torch.equal(wav_slice[:, 0, ::hop], z_slice[:, 0, :])
+print("vị trí bắt đầu (khung):", ids.tolist())
+```
+
+!!! warning "Mel của đoạn sinh ra phải có đúng 32 khung"
+    Mất mát mel so sánh mel cắt từ câu thật (32 khung) với mel tính lại từ 8192 mẫu sinh ra. Để hai bên có cùng số khung và cùng căn lề, mã gốc **không** dùng `center=True` của STFT mà tự đệm phản xạ $(N_{\text{FFT}} - H)/2$ mẫu mỗi bên rồi gọi STFT với `center=False`, cho đúng $L/H$ khung. Nếu bạn thay hàm mel bằng một hàm khác (librosa, torchaudio với tham số mặc định), mel mục tiêu và mel sinh ra có thể lệch nhau nửa khung hoặc khác số khung, và mất mát mel sẽ âm thầm phạt sai (xem [Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md) về các khác biệt mặc định giữa thư viện).
+
+### 27.6.3. Bộ phân biệt và mất mát đối kháng
+
+VITS dùng bộ phân biệt đa chu kỳ (MPD) của HiFi-GAN với các chu kỳ $[2, 3, 5, 7, 11]$, cộng thêm **một** bộ phân biệt đa thang đo trên sóng gốc (bỏ hai bộ trên sóng đã lấy trung bình gộp để tiết kiệm). Có thể xem nó như MPD với chu kỳ $[1, 2, 3, 5, 7, 11]$. Hàm mất mát là LSGAN cộng feature matching:
+
+$$
+\mathcal{L}_{\text{adv}}(D) = \sum_k \mathbb{E}\big[(D_k(\mathbf{s}) - 1)^2 + D_k(G(\mathbf{z}))^2\big], \qquad
+\mathcal{L}_{\text{adv}}(G) = \sum_k \mathbb{E}\big[(D_k(G(\mathbf{z})) - 1)^2\big],
+$$
+
+$$
+\mathcal{L}_{\text{fm}}(G) = \sum_k \sum_{l} \frac{1}{N_l}\big\lVert D_k^{l}(\mathbf{s}) - D_k^{l}(G(\mathbf{z})) \big\rVert_1,
+$$
+
+với $D_k^l$ là bản đồ đặc trưng tầng $l$ của bộ phân biệt con $k$ và $N_l$ là số phần tử. Bài báo VITS chỉ ra một cách hiểu đẹp: feature matching là một **mất mát tái tạo đo trong không gian đặc trưng học được** của bộ phân biệt, thay cho mất mát từng phần tử của VAE (Larsen và cộng sự, 2016). Nói cách khác, GAN ở đây không chỉ "làm đẹp" âm thanh mà còn bù đắp cho giả định Laplace quá thô của $p_\theta(\mathbf{Y} \mid \mathbf{z})$.
+
+## 27.7. Tổng hợp hàm mất mát và một bước huấn luyện
+
+Hàm mất mát của bộ sinh (mọi mô-đun trừ bộ phân biệt) là
+
+$$
+\mathcal{L}_G = c_{\text{mel}}\,\mathcal{L}_{\text{recon}} + c_{\text{kl}}\,\mathcal{L}_{\text{kl}} + \mathcal{L}_{\text{dur}} + \mathcal{L}_{\text{adv}}(G) + \mathcal{L}_{\text{fm}}(G),
+$$
+
+với $c_{\text{mel}} = 45$, $c_{\text{kl}} = 1$ trong cấu hình gốc; trong mã, $\mathcal{L}_{\text{fm}}$ còn được nhân 2 (kế thừa từ HiFi-GAN). Bộ phân biệt được tối ưu riêng với $\mathcal{L}_{\text{adv}}(D)$. Bảng sau tóm tắt từng số hạng tác động lên đâu:
+
+| Số hạng | Ý nghĩa | Mô-đun nhận gradient |
+|---|---|---|
+| $\mathcal{L}_{\text{recon}}$ (L1 mel, ×45) | Tái tạo, likelihood Laplace | Bộ giải mã, bộ mã hóa hậu nghiệm |
+| $\mathcal{L}_{\text{kl}}$ | Kéo hậu nghiệm và prior lại gần nhau | Hậu nghiệm, flow, bộ mã hóa văn bản |
+| $\mathcal{L}_{\text{dur}}$ | Âm cận dưới log-likelihood trường độ | Chỉ bộ dự đoán trường độ (đầu vào bị chặn gradient) |
+| $\mathcal{L}_{\text{adv}}(G)$, $\mathcal{L}_{\text{fm}}$ | Độ chân thực của dạng sóng | Bộ giải mã, bộ mã hóa hậu nghiệm |
+| $\mathcal{L}_{\text{adv}}(D)$ | Phân biệt thật/giả | Chỉ bộ phân biệt |
+
+Một nhận xét đáng giá: bộ mã hóa văn bản **chỉ** nhận gradient từ KL (vì MAS không có gradient và bộ dự đoán trường độ bị chặn gradient). Mọi thứ prior học được về âm thanh đều đi qua "cửa" KL. Đó là lý do khi KL không giảm, phía văn bản gần như không học gì.
+
+Siêu tham số theo bài báo gốc: AdamW với $\beta_1 = 0{,}8$, $\beta_2 = 0{,}99$, weight decay 0,01, tốc độ học ban đầu $2 \times 10^{-4}$ giảm theo hệ số $0{,}999^{1/8}$ sau mỗi epoch; huấn luyện độ chính xác hỗn hợp trên 4 GPU V100, batch 64 mỗi GPU, tới khoảng 800 nghìn bước. Phác thảo dưới đây (không chạy độc lập, vì thiếu mạng `net_g`, `net_d` và bộ nạp dữ liệu) cho thấy thứ tự cập nhật theo đúng cấu trúc tệp huấn luyện gốc; các hàm `slice_segments` và `kl_loss` là của các khối mã trước.
+
+```python
+# PHÁC THẢO (pseudo-code có cú pháp Python): một bước huấn luyện VITS
+for x, x_len, spec, spec_len, wav, wav_len in loader:
+    # ---- Lan truyền xuôi của bộ sinh: hậu nghiệm, flow, MAS, SDP, giải mã một đoạn ----
+    wav_hat, l_dur, ids_slice, z_mask, (z, z_p, m_p, logs_p, m_q, logs_q) = \
+        net_g(x, x_len, spec, spec_len)                          # wav_hat: (B, 1, 8192)
+    mel_slice = slice_segments(spec_to_mel(spec), ids_slice, 32)          # (B, F, 32)
+    mel_hat = wav_to_mel(wav_hat.squeeze(1))                              # (B, F, 32)
+    wav_slice = slice_segments(wav, ids_slice * hop, 32 * hop)            # (B, 1, 8192)
+
+    # ---- Bước 1: cập nhật bộ phân biệt trên đoạn sinh đã tách gradient ----
+    d_real, d_fake, _, _ = net_d(wav_slice, wav_hat.detach())
+    loss_d = sum(((1 - r) ** 2).mean() + (f ** 2).mean() for r, f in zip(d_real, d_fake))
+    opt_d.zero_grad(); loss_d.backward(); opt_d.step()
+
+    # ---- Bước 2: cập nhật bộ sinh ----
+    d_real, d_fake, fmap_real, fmap_fake = net_d(wav_slice, wav_hat)
+    loss_adv = sum(((1 - f) ** 2).mean() for f in d_fake)
+    loss_fm = 2 * sum((r.detach() - f).abs().mean()
+                      for fr, ff in zip(fmap_real, fmap_fake) for r, f in zip(fr, ff))
+    loss_mel = 45 * (mel_hat - mel_slice).abs().mean()
+    loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask)
+    loss_g = loss_adv + loss_fm + loss_mel + loss_kl + l_dur.sum()
+    opt_g.zero_grad(); loss_g.backward(); opt_g.step()
+```
+
+## 27.8. Đường suy luận
+
+### 27.8.1. Các bước
+
+Lúc suy luận, chỉ còn bộ mã hóa văn bản, bộ dự đoán trường độ, flow (chiều ngược) và bộ giải mã:
+
+1. Bộ mã hóa văn bản sinh $\mathbf{h}^{\text{text}}$, $\boldsymbol{\mu}_\theta$, $\log\boldsymbol{\sigma}_\theta$ cho từng token.
+2. Bộ dự đoán trường độ chạy ngược từ nhiễu (nhân `noise_scale_w`), cho $\log\hat{\mathbf{w}}$; tính $\hat{d}_i = \lceil \exp(\log \hat{w}_i) \cdot \alpha \rceil$.
+3. Từ $\hat{\mathbf{d}}$ dựng ma trận căn chỉnh cứng $\hat{\mathbf{A}}$ (hàm `generate_path`), mở rộng $\boldsymbol{\mu}$, $\boldsymbol{\sigma}$ thành chuỗi theo khung.
+4. Lấy mẫu $\tilde{\mathbf{z}} = \boldsymbol{\mu} + \boldsymbol{\sigma} \odot \boldsymbol{\epsilon} \cdot \tau$, với $\tau$ là `noise_scale` (mặc định 0,667 trong bài báo).
+5. Chạy flow **ngược**: $\mathbf{z} = f_\theta^{-1}(\tilde{\mathbf{z}})$.
+6. Bộ giải mã sinh dạng sóng từ **toàn bộ** $\mathbf{z}$ (không cắt đoạn).
+
+Hệ số $\tau$ đóng vai trò giống "nhiệt độ" trong Glow-TTS: $\tau$ nhỏ cho giọng ổn định nhưng phẳng hơn, $\tau = 1$ cho nhiều biến thiên nhưng dễ sinh lỗi âm thanh. Mã dưới đây cài đặt các bước 2–5 (dùng lại lớp `PriorFlow` ở Mục 27.3.2) và kiểm tra tính hợp lệ của ma trận căn chỉnh.
+
+```python
+import torch
+
+def sequence_mask(lengths, max_len):
+    return torch.arange(max_len, device=lengths.device)[None, :] < lengths[:, None]   # (B, max_len)
+
+def generate_path(w_ceil, x_mask):
+    """Trường độ nguyên -> ma trận căn chỉnh cứng. w_ceil, x_mask: (B, N) -> A: (B, N, T)."""
+    cum = torch.cumsum(w_ceil, dim=1).long()                          # (B, N) vị trí kết thúc
+    T = int(cum.max())
+    path = sequence_mask(cum.flatten(), T).view(*cum.shape, T).float()  # 1 nếu t < cum[i]
+    path = path - torch.nn.functional.pad(path, (0, 0, 1, 0))[:, :-1]   # trừ hàng i-1
+    return path * x_mask[:, :, None]
+
+@torch.no_grad()
+def infer_latent(m_p, logs_p, logw, x_mask, flow, noise_scale=0.667, length_scale=1.0):
+    """m_p, logs_p: (B, C, N); logw: (B, N) là log-trường độ do SDP sinh ra."""
+    w_ceil = torch.ceil(torch.exp(logw) * x_mask * length_scale)      # (B, N), làm tròn LÊN
+    y_lengths = w_ceil.sum(1).clamp(min=1).long()                     # (B,)
+    A = generate_path(w_ceil, x_mask)                                 # (B, N, T)
+    y_mask = sequence_mask(y_lengths, A.size(-1)).unsqueeze(1).float()   # (B, 1, T)
+    m = torch.bmm(m_p, A)                                             # (B, C, T)
+    logs = torch.bmm(logs_p, A)                                       # (B, C, T)
+    z_p = (m + torch.randn_like(m) * logs.exp() * noise_scale) * y_mask  # lấy mẫu từ prior
+    z = flow(z_p, y_mask, reverse=True)                               # f^{-1}: z_p -> z
+    return z, y_mask, A                                               # z đưa vào bộ giải mã
+
+torch.manual_seed(0)
+B, C, N = 2, 4, 6
+x_mask = torch.tensor([[1.] * 6, [1.] * 4 + [0.] * 2])                # câu 2 có 4 token
+m_p, logs_p = torch.randn(B, C, N), -torch.rand(B, C, N)
+logw = torch.randn(B, N) * 0.5 + 1.0                                  # giả lập đầu ra SDP
+z, y_mask, A = infer_latent(m_p, logs_p, logw, x_mask, PriorFlow(C))
+assert torch.all(A.sum(1)[y_mask[:, 0] > 0] == 1)                     # khung hợp lệ: đúng 1 token
+assert torch.equal(A.sum(-1), torch.ceil(torch.exp(logw) * x_mask))   # tổng hàng = trường độ
+print("z:", tuple(z.shape), "| số khung mỗi câu:", y_mask.sum((1, 2)).long().tolist())
+```
+
+### 27.8.2. Cái gì ở đâu: bảng đối chiếu huấn luyện và suy luận
+
+| Mô-đun | Lúc huấn luyện | Lúc suy luận |
+|---|---|---|
+| Bộ mã hóa văn bản | Sinh $\boldsymbol{\mu}, \boldsymbol{\sigma}$ cho MAS và KL; $\mathbf{h}^{\text{text}}$ (chặn gradient) cho SDP | Sinh $\boldsymbol{\mu}, \boldsymbol{\sigma}, \mathbf{h}^{\text{text}}$ |
+| Bộ mã hóa hậu nghiệm | Phổ tuyến tính $\to \mathbf{z}$ | **Không dùng** (trừ chuyển đổi giọng) |
+| Flow $f_\theta$ | Chiều thuận: $\mathbf{z} \to f_\theta(\mathbf{z})$ | Chiều ngược: $\tilde{\mathbf{z}} \to f_\theta^{-1}(\tilde{\mathbf{z}})$ |
+| MAS | Tìm $\mathbf{A}$ (không gradient) | **Không dùng**; $\mathbf{A}$ dựng từ trường độ dự đoán |
+| Bộ dự đoán trường độ | Chiều thuận: tính cận dưới cho $\mathbf{d}$ từ MAS | Chiều ngược: nhiễu $\to \log\hat{\mathbf{w}}$ |
+| Bộ giải mã | Đoạn 32 khung của $\mathbf{z}$ **hậu nghiệm** | Toàn bộ $\mathbf{z}$ từ **prior** |
+| Bộ phân biệt, hàm mel | Dùng cho mất mát | **Không dùng** |
+
+Dòng "bộ giải mã" là mấu chốt: bộ giải mã chưa từng thấy một $\mathbf{z}$ sinh từ prior khi huấn luyện. Toàn bộ chất lượng suy luận dựa vào việc KL đã làm $f_\theta^{-1}$ (mẫu prior) giống $\mathbf{z}$ hậu nghiệm đến mức nào. Đây là một dạng lệch huấn luyện–suy luận còn sót lại mà NaturalSpeech (Mục 27.10) cố gắng giảm.
+
+### 27.8.3. Đa người nói và chuyển đổi giọng
+
+Với dữ liệu nhiều người nói, VITS thêm embedding người nói $\mathbf{g}$ (bảng tra, 256 chiều trong cấu hình VCTK) vào bộ mã hóa hậu nghiệm và flow (điều kiện toàn cục trong các khối WaveNet), vào đầu vào bộ giải mã (qua một lớp tuyến tính, cộng vào $\mathbf{z}$) và vào đầu vào bộ dự đoán trường độ. **Bộ mã hóa văn bản không nhận $\mathbf{g}$**, nên $\boldsymbol{\mu}, \boldsymbol{\sigma}$ là biểu diễn không phụ thuộc người nói. Hệ quả thú vị (phụ lục của bài báo gốc): ta có thể chuyển đổi giọng nói của người A sang người B mà không cần văn bản:
+
+$$
+\mathbf{z} \sim q_\phi(\mathbf{z} \mid \mathbf{S}, \mathbf{g}_A), \qquad \mathbf{e} = f_\theta(\mathbf{z} \mid \mathbf{g}_A), \qquad \hat{\mathbf{z}} = f_\theta^{-1}(\mathbf{e} \mid \mathbf{g}_B), \qquad \hat{\mathbf{s}} = G(\hat{\mathbf{z}}, \mathbf{g}_B).
+$$
+
+Flow đóng vai trò "gỡ" thông tin người nói khỏi $\mathbf{z}$ để được $\mathbf{e}$, rồi "gắn" người nói mới vào. Các kỹ thuật điều kiện hóa người nói chi tiết hơn (FiLM, LayerNorm có điều kiện, bộ mã hóa người nói) được trình bày ở [Chương 28](ch28-da-nguoi-noi-voice-cloning.md).
+
+## 27.9. VITS2: những gì được cải tiến
+
+VITS2 (Kong và cộng sự, 2023) chỉ ra các điểm yếu của VITS: thỉnh thoảng có đoạn kém tự nhiên, bộ dự đoán trường độ tốn tính toán, định dạng đầu vào phức tạp (token trống), độ giống người nói chưa đủ trong mô hình nhiều người nói, huấn luyện chậm và phụ thuộc mạnh vào chuyển đổi âm vị. Bốn cải tiến chính:
+
+1. **Bộ dự đoán trường độ huấn luyện đối kháng.** Thay flow phức tạp bằng một bộ sinh nhận $\mathbf{h}^{\text{text}}$ và nhiễu $\mathbf{z}_d$, cùng một **bộ phân biệt có điều kiện theo từng bước thời gian** (phân biệt trường độ của từng token, vì độ dài chuỗi thay đổi). Mất mát gồm LSGAN và MSE trên log-trường độ. Bộ dự đoán này được huấn luyện riêng ở giai đoạn cuối (theo báo cáo, khoảng 30 nghìn bước so với 800 nghìn bước của phần còn lại), giảm tổng thời gian huấn luyện.
+2. **MAS có nhiễu Gauss.** Sau khi MAS chốt một căn chỉnh, mô hình được tối ưu cho căn chỉnh đó và ít có cơ hội khám phá căn chỉnh khác tốt hơn. VITS2 cộng nhiễu vào các giá trị $Q$ của quy hoạch động: nhiễu chuẩn nhân với độ lệch chuẩn của ma trận log-likelihood và một hệ số bắt đầu ở 0,01, giảm $2 \times 10^{-6}$ mỗi bước. Như vậy nhiễu chỉ tồn tại trong vài nghìn bước đầu.
+3. **Flow có khối Transformer.** Mạng con của coupling vốn là tích chập, chỉ nhìn được lân cận; VITS2 thêm một khối Transformer nhỏ có kết nối tắt để flow nắm được phụ thuộc xa khi biến đổi phân phối.
+4. **Bộ mã hóa văn bản có điều kiện người nói.** Embedding người nói được đưa vào khối Transformer thứ ba của bộ mã hóa văn bản, vì cách phát âm và ngữ điệu riêng của mỗi người cũng nên ảnh hưởng tới biểu diễn văn bản. Đổi lại, $\boldsymbol{\mu}, \boldsymbol{\sigma}$ không còn hoàn toàn độc lập với người nói như ở VITS.
+
+Ngoài ra, VITS2 dùng mel thay cho phổ tuyến tính làm đầu vào của bộ mã hóa hậu nghiệm và **bỏ token trống**. Theo báo cáo gốc trên LJSpeech, VITS2 đạt CMOS khoảng +0,2 so với VITS và cải thiện độ giống người nói (SMOS) trên VCTK; thí nghiệm với văn bản đã chuẩn hóa (không chuyển âm vị) cho thấy CER giảm rõ so với VITS, tức là bớt phụ thuộc vào G2P. Theo hiểu biết của chúng tôi, nhóm tác giả không phát hành mã chính thức; các bản cài đặt cộng đồng có thể khác bài báo ở chi tiết, nên hãy đọc kỹ trước khi so sánh kết quả.
+
+## 27.10. Họ hàng end-to-end của VITS
+
+| Mô hình | Căn chỉnh | Trường độ | Bộ giải mã | Điểm mạnh | Hạn chế |
+|---|---|---|---|---|---|
+| VITS (2021) | MAS trên $f_\theta(\mathbf{z})$ | Flow ngẫu nhiên (SDP) | HiFi-GAN | Chất lượng cao, một giai đoạn, đa dạng nhịp điệu | Huấn luyện lâu; khó điều khiển tường minh cao độ |
+| VITS2 (2023) | MAS có nhiễu | Bộ sinh đối kháng | HiFi-GAN | Tự nhiên hơn, ít phụ thuộc G2P | Không có mã chính thức |
+| JETS (2022) | Học căn chỉnh (forward-sum) | Hồi quy (FastSpeech 2) | HiFi-GAN | Điều khiển được cao độ/năng lượng, không cần bộ căn chỉnh ngoài | Không có biến ẩn ngẫu nhiên, đa dạng thấp hơn |
+| NaturalSpeech (2022) | Bộ trường độ khả vi | Khả vi | Kiểu HiFi-GAN | Không khác biệt có ý nghĩa thống kê so với ghi âm (LJSpeech, CMOS) | Phức tạp, cần tiền huấn luyện âm vị quy mô lớn |
+| MB-iSTFT-VITS (2023) | Như VITS | Như VITS | Đa băng + iSTFT | Nhanh hơn nhiều trên CPU | Thêm siêu tham số băng con |
+
+**JETS** (Lim và cộng sự, 2022) đi theo hướng ngược lại với VITS: không dùng VAE, mà huấn luyện chung FastSpeech 2 với HiFi-GAN trên các đoạn ngẫu nhiên, thay bộ căn chỉnh ngoài bằng khung học căn chỉnh của Badlani và cộng sự (2022) (mất mát forward-sum kiểu CTC cộng mất mát nhị phân hóa; xem [Chương 21](../phan-5-mo-hinh-am-hoc/ch21-alignment.md)). Ưu điểm là giữ được bộ điều chỉnh phương sai (*variance adaptor*) của FastSpeech 2 với cao độ và năng lượng tường minh ([Chương 22](../phan-5-mo-hinh-am-hoc/ch22-fastspeech.md)), rất tiện khi cần điều khiển; nhược điểm là vẫn là mô hình hồi quy, nên tính đa dạng thấp hơn.
+
+**NaturalSpeech** (Tan và cộng sự, 2022) giữ khung VAE end-to-end của VITS và thêm bốn thành phần nhằm làm prior "mạnh" hơn và hậu nghiệm "đơn giản" hơn: tiền huấn luyện bộ mã hóa âm vị trên dữ liệu văn bản lớn, bộ trường độ khả vi (bỏ MAS cứng), mô-đun prior/hậu nghiệm hai chiều dựa trên flow, và VAE có bộ nhớ. Theo báo cáo gốc, trên LJSpeech, CMOS so với ghi âm thật xấp xỉ −0,01 với kiểm định Wilcoxon không cho thấy khác biệt có ý nghĩa. Các thế hệ sau (NaturalSpeech 2, 3) chuyển sang khuếch tán trên codec và thuộc về [Chương 33](../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon.md).
+
+**MB-iSTFT-VITS** (Kawamura và cộng sự, 2023) xuất phát từ quan sát rằng bộ giải mã HiFi-GAN là phần tốn kém nhất khi suy luận. Họ thay các tầng tăng mẫu cuối bằng một phép iSTFT (mạng chỉ cần dự đoán biên độ và pha ở độ phân giải thời gian thô) và sinh nhiều băng con song song rồi tổng hợp bằng bộ lọc PQMF cố định hoặc bộ lọc tổng hợp học được (biến thể MS-iSTFT-VITS). Theo báo cáo gốc, mô hình đạt RTF khoảng 0,066 trên một CPU Intel Core i7, nhanh khoảng 4,1 lần so với VITS mà độ tự nhiên tương đương. Ý tưởng iSTFT-head được bàn kỹ ở [Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md) (iSTFTNet, Vocos).
+
+**Piper** là một hệ thống TTS cục bộ, nhanh, do Michael Hansen phát triển trong hệ sinh thái Rhasspy: mô hình là VITS, được xuất sang ONNX và chạy bằng ONNX Runtime trên CPU, kể cả thiết bị nhúng; đầu vào là âm vị do espeak-ng sinh ra. Các giọng được chia mức chất lượng (`x_low`, `low`, `medium`, `high`). Tính đến thời điểm biên soạn (2026), kho giọng công khai có ba giọng tiếng Việt: `vi_VN-vais1000-medium` (22 050 Hz, một người nói, thẻ mô hình ghi là được tinh chỉnh từ một giọng tiếng Anh và dữ liệu VAIS-1000 theo giấy phép CC BY 4.0), `vi_VN-25hours_single-low` và `vi_VN-vivos-x_low` (nhiều người nói). Tệp cấu hình đi kèm mỗi giọng lưu sẵn `noise_scale = 0.667`, `length_scale = 1`, `noise_w = 0.8`, khớp với các giá trị trong bài báo VITS. Mã nguồn Piper đã đổi kho lưu trữ và giấy phép trong quá trình phát triển, nên hãy kiểm tra giấy phép hiện hành của cả mã lẫn từng giọng trước khi dùng thương mại. [Dự án 3](../phan-10-du-an/du-an-3-vits-tieng-viet.md) hướng dẫn huấn luyện và xuất mô hình kiểu Piper cho tiếng Việt.
+
+Cuối cùng, dự án **MMS** của Meta (Pratap và cộng sự, 2023) huấn luyện các mô hình VITS riêng cho hơn một nghìn ngôn ngữ, trong đó có tiếng Việt (`facebook/mms-tts-vie`, khoảng 36 triệu tham số, giấy phép CC BY-NC 4.0 tính đến thời điểm biên soạn, tức là **không** dùng thương mại). Đây là điểm xuất phát nhanh để thử nghiệm, nhưng chất lượng thường thấp hơn một mô hình được huấn luyện cẩn thận trên dữ liệu phòng thu.
+
+## 27.11. Vì sao VITS phổ biến cho tiếng Việt
+
+VITS trở thành lựa chọn mặc định của rất nhiều dự án TTS tiếng Việt, từ nghiên cứu đến sản phẩm. Lý do không phải vì nó tốt nhất tuyệt đối, mà vì nó **khớp với ràng buộc** của bối cảnh này:
+
+- **Một mô hình, một lần huấn luyện.** Không cần huấn luyện vocoder riêng rồi tinh chỉnh GTA; nhóm nhỏ ít GPU dễ vận hành hơn.
+- **Không cần bộ căn chỉnh ngoài.** MAS học căn chỉnh nội tại. Với tiếng Việt, mô hình căn chỉnh cưỡng bức dựng sẵn ít và chất lượng không đồng đều, nên đây là lợi thế thật.
+- **Dữ liệu vừa phải.** Một người nói với dữ liệu sạch cỡ vài giờ đến vài chục giờ thường đủ cho chất lượng tốt, đặc biệt khi tinh chỉnh từ một checkpoint đã huấn luyện trước (kể cả checkpoint tiếng Anh, như giọng Piper `vais1000` ở trên). Đây là kinh nghiệm cộng đồng, không phải ngưỡng cứng; chất lượng phụ thuộc mạnh vào độ sạch và độ nhất quán của dữ liệu ([Chương 36](../phan-9-thuc-tien/ch36-du-lieu-tts.md)).
+- **Chữ viết gần với âm vị.** Chữ Quốc ngữ ghi âm khá sát, có ghi thanh điệu, nên VITS học được ngay cả từ ký tự (sau chuẩn hóa văn bản và NFC), hoặc từ một bộ G2P quy tắc đơn giản ([Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md)).
+- **Suy luận nhanh, triển khai dễ.** Không tự hồi quy, xuất ONNX được, chạy thời gian thực trên CPU.
+
+Nhưng cũng cần nói rõ giới hạn: VITS **không nhân bản giọng zero-shot** (cần dữ liệu của chính người nói), ngôn điệu đường dài (đọc sách, văn bản dài) có xu hướng đều đều vì mô hình chỉ nhìn từng câu, và phát âm từ nước ngoài phụ thuộc hoàn toàn vào frontend ([Chương 30](ch30-da-ngon-ngu-code-switching.md)).
+
+!!! note "Góc tiếng Việt: chọn ký hiệu đầu vào cho VITS"
+    Với đầu vào là ký tự, mỗi tổ hợp nguyên âm + dấu thanh dựng sẵn (ví dụ "ế", "ề", "ể", "ễ", "ệ") là **một ký hiệu riêng**. Bộ ký hiệu vì thế có hơn một trăm nguyên âm mang thanh, và mỗi ký hiệu có ít mẫu huấn luyện hơn. Cách thay thế là tách thanh điệu thành một token riêng (ví dụ `t o a n` + `<sắc>`), giúp mô hình chia sẻ thông tin giữa các vần cùng nguyên âm, đổi lại chuỗi dài hơn và mô hình phải tự học vị trí tác động của thanh. Hai cách đều chạy được với VITS; điều bắt buộc là **nhất quán** giữa huấn luyện và suy luận: cùng chuẩn NFC, cùng quy tắc đặt dấu (hòa/hoà), cùng `add_blank`, cùng thứ tự bảng ký hiệu. Phân tích chi tiết ở [Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md).
+
+!!! note "Góc tiếng Việt: `noise_scale` và thanh điệu"
+    Thanh điệu tiếng Việt được mã hóa trong hình dạng đường F0 và chất giọng (thanh ngã, nặng có đặc trưng thanh quản hóa). Với VITS, phần lớn biến thiên cao độ nằm trong $\mathbf{z}$, nên `noise_scale` quá lớn có thể làm méo đường nét thanh, nghe như lẫn hỏi/ngã hoặc sắc/hỏi. Kinh nghiệm thực hành là giữ `noise_scale` quanh 0,5–0,7 và đánh giá bằng một bộ câu kiểm tra cặp tối thiểu về thanh điệu ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)). Hãy coi đây là gợi ý để thử, không phải kết luận đã được kiểm chứng rộng rãi.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Chẩn đoán bằng "tái tạo hậu nghiệm".** Đây là mẹo hữu ích nhất khi gỡ lỗi VITS. Lấy một câu trong tập kiểm tra, chạy bộ mã hóa hậu nghiệm rồi giải mã thẳng $G(\mathbf{z}_{\text{post}})$. Nếu âm thanh tái tạo tốt mà âm thanh suy luận từ văn bản tệ, lỗi nằm ở phía văn bản: prior, KL, căn chỉnh hoặc trường độ. Nếu tái tạo đã tệ, lỗi nằm ở bộ giải mã, bộ phân biệt, cấu hình mel hoặc dữ liệu.
+- **KL tính sai đơn vị.** Chia KL cho $C \cdot T$ thay vì cho số khung, hoặc quên mặt nạ, làm lệch cán cân giữa KL và mel. Giữ đúng hàm `kl_loss` gốc, và tính nó ở `float32` (mã gốc ép kiểu): $\exp(-2\log\sigma_p)$ dễ tràn số trong fp16.
+- **Không khớp frontend.** `add_blank`, bảng ký hiệu, chuẩn Unicode, bộ làm sạch văn bản (*cleaner*) và quy tắc chuẩn hóa số phải giống hệt nhau giữa huấn luyện và suy luận. Một ký hiệu bị lệch chỉ số có thể làm cả câu nói "lơ lớ".
+- **Cấu hình STFT/mel lệch nhau.** `segment_size` phải chia hết cho `hop_length`; hàm mel cho mục tiêu và cho đầu ra phải là một (Mục 27.6.2). Nếu đổi tần số lấy mẫu (ví dụ 22 050 → 24 000 Hz) mà giữ hệ số tăng mẫu của bộ giải mã, tích các hệ số tăng mẫu phải bằng `hop_length` mới.
+- **Khoảng lặng đầu/cuối câu.** MAS sẽ gán khoảng lặng dài cho token đầu hoặc cuối, làm trường độ của chúng phình ra và bộ dự đoán học sai. Hãy cắt lặng nhất quán và cân nhắc thêm token dấu câu để mô hình có chỗ đặt các khoảng ngừng ([Chương 36](../phan-9-thuc-tien/ch36-du-lieu-tts.md)).
+- **Câu quá dài gây tràn bộ nhớ.** MAS và attention tỉ lệ với $N \times T$. Lọc bỏ câu quá dài (thường trên khoảng 15–20 giây) hoặc dùng batch theo bucket độ dài ([Chương 6](../phan-1-nen-tang/ch06-pytorch-cho-tieng-noi.md)).
+- **Đọc đường cong mất mát.** Mất mát mel nên giảm đều; KL thường có thể tăng ở giai đoạn đầu (khi hậu nghiệm học mã hóa nhiều thông tin hơn) rồi ổn định; các mất mát đối kháng dao động là bình thường. Đừng chọn checkpoint theo tổng mất mát của bộ sinh: hãy nghe mẫu và đo CER/WER bằng ASR ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)).
+- **Tinh chỉnh từ checkpoint có sẵn.** Khi bảng ký hiệu khác nhau (ví dụ từ tiếng Anh sang tiếng Việt), chỉ khởi tạo lại embedding của các ký hiệu mới và giữ phần còn lại; dùng tốc độ học nhỏ hơn huấn luyện từ đầu. Bộ giải mã và bộ phân biệt đã học sẵn giúp hội tụ nhanh hơn nhiều.
+- **Suy luận chậm trên CPU.** Bộ giải mã chiếm phần lớn thời gian. Gỡ `weight_norm` trước khi xuất ONNX, cân nhắc biến thể iSTFT (MB-iSTFT-VITS) và chia văn bản dài thành câu để xử lý ([Chương 39](../phan-9-thuc-tien/ch39-trien-khai-production.md)).
+
+## Tóm tắt
+
+- VITS là một **VAE có điều kiện** nối văn bản và dạng sóng qua biến ẩn theo khung $\mathbf{z}$; huấn luyện một lần, sinh song song, không cần mel trung gian cố định.
+- Mất mát gồm: L1 trên mel (likelihood Laplace, hệ số 45), KL giữa hậu nghiệm và prior có flow, mất mát trường độ, LSGAN và feature matching.
+- Prior là Gauss theo token, được mở rộng theo căn chỉnh và tăng cường bằng **flow bảo toàn thể tích**; flow là thành phần quan trọng nhất theo ablation gốc.
+- KL được ước lượng bằng một mẫu cho phần entropy chéo và giá trị giải tích cho phần entropy; trong mã gốc là `logs_p - logs_q - 0.5 + 0.5 (z_p - m_p)^2 exp(-2 logs_p)`, cộng theo kênh, chia cho số khung.
+- Căn chỉnh tìm bằng **MAS** trên $f_\theta(\mathbf{z})$ vì cực đại ELBO theo $\mathbf{A}$ quy về cực đại $\log p_\theta(\mathbf{z} \mid \mathbf{x}, \mathbf{A})$; ma trận log-likelihood tính bằng khai triển thành phép nhân ma trận.
+- **Bộ dự đoán trường độ ngẫu nhiên** dùng khử lượng tử hóa và tăng cường dữ liệu biến phân; lúc suy luận lấy trần của $\exp(\log\hat{w})$.
+- Khi huấn luyện, bộ giải mã chỉ thấy đoạn 32 khung của $\mathbf{z}$ hậu nghiệm; khi suy luận, nó nhận toàn bộ $f_\theta^{-1}$ của mẫu prior. Bộ mã hóa hậu nghiệm và bộ phân biệt chỉ dùng khi huấn luyện.
+- VITS2, JETS, NaturalSpeech, MB-iSTFT-VITS, Piper và MMS là các nhánh phát triển theo hướng tự nhiên hơn, điều khiển được hơn, hoặc nhanh hơn.
+- VITS phù hợp với tiếng Việt nhờ không cần bộ căn chỉnh ngoài, dữ liệu vừa phải, chữ viết gần âm vị và triển khai nhẹ; nó không giải quyết nhân bản giọng zero-shot.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Không nhìn lại bảng ở Mục 27.8.2, hãy liệt kê các mô-đun của VITS và cho biết mỗi mô-đun được dùng lúc huấn luyện, lúc suy luận hay cả hai; với flow, nêu rõ chiều biến đổi ở mỗi giai đoạn.
+
+??? tip "Gợi ý"
+    Tự hỏi: lúc suy luận có âm thanh thật không? Nếu không, mô-đun nào cần âm thanh thật thì không thể chạy.
+
+**Bài 2 [Cơ bản].** Trong hàm `kl_loss`, (a) hằng số $-0{,}5$ đến từ đâu? (b) Nếu chia cho $C \cdot T$ thay vì số khung $T$ (với $C = 192$), KL thay đổi bao nhiêu lần, và điều này tương đương với việc thay đổi hệ số nào trong $\mathcal{L}_G$?
+
+??? success "Lời giải"
+    (a) Từ $\mathbb{E}[-\tfrac{1}{2}\epsilon^2] = -\tfrac{1}{2}$ với $\epsilon \sim \mathcal{N}(0,1)$: phần $\log q$ được thay bằng kỳ vọng giải tích (âm entropy của Gauss). (b) KL nhỏ đi 192 lần, tương đương đặt $c_{\text{kl}} = 1/192$ thay vì 1, tức là gần như bỏ ràng buộc KL; hậu nghiệm sẽ mã hóa quá nhiều thông tin mà prior không theo kịp, và chất lượng suy luận từ văn bản giảm mạnh dù tái tạo hậu nghiệm vẫn tốt.
+
+**Bài 3 [Nâng cao].** Giả sử thay flow bảo toàn thể tích bằng affine coupling đầy đủ $\tilde{\mathbf{z}}^b = \mathbf{z}^b \odot \exp(\mathbf{s}_\theta(\mathbf{z}^a)) + \mathbf{m}_\theta(\mathbf{z}^a)$. (a) Viết lại ước lượng KL. (b) Nếu quên số hạng log-định thức, mô hình có thể "gian lận" thế nào để giảm KL?
+
+??? success "Lời giải"
+    (a) $\hat{\mathcal{L}}_{\text{kl}}$ như Mục 27.3.3 trừ thêm $\sum_{\text{lớp}}\sum_{c,t} m_t\, s_{\theta,c,t}$ (chuẩn hóa cùng mẫu số). (b) Không có số hạng này, mô hình có thể chọn $\mathbf{s}_\theta$ rất âm để co mọi $\tilde{\mathbf{z}}$ về gần $\boldsymbol{\mu}_p$, làm số hạng bình phương gần 0. KL "trông" nhỏ nhưng prior không còn là một mật độ hợp lệ của $\mathbf{z}$; mẫu prior sau $f^{-1}$ sẽ bị giãn ra rất mạnh và âm thanh suy luận hỏng.
+
+**Bài 4 [Nâng cao].** (a) Chứng minh rằng nếu chọn $q(\mathbf{u}) = \text{Uniform}[0,1)^N$ (không học, bỏ $\boldsymbol{\nu}$) thì cận ở Mục 27.5.2 trở thành $\int_{[0,1)^N} \log p_\theta(\mathbf{d} - \mathbf{u} \mid \mathbf{x})\, d\mathbf{u} \le \log P_\theta(\mathbf{d} \mid \mathbf{x})$. (b) Giải thích vì sao khử lượng tử hóa *biến phân* (học $q$) cho cận chặt hơn. (c) Vì sao lúc suy luận dùng $\lceil\cdot\rceil$ chứ không dùng làm tròn gần nhất?
+
+??? tip "Gợi ý"
+    (a) Jensen với $\log$ và $q = 1$ trên ô đơn vị. (b) Khoảng cách của cận bằng KL giữa $q$ và hậu nghiệm thật $p(\mathbf{u} \mid \mathbf{d}) \propto p(\mathbf{d} - \mathbf{u})$ trên ô; phân phối đều chỉ tối ưu khi mật độ phẳng trong ô. (c) Mẫu thuộc khoảng $(d_i - 1, d_i]$.
+
+**Bài 5 [Nâng cao].** Chứng minh rằng $\arg\max_{\hat{\mathbf{A}}}$ của ELBO một mẫu không phụ thuộc bộ giải mã và bộ mã hóa hậu nghiệm. Nếu (giả định) bộ giải mã nhận thêm $\mathbf{h}^{\text{text}}$ mở rộng theo $\hat{\mathbf{A}}$, kết luận này còn đúng không? Hệ quả với MAS là gì?
+
+??? tip "Gợi ý"
+    Viết ra ba số hạng của ELBO và kiểm tra số hạng nào chứa $\hat{\mathbf{A}}$. Khi số hạng tái tạo phụ thuộc $\hat{\mathbf{A}}$, bài toán không còn tách thành tổng theo khung của các số hạng cục bộ, nên quy hoạch động MAS đơn giản không còn cho lời giải chính xác.
+
+**Bài 6 [Lập trình].** Mở rộng `MeanOnlyCoupling` thành affine coupling có co giãn (trả về thêm `logdet`), sửa `kl_loss` để nhận `logdet`, rồi kiểm chứng bằng Monte Carlo như ở Mục 27.3.3 rằng ước lượng vẫn khớp với $D_{\mathrm{KL}}$ chính xác. Gợi ý: với flow affine theo từng phần tử và không phụ thuộc dữ liệu (ví dụ $f(\mathbf{z}) = a\mathbf{z} + b$), bạn có thể tính KL chính xác bằng công thức Gauss sau khi đổi biến.
+
+**Bài 7 [Lập trình].** Thêm điều kiện người nói vào `PriorFlow`: mạng con của coupling nhận thêm một véc-tơ $\mathbf{g}$ (cộng sau lớp tích chập đầu). Viết hàm `voice_convert(z, g_src, g_tgt)` theo Mục 27.8.3 (bỏ qua bộ giải mã) và kiểm tra bằng `assert` rằng chuyển từ một người nói sang **chính người đó** trả lại đúng $\mathbf{z}$ ban đầu.
+
+## Tài liệu tham khảo
+
+1. Kim, J., Kong, J., và Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML 2021. arXiv:2106.06103.
+2. Kong, J., Park, J., Kim, B., Kim, J., Kong, D., và Kim, S. (2023). *VITS2: Improving Quality and Efficiency of Single-Stage Text-to-Speech with Adversarial Learning and Architecture Design*. Interspeech 2023. arXiv:2307.16430.
+3. Kim, J., Kim, S., Kong, J., và Yoon, S. (2020). *Glow-TTS: A Generative Flow for Text-to-Speech via Monotonic Alignment Search*. NeurIPS 2020.
+4. Kong, J., Kim, J., và Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS 2020. arXiv:2010.05646.
+5. Kingma, D. P. và Welling, M. (2014). *Auto-Encoding Variational Bayes*. ICLR 2014.
+6. Rezende, D. và Mohamed, S. (2015). *Variational Inference with Normalizing Flows*. ICML 2015.
+7. Ho, J., Chen, X., Srinivas, A., Duan, Y., và Abbeel, P. (2019). *Flow++: Improving Flow-Based Generative Models with Variational Dequantization and Architecture Design*. ICML 2019.
+8. Chen, J., Lu, C., Chenli, B., Zhu, J., và Tian, T. (2020). *VFlow: More Expressive Generative Flows with Variational Data Augmentation*. ICML 2020.
+9. Durkan, C., Bekasov, A., Murray, I., và Papamakarios, G. (2019). *Neural Spline Flows*. NeurIPS 2019.
+10. Mao, X., Li, Q., Xie, H., Lau, R. Y., Wang, Z., và Smolley, S. P. (2017). *Least Squares Generative Adversarial Networks*. ICCV 2017.
+11. Larsen, A. B. L., Sønderby, S. K., Larochelle, H., và Winther, O. (2016). *Autoencoding beyond Pixels Using a Learned Similarity Metric*. ICML 2016.
+12. Ren, Y. và cộng sự (2021). *FastSpeech 2: Fast and High-Quality End-to-End Text to Speech*. ICLR 2021.
+13. Donahue, J., Dieleman, S., Bińkowski, M., Elsen, E., và Simonyan, K. (2021). *End-to-End Adversarial Text-to-Speech*. ICLR 2021.
+14. Lim, D., Jung, S., và Kim, E. (2022). *JETS: Jointly Training FastSpeech2 and HiFi-GAN for End to End Text to Speech*. Interspeech 2022. arXiv:2203.16852.
+15. Badlani, R., Łańcucki, A., Shih, K. J., Valle, R., Ping, W., và Catanzaro, B. (2022). *One TTS Alignment to Rule Them All*. ICASSP 2022.
+16. Tan, X. và cộng sự (2022). *NaturalSpeech: End-to-End Text to Speech Synthesis with Human-Level Quality*. arXiv:2205.04421.
+17. Kawamura, M., Shirahata, Y., Yamamoto, R., và Tachibana, K. (2023). *Lightweight and High-Fidelity End-to-End Text-to-Speech with Multi-Band Generation and Inverse Short-Time Fourier Transform*. ICASSP 2023. arXiv:2210.15975.
+18. Pratap, V. và cộng sự (2023). *Scaling Speech Technology to 1,000+ Languages*. arXiv:2305.13516.
+19. Shaw, P., Uszkoreit, J., và Vaswani, A. (2018). *Self-Attention with Relative Position Representations*. NAACL 2018.
+20. Hansen, M. và cộng đồng Rhasspy. *Piper: A Fast, Local Neural Text to Speech System* (phần mềm mã nguồn mở và kho giọng `rhasspy/piper-voices`). Truy cập 2026; kiểm tra kho lưu trữ và giấy phép hiện hành.
