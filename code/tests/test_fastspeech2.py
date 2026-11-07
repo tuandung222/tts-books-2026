@@ -137,6 +137,7 @@ def test_aligner_mode_training_step():
     assert model.aligner.key_proj[0].weight.grad is not None
 
 
+@pytest.mark.filterwarnings("ignore::FutureWarning")  # weight_norm kiểu cũ đã bị đánh dấu lỗi thời
 @pytest.mark.parametrize("new_api", [False, True])
 def test_hifigan_weight_norm_merge(new_api):
     torch.manual_seed(0)
