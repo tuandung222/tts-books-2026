@@ -137,7 +137,7 @@ Khi tiếng Việt chỉ là một phần nhỏ trong một mô hình đa ngôn 
 - Trong tiếng Anh, F0 mang **ngữ điệu** và trọng âm; biến thiên F0 trong một âm tiết phần lớn không khu biệt nghĩa từ. Mô hình học từ dữ liệu tiếng Anh sẽ coi đường nét F0 như "biến thiên tự do" có thể làm trơn.
 - Trong tiếng Việt, F0 (cùng với chất giọng) **khu biệt nghĩa từ** ở từng âm tiết. Một độ dốc sai là một từ sai.
 
-Nếu biểu diễn dùng chung (IPA, byte) và dữ liệu tiếng Việt chiếm vài phần trăm, các tham số dùng chung sẽ bị tối ưu chủ yếu cho kiểu F0 của tiếng Anh. Kinh nghiệm thực tế cho thấy các triệu chứng sau: thanh hỏi và ngã bị san bằng, thanh sắc thiếu độ lên, ngữ điệu câu kiểu tiếng Anh (nhấn và lên cao ở cuối câu hỏi) đè lên thanh của âm tiết cuối. Các biện pháp:
+Nếu biểu diễn dùng chung (IPA, byte) và dữ liệu tiếng Việt chiếm vài phần trăm, các tham số dùng chung sẽ bị tối ưu chủ yếu cho kiểu F0 của tiếng Anh. Các triệu chứng thường gặp trong thực tế: thanh hỏi và ngã bị san bằng, thanh sắc thiếu độ lên, ngữ điệu câu kiểu tiếng Anh (nhấn và lên cao ở cuối câu hỏi) đè lên thanh của âm tiết cuối. Các biện pháp:
 
 1. **Biểu diễn thanh tường minh**: token thanh riêng của tiếng Việt (Mục 30.2.2), không dùng chung với ngôn ngữ khác.
 2. **Embedding ngôn ngữ theo token**, để mô hình chuyển "chế độ F0".
@@ -153,7 +153,7 @@ Chiến lược đơn giản và hiệu quả nhất cho tiếng Việt là **hu
 
 ### 30.5.2. Mô hình đa ngôn ngữ quy mô lớn
 
-Một hướng khác là dùng sẵn các mô hình được huấn luyện cho rất nhiều ngôn ngữ. Dự án MMS (Pratap và cộng sự, 2023) huấn luyện các mô hình VITS (Kim và cộng sự, 2021) riêng cho hơn một nghìn ngôn ngữ, có tiếng Việt (giấy phép không dùng thương mại tính đến thời điểm biên soạn; xem [Chương 27](ch27-vits.md)). Các mô hình zero-shot lớn dựa trên mô hình ngôn ngữ ([Phần VIII](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md)) thường hỗ trợ tiếng Việt kém hoặc không hỗ trợ trong bản phát hành gốc, nên cộng đồng thường tinh chỉnh chúng trên dữ liệu tiếng Việt ([Dự án 4](../phan-10-du-an/du-an-4-zero-shot-tts.md)). Danh sách ngôn ngữ được hỗ trợ thay đổi theo phiên bản; hãy kiểm tra thẻ mô hình.
+Một hướng khác là dùng sẵn các mô hình được huấn luyện cho rất nhiều ngôn ngữ. Dự án MMS (Pratap và cộng sự, 2023) huấn luyện các mô hình VITS (Kim và cộng sự, 2021) riêng cho hơn một nghìn ngôn ngữ, có tiếng Việt (giấy phép không dùng thương mại tính đến thời điểm biên soạn; xem [Chương 27](ch27-vits.md)). Các mô hình zero-shot lớn dựa trên mô hình ngôn ngữ ([Phần VIII](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md)) trong nhiều trường hợp không có tiếng Việt trong danh sách ngôn ngữ chính thức của bản phát hành gốc (tính đến thời điểm biên soạn), hoặc hỗ trợ ở mức hạn chế, nên cộng đồng thường tinh chỉnh chúng trên dữ liệu tiếng Việt ([Dự án 4](../phan-10-du-an/du-an-4-zero-shot-tts.md)). Danh sách ngôn ngữ được hỗ trợ thay đổi theo phiên bản; hãy kiểm tra thẻ mô hình.
 
 ### 30.5.3. Cân bằng ngôn ngữ khi huấn luyện chung
 
