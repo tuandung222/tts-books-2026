@@ -696,3 +696,142 @@ assert intersperse(ids)[0] == BLANK_ID
 [26, 43, 22, 54, 5, 15, 38, 37, 55]
 [2, 26, 2, 43, 2, 22, 2, 54, 2, 5, 2, 15, 2, 38, 2, 37, 2, 55, 2]
 ```
+
+## 10. Kiểm thử
+
+### 10.1. Chiến lược
+
+Bộ kiểm thử `code/tests/test_vn_frontend.py` có gần hai trăm ca, chạy dưới một giây. Ba loại kiểm thử bổ sung cho nhau:
+
+1. **Kiểm thử dạng bảng** (`pytest.mark.parametrize`): mỗi dòng là một cặp (đầu vào, đầu ra mong đợi) do người viết kiểm tra bằng tai và mắt. Bảng số có hơn 50 dòng phủ mọi quy tắc ở mục 5.1, kèm chú thích "sai thường gặp" ngay cạnh dòng tương ứng. Khi một người đóng góp đổi quy tắc, bảng này cho biết chính xác cái gì thay đổi.
+2. **Kiểm thử tính chất**: lũy đẳng của `normalize_text`; khứ hồi `apply_tone(split_tone(w)) == w` trên ba mươi từ có cấu trúc khó (*khuỷu, ngoẹo, khuyến, gìn, giếng*...); mọi token `g2p` sinh ra đều nằm trong `SYMBOLS` (không có `<unk>`), cho cả hai phương ngữ, trên một câu trộn đủ loại token; `sequence_to_symbols(text_to_sequence(x)) == g2p(x)`.
+3. **Kiểm thử phủ định**: chuỗi không hợp lệ phải ném `ValueError` (`""`, `"xyz"`, `"anhh"`, `"qu"`), phương ngữ lạ phải bị từ chối, và các chuỗi sai chính tả (*ceo, kan, nge, ghy, tàp, tiê*) phải bị chế độ chặt loại.
+
+Trích một phần:
+
+```python
+NUMBERS = [
+    (11, "mười một"),  # không phải "mười mốt"
+    (14, "mười bốn"),  # không phải "mười tư"
+    (15, "mười lăm"),  # không phải "mười năm"
+    (21, "hai mươi mốt"),
+    (105, "một trăm linh năm"),  # sau "linh" là "năm", không phải "lăm"
+    (1_001_000, "một triệu không trăm linh một nghìn"),
+    (1_000_000_000_000, "một nghìn tỷ"),
+]
+
+
+@pytest.mark.parametrize("n,expected", NUMBERS)
+def test_number_to_words(n, expected):
+    assert number_to_words(n) == expected
+
+
+def test_normalize_is_idempotent():
+    text = ("UBND TP.HCM họp lúc 14h30 ngày 15/3/2025, giá 50.000đ/kg tăng 3,5%; "
+            "PGS.TS. Nguyễn Văn A, đội U23 VN thắng 2-1. Hoà bình!")
+    once = normalize_text(text)
+    assert normalize_text(once) == once
+    assert not any(c.isdigit() for c in once)
+```
+
+### 10.2. Chạy kiểm thử
+
+```bash
+cd code
+python -m pytest tests/test_vn_frontend.py -q
+# 191 passed
+```
+
+Tệp `code/conftest.py` đặt ở gốc thư mục `code/` để pytest tự thêm thư mục này vào đường dẫn import, nên không cần cài gói. Khi sửa một quy tắc, hãy viết ca kiểm thử **trước** (nó phải thất bại), rồi mới sửa mã cho đến khi nó qua — đặc biệt với chuẩn hóa văn bản, nơi một thay đổi nhỏ trong biểu thức chính quy có thể ảnh hưởng đến những trường hợp tưởng như không liên quan.
+
+## 11. Giao diện dòng lệnh và tích hợp
+
+Gói có giao diện dòng lệnh để kiểm tra nhanh và để dùng trong các kịch bản xử lý dữ liệu:
+
+```bash
+cd code
+python -m vn_frontend normalize "Ngày 2/9/1945, lúc 14h30"
+# Ngày hai tháng chín năm một nghìn chín trăm bốn mươi lăm, lúc mười bốn giờ ba mươi phút
+python -m vn_frontend g2p "Xin chào Việt Nam" --dialect south
+# s i n T1 | c a w T2 | j iə k T6 | n a m T1
+python -m vn_frontend parse "quốc giếng"
+# quốc Syllable(onset='q', glide='u', nucleus='ô', coda='c', tone=3)
+# giếng Syllable(onset='gi', glide='', nucleus='iê', coda='ng', tone=3)
+echo "Giá 50.000đ/kg." | python -m vn_frontend ids
+```
+
+Trong lệnh `g2p`, ranh giới từ được in thành `|` cho dễ đọc. Cách các dự án sau dùng gói:
+
+- **Dự án 2** gọi `normalize_text` một lần khi tiền xử lý, lưu văn bản đã chuẩn hóa vào manifest, dùng `g2p` để sinh từ điển phát âm cho Montreal Forced Aligner và `SYMBOL_TO_ID` để tạo chuỗi ID;
+- **Dự án 3** dùng `text_to_sequence` và `intersperse` để tạo đầu vào VITS;
+- **Dự án 4** chỉ dùng `normalize_text` (mô hình đầu vào ký tự), nhưng lợi ích lớn nhất ở đây là NFC và vị trí dấu thống nhất;
+- **Dự án 5** dùng `normalize_text` và `split_sentences(..., max_chars=...)` để chia văn bản thành các đoạn tổng hợp tuần tự.
+
+Một ứng dụng ít được nghĩ tới: dùng cùng `normalize_text` để chuẩn hóa **cả** bản ghi tham chiếu **lẫn** đầu ra ASR khi tính CER/WER cho mô hình TTS ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)). Nếu không, một câu tổng hợp đúng "hai mươi lăm" vẫn bị tính lỗi khi ASR trả về "25".
+
+## 12. Lỗi thường gặp và mẹo thực hành
+
+- **Chuẩn hóa ở huấn luyện khác suy luận.** Dữ liệu huấn luyện được chuẩn hóa bằng một kịch bản cũ, còn máy chủ dùng phiên bản mới của gói. Triệu chứng: mô hình đọc sai đúng những dạng số mà hai phiên bản xử lý khác nhau. Cách tránh: ghi phiên bản front-end (`vn_frontend.__version__`) vào metadata của checkpoint, và lưu văn bản *đã chuẩn hóa* trong manifest thay vì chuẩn hóa lại mỗi lần đọc.
+- **Đổi thứ tự `SYMBOLS`.** Mọi checkpoint cũ hỏng mà không có thông báo lỗi nào. Chỉ nối thêm vào cuối; lưu `SYMBOLS` cùng checkpoint; viết ca kiểm thử khóa cứng vài ID quan trọng nếu bạn đã phát hành mô hình.
+- **Quên NFC ở một nhánh xử lý.** Ví dụ văn bản đi thẳng từ API web vào mô hình mà bỏ qua `normalize_text`. Hãy để hàm `text_to_sequence` là *điểm vào duy nhất*, và để nó tự gọi chuẩn hóa.
+- **Biểu thức chính quy "ăn" quá nhiều.** Luật đơn vị "m" khớp vào "5 mẹ" nếu thiếu điều kiện `(?![\w])`; luật giờ "5g" nuốt "5 gam". Mỗi luật mới cần cả ca kiểm thử dương lẫn ca kiểm thử âm (chuỗi *không* được thay đổi).
+- **Tin rằng luật xử lý được mọi thứ.** Tỷ số "2-1", "AI", "1/2" là những nhập nhằng ngữ nghĩa. Hãy thu thập một tập câu khó từ chính miền dữ liệu của bạn (tin tức, y tế, thương mại điện tử), đo tỷ lệ lỗi chuẩn hóa định kỳ, và duy trì từ điển ngoại lệ.
+- **Phiên âm "đẹp" nhưng không khớp người nói.** Một bảng IPA chuẩn sách vở cho giọng Hà Nội sẽ phản tác dụng nếu người đọc trong dữ liệu nói giọng khác. Nghe dữ liệu trước khi chốt bảng âm vị.
+- **Bỏ qua dòng trống và dấu câu lạ.** Văn bản thật chứa emoji, ký hiệu tiền tệ hiếm, ký tự điều khiển. Gói bỏ qua những ký tự không có trong bảng; nếu miền của bạn cần đọc emoji (ví dụ trợ lý ảo), hãy thêm bảng tên cho chúng thay vì để chúng biến mất lặng lẽ.
+
+## 13. Bài tập và hướng mở rộng
+
+**Bài 1 [Cơ bản].** Không dùng máy, hãy đọc các số sau theo quy tắc của gói (giọng Bắc): 205; 2.010; 1.050.021; 14.000.015. Sau đó kiểm tra bằng `number_to_words`.
+
+??? success "Lời giải"
+    205 → "hai trăm linh năm"; 2.010 → "hai nghìn không trăm mười"; 1.050.021 → "một triệu không trăm năm mươi nghìn không trăm hai mươi mốt"; 14.000.015 → "mười bốn triệu không trăm mười lăm". Chú ý: nhóm nghìn của 14.000.015 bằng 0 nên bị bỏ qua hoàn toàn; nhóm đơn vị 015 không đứng đầu nên được đọc đủ "không trăm mười lăm".
+
+**Bài 2 [Cơ bản].** Vì sao *qủa* là cách đặt dấu sai, trong khi *của* đúng, dù cả hai đều có chuỗi chữ "ua"? Hãy giải thích bằng các luật ở mục 3.2 và kiểm tra bằng `normalize_tone_marks("qủa")`.
+
+??? success "Lời giải"
+    Trong *quả*, "qu" là âm đầu (u là âm đệm), nên cụm nguyên âm chỉ có "a" và dấu đặt trên "a" (luật 2). Trong *của*, âm đầu là "c" và "ua" là nguyên âm đôi /uə/ ở vần mở, nên dấu đặt trên nguyên âm đầu (luật 5). `normalize_tone_marks("qủa")` trả về "quả" vì hàm tách dấu rồi đặt lại từ đầu.
+
+**Bài 3 [Lập trình].** Thêm tùy chọn đọc ngày theo khẩu ngữ: các ngày từ 1 đến 10 đọc với "mùng" (*5/6* → "mùng năm tháng sáu"). Thêm tham số vào `normalize_text`, giữ hành vi mặc định không đổi, và viết ít nhất bốn ca kiểm thử (có "ngày" đứng trước, không có, ngày 10, ngày 11).
+
+??? tip "Gợi ý"
+    Sửa hàm `dmy_values` và `dm`: khi tùy chọn bật và $d \le 10$, thay tiền tố "ngày " bằng "mùng ". Cẩn thận trường hợp văn bản đã có "ngày" đứng trước: "ngày 5/6" có thể thành "ngày mùng năm tháng sáu" — cả hai cách đều được dùng, hãy chọn một và kiểm thử nó.
+
+**Bài 4 [Nâng cao].** Gói ánh xạ vần *anh/ach* thành /ɛ ɲ/, /ɛ c/. Hãy đề xuất một phương án khác (ví dụ giữ /a/ và để âm cuối /ɲ/, /c/ tự mang thông tin), sửa `syllable_to_phones`, rồi lập luận: phương án nào giúp mô hình chia sẻ tham số tốt hơn? Có cặp tối thiểu (*minimal pair*) nào bị gộp nhầm trong mỗi phương án không?
+
+??? tip "Gợi ý"
+    Liệt kê mọi vần chứa /ɛ/ và mọi vần chứa /a/ trong cả hai phương án. Với phương án giữ /a/, token /a/ xuất hiện trong *an, ang, anh, ach, at, ac, ai, ao*: nhiều dữ liệu hơn nhưng phải tự học các biến thể. Không phương án nào gây gộp nhầm vì âm cuối luôn khác nhau; khác biệt nằm ở việc embedding /a/ hay /ɛ/ phải "gánh" những biến thể ngữ âm nào. Cách trả lời thuyết phục nhất là thực nghiệm: huấn luyện hai mô hình nhỏ (Dự án 2) và so sánh khả năng tổng hợp *bánh, sách* bằng nghe thử.
+
+**Bài 5 [Lập trình].** Hoàn thiện giọng Nam. Dựa trên [Chương 15](../phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md) và tự nghe dữ liệu của một người nói giọng Sài Gòn, bổ sung ít nhất ba hiện tượng còn thiếu trong bảng mục 8.4 (ví dụ biến đổi nguyên âm trong *inh, ênh*; âm đệm sau h, kh, ng; cách đọc *v*). Mỗi hiện tượng cần một ca kiểm thử và một câu ví dụ.
+
+??? tip "Gợi ý"
+    Giữ cấu trúc bảng tra: thêm từ điển ánh xạ (âm chính, âm cuối) → (âm chính mới, âm cuối mới) cho phương ngữ Nam, áp dụng sau bước ánh xạ chung. Như vậy logic không phình ra thành chuỗi `if` dài, và một phương ngữ thứ ba (giọng Huế) có thể thêm vào bằng một bảng mới.
+
+**Bài 6 [Lập trình].** Xây dựng bộ đọc từ mượn tiếng Anh tốt hơn cách đánh vần hiện tại: (a) phát hiện token "có vẻ tiếng Anh" (không phải âm tiết tiếng Việt hợp lệ, chứa f, j, w, z hoặc cụm phụ âm như *str, ck*); (b) với từ có trong một từ điển nhỏ, dùng cách đọc Việt hóa; (c) với từ khác, chia theo âm tiết tiếng Anh thô và ánh xạ từng phần sang âm tiết tiếng Việt gần nhất. So sánh với cách mô hình lớn xử lý trộn mã ở [Chương 30](../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching.md).
+
+??? tip "Gợi ý"
+    Bắt đầu từ bảng `LOANWORDS` và hàm `_word_to_syllables` trong `g2p.py`. Với phần (c), một luật tham lam theo khuôn (phụ âm)+(nguyên âm)+(phụ âm cuối được phép trong tiếng Việt) đã cho kết quả nghe được với nhiều từ ngắn; đừng kỳ vọng nó đúng với tên riêng phức tạp — đó là việc của từ điển.
+
+**Bài 7 [Nâng cao].** Thiết kế (chưa cần cài đặt) một bộ phân loại ngữ cảnh cho chuỗi "a/b" với ba nhãn: ngày tháng, phân số, "trên" (như *km/h*). Bạn sẽ dùng đặc trưng gì? Làm sao tạo dữ liệu huấn luyện mà không gán nhãn thủ công hàng nghìn câu? Đánh giá thế nào?
+
+??? tip "Gợi ý"
+    Đặc trưng: từ trước/sau (*ngày, tỷ lệ, chiếm, hôm*), miền giá trị (a ≤ 31, b ≤ 12), có năm theo sau không, có đơn vị không. Dữ liệu: dùng luật hiện tại để gán nhãn "bạc" cho các trường hợp chắc chắn (có năm đi kèm, có từ "ngày"), rồi gán nhãn tay một tập nhỏ khó. Đánh giá: độ chính xác trên tập khó, và quan trọng hơn là tỷ lệ lỗi trên văn bản thật của miền bạn quan tâm.
+
+**Bài 8 [Lập trình].** Hỗ trợ một tập con SSML trong `normalize_text`: `<say-as interpret-as="characters">` (đánh vần), `<say-as interpret-as="cardinal">`, `<say-as interpret-as="telephone">`, và `<break time="300ms"/>` (ánh xạ thành dấu câu ngắt nghỉ). Liên hệ với phần SSML ở [Chương 39](../phan-9-thuc-tien/ch39-trien-khai-production.md).
+
+??? tip "Gợi ý"
+    Xử lý SSML **trước** mọi luật khác: thay nội dung thẻ `say-as` bằng dạng đọc tương ứng (đã có sẵn `_spell`, `number_to_words`, `digits_to_words`), rồi xóa thẻ. Thẻ `break` có thể chuyển thành "," hoặc "." tùy độ dài; nếu mô hình hỗ trợ token im lặng có độ dài, hãy thêm token mới vào **cuối** `SYMBOLS`.
+
+**Hướng mở rộng khác.** Tích hợp bộ tách từ (underthesea, VnCoreNLP, pyvi) để sinh đầu vào dạng *học_sinh* và đo ảnh hưởng của ranh giới từ lên ngôn điệu; thêm bộ khôi phục dấu câu cho văn bản không có dấu câu (đầu ra ASR); thêm giọng Huế; viết bộ đọc số La Mã đầy đủ hơn có phân loại ngữ cảnh; đóng gói thành thư viện có `pyproject.toml` để cài bằng `pip`.
+
+## Tài liệu tham khảo
+
+1. Đoàn Thiện Thuật (1977). *Ngữ âm tiếng Việt*. NXB Đại học và Trung học chuyên nghiệp, Hà Nội (nhiều lần tái bản).
+2. Thompson, L. C. (1965). *A Vietnamese Grammar*. University of Washington Press.
+3. Kirby, J. P. (2011). *Vietnamese (Hanoi Vietnamese)*. Journal of the International Phonetic Association, 41(3), 381–392.
+4. Sproat, R. và cộng sự (2001). *Normalization of non-standard words*. Computer Speech & Language, 15(3), 287–333.
+5. Ebden, P. và Sproat, R. (2015). *The Kestrel TTS text normalization system*. Natural Language Engineering, 21(3), 333–353.
+6. Zhang, H. và cộng sự (2019). *Neural models of text normalization for speech applications*. Computational Linguistics, 45(2), 293–337.
+7. Gorman, K. và Sproat, R. (2021). *Finite-State Text Processing*. Morgan & Claypool (Synthesis Lectures on Human Language Technologies).
+8. Taylor, P. (2009). *Text-to-Speech Synthesis*. Cambridge University Press.
+9. The Unicode Consortium. *Unicode Standard Annex #15: Unicode Normalization Forms*. unicode.org (xem phiên bản mới nhất).
+10. Kirby, J. *vPhon: a Vietnamese phonetizer*. Phần mềm mã nguồn mở (GitHub) — một bộ phiên âm IPA tiếng Việt theo luật, hữu ích để đối chiếu các lựa chọn ở mục 8.
