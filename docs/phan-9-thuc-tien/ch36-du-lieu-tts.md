@@ -78,13 +78,13 @@ Với một giọng đọc thương mại một người nói, thu âm studio v�
 
 ### 36.2.1 Thiết kế kịch bản: bài toán phủ tập
 
-**Trực giác.** Thời gian thu âm đắt (người đọc, phòng thu, người giám sát, hậu kỳ). Ta muốn với một số giờ cố định, kịch bản chứa *nhiều đơn vị ngữ âm khác nhau nhất*, để mô hình không gặp phải âm tiết hay tổ hợp thanh điệu "lạ" khi suy luận. Nếu chọn câu ngẫu nhiên từ báo chí, các vần phổ biến (như *-ông*, *-ang*, *-a*) bị lặp hàng trăm lần trong khi các vần hiếm (như *-oong*, *-uyp*, *-oăn*) có thể không xuất hiện lần nào.
+**Trực giác.** Thời gian thu âm đắt (người đọc, phòng thu, người giám sát, hậu kỳ). Ta muốn với một số giờ cố định, kịch bản chứa *nhiều đơn vị ngữ âm khác nhau nhất*, để mô hình không gặp phải âm tiết hay tổ hợp thanh điệu "lạ" khi suy luận. Nếu chọn câu ngẫu nhiên từ báo chí, các vần phổ biến (như *-ông*, *-ang*, *-a*) bị lặp hàng trăm lần trong khi các vần hiếm (như *-oong*, *-uych*, *-oăn*) có thể không xuất hiện lần nào.
 
 **Chọn đơn vị cần phủ.** Với tiếng Việt, cấu trúc âm tiết (âm đầu, âm đệm, âm chính, âm cuối, thanh điệu — xem [Chương 15](../phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md)) gợi ý các họ đơn vị sau:
 
 - **Vần không thanh** (ví dụ *-uyên*, *-oang*): quyết định phần lớn đặc trưng phổ.
 - **Vần có thanh** (ví dụ *-uyên* + ngã): vì các vần tắc (kết thúc bằng *-p, -t, -c, -ch*) chỉ đi với thanh sắc và nặng, tổ hợp vần–thanh hợp lệ ít hơn tích Descartes, nhưng vẫn rất nhiều.
-- **Cặp thanh liền kề** (6 × 6 = 36 cặp): F0 của một âm tiết chịu ảnh hưởng của âm tiết đứng trước và sau (đồng cấu âm thanh điệu), nên mô hình cần thấy đủ các chuyển tiếp như *ngã → nặng*, *hỏi → sắc*.
+- **Cặp thanh liền kề** (6 × 6 = 36 cặp): F0 của một âm tiết chịu ảnh hưởng của âm tiết đứng trước và sau (hiện tượng đồng cấu âm về thanh điệu, *tonal coarticulation*), nên mô hình cần thấy đủ các chuyển tiếp như *ngã → nặng*, *hỏi → sắc*.
 - **Âm đầu + vần**, **ranh giới âm tiết** (âm cuối của âm tiết trước gặp âm đầu của âm tiết sau, tương tự "diphone" xuyên âm tiết): hữu ích nhưng tạo ra không gian rất lớn, thường dùng làm mục tiêu phụ.
 - **Đơn vị ngôn điệu**: câu hỏi có/không, câu hỏi có từ để hỏi, câu có tiểu từ tình thái cuối câu (*à, ạ, nhé, nhỉ, chứ* — xem [Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)), liệt kê, câu dài nhiều mệnh đề.
 
@@ -199,7 +199,7 @@ QA gồm hai lớp: tự động và con người.
 
 Một số nhận xét chuyên môn:
 
-- **LJSpeech** sạch và nhất quán nhưng là sách đọc thế kỷ trước, ngôn điệu khá đều; mô hình huấn luyện trên nó thường đọc tốt văn bản trang trọng nhưng kém hội thoại.
+- **LJSpeech** sạch và nhất quán, nhưng nội dung là các sách phi hư cấu cũ (xuất bản từ cuối thế kỷ 19 đến giữa thế kỷ 20) với lối đọc sách khá đều; mô hình huấn luyện trên nó thường đọc tốt văn bản trang trọng nhưng kém hội thoại.
 - **VCTK** có tính chất đặc biệt: nhiều người nói đọc cùng một tập câu. Nếu chia tập theo câu mà không để ý, cùng một câu văn có thể xuất hiện ở cả tập huấn luyện và tập kiểm tra (Mục 36.6).
 - **LibriTTS-R** cho thấy một xu hướng: dùng mô hình phục hồi tiếng nói để "làm sạch" dữ liệu cũ. Cách này cải thiện chất lượng cảm nhận, nhưng mô hình phục hồi có thể để lại dấu vết riêng hoặc làm thay đổi âm sắc; hãy nghe kỹ trước khi dùng cho mục đích của bạn.
 - **Emilia** là ví dụ tiêu biểu của dữ liệu "in-the-wild" quy mô lớn dùng cho các mô hình zero-shot như F5-TTS ([Chương 33](../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon.md)); giấy phép phi thương mại của phần gốc ảnh hưởng trực tiếp đến giấy phép của các mô hình huấn luyện trên nó ([Chương 40](ch40-dao-duc-an-toan.md)).
@@ -226,7 +226,7 @@ Ngoài ra có nhiều bộ dữ liệu ASR tiếng Việt khác (từ các cuộ
 
 ## 36.4 Pipeline dữ liệu "in-the-wild"
 
-Mô hình zero-shot cần hàng nghìn giờ dữ liệu đa dạng, và không ai thu âm studio được quy mô đó. Giải pháp là xây một **pipeline tự động** biến âm thanh thô (podcast, sách nói, video) thành các cặp (đoạn âm thanh, bản ghi lời) đủ sạch. Các pipeline công khai như Emilia-Pipe (He và cộng sự, 2024) đều theo cùng một khung:
+Mô hình zero-shot cần hàng nghìn giờ dữ liệu đa dạng, và không ai thu âm studio được quy mô đó. Giải pháp là xây một **pipeline tự động** biến âm thanh thô (podcast, sách nói, video) thành các cặp (đoạn âm thanh, bản ghi lời) đủ sạch. Các pipeline công khai như Emilia-Pipe (He và cộng sự, 2024) thường theo một khung tương tự:
 
 ```mermaid
 flowchart TD
@@ -339,7 +339,7 @@ Phần này cài đặt các viên gạch nhỏ nhưng thiết yếu của pipel
 
 ### 36.5.1 Cắt im lặng, băng thông hiệu dụng, clipping
 
-Hàm `trim_silence` coi một khung là im lặng nếu năng lượng thấp hơn đỉnh của tệp quá `top_db` dB; đây chính là cách hoạt động của nhiều hàm cắt im lặng phổ biến. Lưu ý tham số `keep_ms`: luôn chừa một đoạn đệm cố định để không xén mất phụ âm cuối yếu (*-t, -c, -p* trong âm tiết tắc của tiếng Việt có năng lượng rất thấp).
+Hàm `trim_silence` coi một khung là im lặng nếu năng lượng thấp hơn đỉnh của tệp quá `top_db` dB; đây chính là cách hoạt động của nhiều hàm cắt im lặng phổ biến. Lưu ý tham số `keep_ms`: luôn chừa một đoạn đệm cố định để không xén mất phụ âm cuối yếu (các âm cuối tắc *-p, -t, -c* của tiếng Việt không bật hơi ra, nên năng lượng rất thấp).
 
 ```python
 import numpy as np
