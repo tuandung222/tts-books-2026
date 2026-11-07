@@ -45,7 +45,7 @@ Ngoài ra, VITS đề xuất **bộ dự đoán trường độ ngẫu nhiên** 
 flowchart LR
     subgraph TRAIN["Huấn luyện"]
         S["Dạng sóng s"] --> SPEC["Phổ tuyến tính"]
-        SPEC --> PE["Bộ mã hóa hậu nghiệm q(z|S)"]
+        SPEC --> PE["Bộ mã hóa hậu nghiệm"]
         PE -->|"z"| FLOW["Flow f (chiều thuận)"]
         PE -->|"đoạn ngẫu nhiên của z"| DEC["Bộ giải mã HiFi-GAN"]
         DEC --> SHAT["Đoạn sóng sinh ra"]

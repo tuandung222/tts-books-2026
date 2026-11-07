@@ -260,7 +260,7 @@ print(f"sai số tương đối khi khôi phục bằng pinv: {rel_err:.3f}")
 assert np.allclose(M @ power_hat, mel, rtol=1e-3, atol=1e-6 * mel.max())
 ```
 
-Kết quả: hạng của $\mathbf{M}$ là 80, không gian rỗng có 433 chiều, và sai số tương đối khi khôi phục bằng giả nghịch đảo vào khoảng 0,5, tức một nửa "năng lượng chuẩn" của phổ đã nằm trong không gian rỗng và biến mất. Điều thú vị là $\mathbf{M}\hat{\mathbf{p}}$ vẫn khớp hoàn toàn với khung mel: hai phổ rất khác nhau cho cùng một mel. Giả nghịch đảo còn có thể cho giá trị *âm*, vô nghĩa với phổ công suất; vì thế `librosa.feature.inverse.mel_to_stft` giải bài toán bình phương tối thiểu **không âm** (NNLS) thay cho giả nghịch đảo. Cách xây dựng bộ lọc mel, các công thức HTK/Slaney và những khác biệt mặc định giữa thư viện được trình bày ở [Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md).
+Kết quả: hạng của $\mathbf{M}$ là 80, không gian rỗng có 433 chiều, và sai số tương đối khi khôi phục bằng giả nghịch đảo vào khoảng 0,5: chuẩn $\ell_2$ của phần bị mất (thành phần nằm trong không gian rỗng) bằng khoảng một nửa chuẩn của phổ gốc. Điều thú vị là $\mathbf{M}\hat{\mathbf{p}}$ vẫn khớp hoàn toàn với khung mel: hai phổ rất khác nhau cho cùng một mel. Giả nghịch đảo còn có thể cho giá trị *âm* (trong ví dụ này, 59 trên 513 bin bị âm), vô nghĩa với phổ công suất; vì thế `librosa.feature.inverse.mel_to_stft` giải bài toán bình phương tối thiểu **không âm** (NNLS) thay cho giả nghịch đảo. Cách xây dựng bộ lọc mel, các công thức HTK/Slaney và những khác biệt mặc định giữa thư viện được trình bày ở [Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md).
 
 !!! tip "Cùng một ma trận, hai cách sắp xếp"
     `librosa.filters.mel` trả về ma trận hình dạng `(n_mels, 1 + n_fft // 2)`, còn `torchaudio.functional.melscale_fbanks` trả về `(n_freqs, n_mels)`, tức là chuyển vị của nhau. Với mel-spectrogram bố cục `(B, T, K)`, phép chiếu viết là `spec @ M.T` (librosa) hoặc `spec @ fb` (torchaudio). Nhầm chiều ở đây thường không báo lỗi khi kích thước tình cờ tương thích, nhưng cho kết quả sai hoàn toàn.
@@ -400,3 +400,247 @@ print("Cả bốn đồng nhất thức đều khớp với autograd.")
 ```
 
 Lưu ý ta dùng `float64` khi kiểm chứng: với `float32`, sai số làm tròn có thể làm `allclose` thất bại dù công thức đúng.
+
+## 1.4. Xác suất và thống kê
+
+Vì sao một cuốn sách về TTS cần nhiều xác suất đến vậy? Vì **cùng một câu văn có thể được đọc theo vô số cách**: nhanh hay chậm, ngắt nhịp ở đâu, nhấn vào từ nào, giọng vui hay buồn. Mô hình TTS tốt không học một ánh xạ "văn bản → âm thanh" duy nhất mà học một **phân phối có điều kiện** $p(\mathbf{Y} \mid \mathbf{x})$. Ngôn ngữ xác suất là thứ cho phép ta phát biểu, huấn luyện và đánh giá các mô hình như vậy.
+
+### 1.4.1. Biến ngẫu nhiên và phân phối
+
+Một **biến ngẫu nhiên** là một đại lượng có giá trị không chắc chắn. Với biến **rời rạc** (ví dụ chỉ số token âm thanh trong sổ mã), ta mô tả nó bằng **hàm khối xác suất** $p(x) = P(X = x)$ với $\sum_x p(x) = 1$. Với biến **liên tục** (ví dụ giá trị một kênh mel), ta dùng **hàm mật độ xác suất** $p(x) \ge 0$ với $\int p(x)\,dx = 1$, và
+
+$$
+P(a \le X \le b) = \int_a^b p(x)\,dx .
+$$
+
+Chú ý: mật độ **không phải** là xác suất và có thể lớn hơn 1 (ví dụ một Gauss rất hẹp). Chỉ tích phân của mật độ trên một khoảng mới là xác suất. Điều này giải thích vì sao log-likelihood của dữ liệu liên tục có thể dương, và hàm mất mát "negative log-likelihood" có thể âm mà không có gì sai.
+
+Với hai biến, ta có **phân phối đồng thời** $p(x, y)$, **phân phối biên** $p(x) = \int p(x, y)\,dy$ (tổng thay cho tích phân nếu rời rạc), và **phân phối có điều kiện**
+
+$$
+p(y \mid x) = \frac{p(x, y)}{p(x)}, \qquad\text{tương đương}\qquad p(x, y) = p(y \mid x)\,p(x) .
+$$
+
+Đẳng thức thứ hai, **quy tắc nhân**, áp dụng lặp lại cho một chuỗi cho ta $p(y_1, \ldots, y_T) = \prod_{t} p(y_t \mid y_1, \ldots, y_{t-1})$. Đây là nền tảng của mọi mô hình **tự hồi quy**, từ WaveNet sinh từng mẫu âm thanh đến các codec language model sinh từng token ([Chương 7](../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh.md), [Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md)). Hai biến **độc lập** nếu $p(x, y) = p(x)\,p(y)$, tức là biết $x$ không cho thêm thông tin gì về $y$.
+
+### 1.4.2. Các phân phối thường gặp
+
+| Phân phối | Tham số | Hàm khối/mật độ | Kỳ vọng, phương sai | Trong TTS |
+|---|---|---|---|---|
+| Bernoulli | $\pi \in [0, 1]$ | $\pi^{x}(1 - \pi)^{1 - x}$, $x \in \{0, 1\}$ | $\pi$; $\pi(1 - \pi)$ | Cờ dừng (*stop token*) của Tacotron 2, cờ hữu thanh/vô thanh |
+| Categorical | $\boldsymbol{\pi}$ trên $K$ lớp | $\prod_k \pi_k^{\mathbb{1}[x = k]}$ | — | Token âm thanh rời rạc, mẫu μ-law 8 bit của WaveNet |
+| Gauss $\mathcal{N}(\mu, \sigma^2)$ | $\mu$, $\sigma > 0$ | $\frac{1}{\sqrt{2\pi}\sigma}\exp\!\big(-\frac{(x - \mu)^2}{2\sigma^2}\big)$ | $\mu$; $\sigma^2$ | Nhiễu trong diffusion, tiên nghiệm của VAE, mất mát L2 |
+| Laplace | $\mu$, $b > 0$ | $\frac{1}{2b}\exp\!\big(-\frac{\lvert x - \mu \rvert}{b}\big)$ | $\mu$; $2b^2$ | Mất mát L1 cho mel |
+| Gauss nhiều chiều | $\boldsymbol{\mu}$, $\boldsymbol{\Sigma}$ | xem bên dưới | $\boldsymbol{\mu}$; $\boldsymbol{\Sigma}$ | Tiên nghiệm của Glow-TTS, VITS; nhiễu $\boldsymbol{\epsilon}$ |
+
+Một vài nhận xét:
+
+- **Gauss** là phân phối "mặc định" vì ba lý do: định lý giới hạn trung tâm (tổng nhiều ảnh hưởng nhỏ độc lập có xu hướng phân phối chuẩn), tính đóng dưới các phép biến đổi affine, và nó có entropy lớn nhất trong các phân phối có cùng phương sai (tức là giả định "ít nhất" ngoài trung bình và phương sai). Khoảng 68%, 95% và 99,7% khối xác suất nằm trong $\mu \pm \sigma$, $\mu \pm 2\sigma$, $\mu \pm 3\sigma$.
+- **Laplace** có đuôi dày hơn Gauss: các giá trị lệch xa trung tâm ít "bị phạt" hơn (phạt tuyến tính thay vì bậc hai). Ta sẽ thấy hệ quả của điều này ở Mục 1.4.7.
+
+**Gauss nhiều chiều.** Với $\mathbf{x} \in \mathbb{R}^{d}$,
+
+$$
+\mathcal{N}(\mathbf{x}; \boldsymbol{\mu}, \boldsymbol{\Sigma}) = \frac{1}{(2\pi)^{d/2} \det(\boldsymbol{\Sigma})^{1/2}} \exp\!\Big(-\tfrac{1}{2}(\mathbf{x} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1}(\mathbf{x} - \boldsymbol{\mu})\Big),
+$$
+
+với **ma trận hiệp phương sai** $\boldsymbol{\Sigma}$ đối xứng xác định dương. Lấy logarit:
+
+$$
+\log \mathcal{N}(\mathbf{x}; \boldsymbol{\mu}, \boldsymbol{\Sigma}) = -\tfrac{1}{2}(\mathbf{x} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1}(\mathbf{x} - \boldsymbol{\mu}) - \tfrac{1}{2}\log\det\boldsymbol{\Sigma} - \tfrac{d}{2}\log 2\pi .
+$$
+
+Số hạng đầu là một dạng toàn phương (Mục 1.3.4) đo "khoảng cách Mahalanobis" từ $\mathbf{x}$ tới tâm. Ba trường hợp đặc biệt hay gặp: **đường chéo** $\boldsymbol{\Sigma} = \operatorname{diag}(\sigma_1^2, \ldots, \sigma_d^2)$, khi đó mật độ tách thành tích các Gauss một chiều; **đẳng hướng** $\boldsymbol{\Sigma} = \sigma^2\mathbf{I}$; và **chuẩn tắc** $\mathcal{N}(\mathbf{0}, \mathbf{I})$, phân phối của nhiễu $\boldsymbol{\epsilon}$ trong diffusion và flow matching.
+
+Hai tính chất được dùng liên tục ở Phần II:
+
+1. **Biến đổi affine của Gauss vẫn là Gauss**: nếu $\mathbf{x} \sim \mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ thì $\mathbf{A}\mathbf{x} + \mathbf{b} \sim \mathcal{N}(\mathbf{A}\boldsymbol{\mu} + \mathbf{b}, \mathbf{A}\boldsymbol{\Sigma}\mathbf{A}^\top)$.
+2. **Lấy mẫu bằng tái tham số hóa**: với $\boldsymbol{\Sigma} = \mathbf{L}\mathbf{L}^\top$ (phân rã Cholesky), $\mathbf{x} = \boldsymbol{\mu} + \mathbf{L}\boldsymbol{\epsilon}$ với $\boldsymbol{\epsilon} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ có phân phối $\mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$. Đây là "mẹo tái tham số hóa" (*reparameterization trick*) của VAE ([Chương 8](../phan-2-mo-hinh-sinh/ch08-vae.md)).
+
+### 1.4.3. Kỳ vọng, phương sai và hiệp phương sai
+
+**Kỳ vọng** của $f(X)$ là trung bình có trọng số theo xác suất: $\mathbb{E}_{p}[f(X)] = \sum_x p(x) f(x)$ hoặc $\int p(x) f(x)\,dx$. Tính chất quan trọng nhất là **tuyến tính**: $\mathbb{E}[aX + bY] = a\mathbb{E}[X] + b\mathbb{E}[Y]$, đúng **kể cả khi $X$, $Y$ không độc lập**.
+
+**Phương sai** đo độ phân tán: $\operatorname{Var}(X) = \mathbb{E}[(X - \mathbb{E}X)^2] = \mathbb{E}[X^2] - (\mathbb{E}X)^2$, và $\operatorname{Var}(aX + b) = a^2\operatorname{Var}(X)$. **Hiệp phương sai** $\operatorname{Cov}(X, Y) = \mathbb{E}[(X - \mathbb{E}X)(Y - \mathbb{E}Y)]$ đo mức hai biến biến thiên cùng nhau. Với véc-tơ ngẫu nhiên $\mathbf{x}$ có trung bình $\boldsymbol{\mu}$, **ma trận hiệp phương sai** là
+
+$$
+\boldsymbol{\Sigma} = \mathbb{E}\big[(\mathbf{x} - \boldsymbol{\mu})(\mathbf{x} - \boldsymbol{\mu})^\top\big] .
+$$
+
+Nó luôn nửa xác định dương, vì với mọi $\mathbf{u}$, $\mathbf{u}^\top\boldsymbol{\Sigma}\mathbf{u} = \mathbb{E}[(\mathbf{u}^\top(\mathbf{x} - \boldsymbol{\mu}))^2] = \operatorname{Var}(\mathbf{u}^\top\mathbf{x}) \ge 0$.
+
+Ba quy tắc sẽ được dùng ngay ở [Chương 2](ch02-hoc-may-va-mang-no-ron.md) khi phân tích cách khởi tạo trọng số:
+
+- Nếu $X$, $Y$ độc lập thì $\operatorname{Var}(X + Y) = \operatorname{Var}(X) + \operatorname{Var}(Y)$. Tổng $n$ biến độc lập cùng phương sai $\sigma^2$ có phương sai $n\sigma^2$.
+- Do đó trung bình mẫu $\bar{X}_n = \frac{1}{n}\sum_i X_i$ có phương sai $\sigma^2/n$: độ lệch chuẩn giảm theo $1/\sqrt{n}$.
+- Nếu $X$, $Y$ độc lập và cùng có kỳ vọng bằng 0 thì $\operatorname{Var}(XY) = \operatorname{Var}(X)\operatorname{Var}(Y)$.
+
+### 1.4.4. Quy tắc Bayes
+
+Từ hai cách viết quy tắc nhân $p(x, z) = p(x \mid z)p(z) = p(z \mid x)p(x)$, ta có **quy tắc Bayes**:
+
+$$
+\underbrace{p(z \mid x)}_{\text{hậu nghiệm}} = \frac{\overbrace{p(x \mid z)}^{\text{hợp lý}}\;\overbrace{p(z)}^{\text{tiên nghiệm}}}{\underbrace{p(x)}_{\text{bằng chứng}}}, \qquad p(x) = \sum_{z} p(x \mid z)\,p(z) .
+$$
+
+Bayes cho ta cách **cập nhật niềm tin** về một đại lượng ẩn $z$ sau khi quan sát $x$.
+
+!!! example "Ví dụ: phát hiện tiếng nói (VAD) trong quy trình làm dữ liệu"
+    Khi cắt dữ liệu thu âm thành câu ([Chương 36](../phan-9-thuc-tien/ch36-du-lieu-tts.md)), ta cần quyết định mỗi khung là tiếng nói ($S$) hay im lặng. Giả sử (số liệu minh họa) 60% khung là tiếng nói, một bộ dò năng lượng báo "năng lượng cao" ($E$) cho 90% khung tiếng nói và 20% khung im lặng. Nếu bộ dò báo "cao", xác suất khung đó là tiếng nói là
+
+    $$
+    P(S \mid E) = \frac{0{,}9 \times 0{,}6}{0{,}9 \times 0{,}6 + 0{,}2 \times 0{,}4} = \frac{0{,}54}{0{,}62} \approx 0{,}87 .
+    $$
+
+    Nếu bộ dò báo "thấp", $P(S \mid \neg E) = \frac{0{,}1 \times 0{,}6}{0{,}1 \times 0{,}6 + 0{,}8 \times 0{,}4} = \frac{0{,}06}{0{,}38} \approx 0{,}16$. Dù bộ dò khá tốt, vẫn còn khoảng 16% khung "năng lượng thấp" thực ra là tiếng nói (ví dụ phụ âm xát vô thanh yếu), nên cắt bỏ im lặng quá mạnh tay có thể làm cụt âm cuối câu.
+
+Trong các chương sau, Bayes xuất hiện dưới nhiều hình thức: hậu nghiệm của biến ẩn $p(\mathbf{z} \mid \mathbf{Y})$ trong VAE và VITS ([Chương 8](../phan-2-mo-hinh-sinh/ch08-vae.md), [Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)), hay ước lượng hậu nghiệm cực đại (MAP) dẫn tới các số hạng điều chuẩn ([Chương 2](ch02-hoc-may-va-mang-no-ron.md)).
+
+### 1.4.5. Đổi biến cho hàm mật độ
+
+**Câu hỏi.** Biết $X$ có mật độ $p_X$, và $Y = g(X)$ với $g$ khả nghịch và khả vi. Mật độ của $Y$ là gì?
+
+**Suy ra (một chiều).** Giả sử $g$ đồng biến. Dùng hàm phân phối tích lũy:
+
+$$
+F_Y(y) = P(g(X) \le y) = P\big(X \le g^{-1}(y)\big) = F_X\big(g^{-1}(y)\big).
+$$
+
+Lấy đạo hàm hai vế theo $y$ bằng quy tắc dây chuyền:
+
+$$
+p_Y(y) = p_X\big(g^{-1}(y)\big)\,\frac{d g^{-1}(y)}{dy} .
+$$
+
+Nếu $g$ nghịch biến, làm tương tự sẽ xuất hiện dấu trừ, nên công thức chung dùng trị tuyệt đối. Trực giác: xác suất được **bảo toàn**, $p_Y(y)\lvert dy \rvert = p_X(x)\lvert dx \rvert$. Chỗ nào $g$ "kéo giãn" trục số thì mật độ bị loãng ra, chỗ nào $g$ "nén" thì mật độ đặc lại.
+
+**Nhiều chiều.** Với $\mathbf{y} = \mathbf{g}(\mathbf{x})$ khả nghịch trên $\mathbb{R}^{d}$, hệ số co giãn thể tích là trị tuyệt đối của định thức Jacobian:
+
+$$
+p_{\mathbf{Y}}(\mathbf{y}) = p_{\mathbf{X}}(\mathbf{x})\,\big\lvert \det \mathbf{J}_{\mathbf{g}}(\mathbf{x}) \big\rvert^{-1},
+\qquad\text{hay}\qquad
+\log p_{\mathbf{Y}}(\mathbf{y}) = \log p_{\mathbf{X}}(\mathbf{x}) - \log\big\lvert \det \mathbf{J}_{\mathbf{g}}(\mathbf{x}) \big\rvert ,
+$$
+
+với $\mathbf{x} = \mathbf{g}^{-1}(\mathbf{y})$. Công thức này là trái tim của **normalizing flow** ([Chương 10](../phan-2-mo-hinh-sinh/ch10-normalizing-flows.md)): ghép nhiều phép biến đổi khả nghịch có định thức Jacobian dễ tính để biến một Gauss đơn giản thành phân phối phức tạp của mel hay dạng sóng, rồi huấn luyện bằng log-likelihood chính xác. Glow-TTS, WaveGlow và phần flow trong VITS đều dựa trên nó ([Chương 23](../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md), [Chương 24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md), [Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)).
+
+**Ví dụ: logarit và phân phối log-chuẩn.** Đặt $X \sim \mathcal{N}(0, 1)$ và $Y = e^{X}$. Khi đó $g^{-1}(y) = \log y$ và $dg^{-1}/dy = 1/y$, nên $p_Y(y) = \mathcal{N}(\log y; 0, 1)/y$ với $y > 0$: một phân phối lệch phải, đuôi dài. Chiều ngược lại cũng là một bài học cho TTS: năng lượng phổ trên thang tuyến tính có dải động rất rộng và phân phối lệch mạnh, còn sau khi lấy logarit thì phân bố gọn hơn nhiều. Đó là một lý do (cùng với lý do cảm thụ, [Chương 13](../phan-3-tin-hieu-ngu-am/ch13-am-hoc-tieng-noi.md)) khiến các mô hình hầu như luôn dự đoán **log**-mel chứ không phải mel tuyến tính.
+
+### 1.4.6. Luật số lớn và ước lượng Monte Carlo
+
+**Luật số lớn.** Nếu $X_1, X_2, \ldots$ độc lập, cùng phân phối với kỳ vọng $\mu$ hữu hạn, thì trung bình mẫu $\bar{X}_n$ hội tụ về $\mu$ khi $n \to \infty$. Nếu thêm phương sai $\sigma^2$ hữu hạn, **định lý giới hạn trung tâm** cho biết thêm tốc độ: $\bar{X}_n$ xấp xỉ $\mathcal{N}(\mu, \sigma^2/n)$, tức sai số điển hình tỷ lệ với $\sigma/\sqrt{n}$.
+
+**Ước lượng Monte Carlo.** Nhiều đại lượng trong học máy là kỳ vọng mà ta không tính được dạng đóng. Ta xấp xỉ bằng trung bình trên các mẫu:
+
+$$
+\mathbb{E}_{p}[f(X)] \approx \frac{1}{n}\sum_{i=1}^{n} f(x_i), \qquad x_i \sim p .
+$$
+
+Ước lượng này **không chệch** (kỳ vọng của nó đúng bằng đại lượng cần tính) và có phương sai $\operatorname{Var}_p[f(X)]/n$. Muốn giảm sai số đi 10 lần, cần tăng số mẫu lên 100 lần. Đoạn mã dưới kiểm chứng cả công thức đổi biến lẫn tốc độ $1/\sqrt{n}$:
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+
+# (a) Đổi biến: X ~ N(0, 1), Y = exp(X)  =>  p_Y(y) = N(log y; 0, 1) / y
+x = rng.standard_normal(200_000)
+y = np.exp(x)
+hist, edges = np.histogram(y, bins=60, range=(0.05, 4.0))
+centers = 0.5 * (edges[1:] + edges[:-1])
+emp = hist / (len(y) * (edges[1] - edges[0]))           # mật độ thực nghiệm
+p_y = np.exp(-0.5 * np.log(centers) ** 2) / np.sqrt(2 * np.pi) / centers
+print("sai lệch tuyệt đối lớn nhất của mật độ:", np.abs(emp - p_y).max().round(3))
+assert np.abs(emp - p_y).max() < 0.05
+
+# (b) Monte Carlo: E[cos X] với X ~ N(0, 1) có giá trị đúng là exp(-1/2)
+true = np.exp(-0.5)
+for n in [10, 100, 1_000, 10_000, 100_000]:
+    errs = [abs(np.cos(rng.standard_normal(n)).mean() - true) for _ in range(200)]
+    print(f"n={n:>6}  sai số trung bình={np.mean(errs):.5f}  "
+          f"sai số * sqrt(n)={np.mean(errs) * np.sqrt(n):.3f}")
+```
+
+Cột cuối gần như không đổi (khoảng 0,32–0,36) khi $n$ tăng gấp 10 000 lần: đúng tốc độ $1/\sqrt{n}$.
+
+**Monte Carlo ở khắp nơi trong học sâu.**
+
+- **Gradient minibatch** là ước lượng Monte Carlo của gradient trên toàn bộ dữ liệu; kích thước batch điều khiển phương sai của nó ([Chương 3](ch03-toi-uu-va-ky-thuat-huan-luyen.md)).
+- **ELBO** của VAE được ước lượng bằng một mẫu $\mathbf{z}$ cho mỗi điểm dữ liệu ([Chương 8](../phan-2-mo-hinh-sinh/ch08-vae.md)).
+- Hàm mất mát của **diffusion** và **flow matching** là kỳ vọng theo thời điểm $t$ và nhiễu $\boldsymbol{\epsilon}$; mỗi bước huấn luyện chỉ lấy một mẫu $(t, \boldsymbol{\epsilon})$ cho mỗi câu ([Chương 11](../phan-2-mo-hinh-sinh/ch11-diffusion.md), [Chương 12](../phan-2-mo-hinh-sinh/ch12-flow-matching.md)). Đây là lý do đường loss của các mô hình này rất "nhiễu".
+- Khi đánh giá, điểm MOS trung bình cũng là ước lượng từ một mẫu hữu hạn người nghe, nên cần khoảng tin cậy ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)).
+
+### 1.4.7. Từ phân phối đến hàm mất mát: Gauss ↔ L2, Laplace ↔ L1
+
+Đây là mối liên hệ quan trọng nhất của chương đối với người làm TTS. Giả sử mô hình nhận văn bản $\mathbf{x}$ và dự đoán một khung mel $\hat{\mathbf{y}} = f_\theta(\mathbf{x}) \in \mathbb{R}^{F}$. Thay vì nói "dự đoán phải gần mục tiêu", ta phát biểu một **giả định xác suất**: mel thật là dự đoán cộng với nhiễu.
+
+**Giả định Gauss.** Nếu $\mathbf{y} \sim \mathcal{N}(\hat{\mathbf{y}}, \sigma^2\mathbf{I})$ thì
+
+$$
+-\log p(\mathbf{y} \mid \mathbf{x}) = \frac{1}{2\sigma^2}\lVert \mathbf{y} - \hat{\mathbf{y}} \rVert_2^2 + \frac{F}{2}\log(2\pi\sigma^2) .
+$$
+
+Với $\sigma$ cố định, số hạng thứ hai là hằng số, nên **cực tiểu hóa negative log-likelihood (NLL) tương đương cực tiểu hóa sai số bình phương (L2, MSE)**.
+
+**Giả định Laplace.** Nếu mỗi thành phần $y_f$ độc lập theo phân phối Laplace tâm $\hat{y}_f$, thang đo $b$:
+
+$$
+-\log p(\mathbf{y} \mid \mathbf{x}) = \frac{1}{b}\lVert \mathbf{y} - \hat{\mathbf{y}} \rVert_1 + F\log(2b),
+$$
+
+tức **cực tiểu hóa NLL tương đương cực tiểu hóa sai số tuyệt đối (L1, MAE)**. Ta kiểm chứng bằng `torch.distributions`:
+
+```python
+import math
+import torch
+from torch.distributions import Laplace, Normal
+
+torch.manual_seed(0)
+y = torch.randn(4, 80)          # (T, F) log-mel "thật"
+y_hat = torch.randn(4, 80)      # (T, F) log-mel dự đoán (đầu ra mô hình)
+
+# NLL trung bình trên mỗi phần tử, với sigma = 1 và b = 1
+nll_gauss = -Normal(y_hat, 1.0).log_prob(y).mean()
+nll_laplace = -Laplace(y_hat, 1.0).log_prob(y).mean()
+
+mse = ((y - y_hat) ** 2).mean()
+mae = (y - y_hat).abs().mean()
+assert torch.allclose(nll_gauss, 0.5 * mse + 0.5 * math.log(2 * math.pi))
+assert torch.allclose(nll_laplace, mae + math.log(2.0))
+print(f"NLL Gauss = {nll_gauss:.4f} = 0.5*MSE + hằng số")
+print(f"NLL Laplace = {nll_laplace:.4f} = MAE + hằng số")
+```
+
+**L2 dự đoán trung bình, L1 dự đoán trung vị.** Xét bài toán đơn giản nhất: chọn một hằng số $c$ để dự đoán một biến ngẫu nhiên $Y$.
+
+- Với L2: $\frac{d}{dc}\mathbb{E}[(Y - c)^2] = -2\,\mathbb{E}[Y - c] = 0 \Rightarrow c^\star = \mathbb{E}[Y]$, **trung bình**.
+- Với L1: $\frac{d}{dc}\mathbb{E}\lvert Y - c \rvert = P(Y < c) - P(Y > c) = 0 \Rightarrow P(Y < c^\star) = P(Y > c^\star) = \tfrac{1}{2}$, tức $c^\star$ là **trung vị**.
+
+Áp dụng cho từng $\mathbf{x}$: mô hình huấn luyện bằng L2 (với đủ năng lực và dữ liệu) tiến tới **trung bình có điều kiện** $\mathbb{E}[\mathbf{y} \mid \mathbf{x}]$; mô hình huấn luyện bằng L1 tiến tới **trung vị có điều kiện** (theo từng chiều). Khi phân phối $p(\mathbf{y} \mid \mathbf{x})$ có nhiều chế độ (*multimodal*), cả hai đều có thể cho ra một dự đoán **không giống mẫu thật nào**. Hãy xem ví dụ với một "giá trị mel" có hai chế độ:
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+# Một "giá trị mel" có hai chế độ: cùng một câu, người nói lúc đọc cao, lúc đọc thấp
+y = np.concatenate([rng.normal(-2.0, 0.3, 700), rng.normal(2.0, 0.3, 300)])
+
+c = np.linspace(-3, 3, 6001)                          # các dự đoán hằng số ứng viên
+l2 = ((y[None, :] - c[:, None]) ** 2).mean(axis=1)    # MSE  (khả năng Gauss)
+l1 = np.abs(y[None, :] - c[:, None]).mean(axis=1)     # MAE  (khả năng Laplace)
+
+c_l2, c_l1 = c[l2.argmin()], c[l1.argmin()]
+print(f"cực tiểu L2 = {c_l2:+.3f} | trung bình mẫu = {y.mean():+.3f}")
+print(f"cực tiểu L1 = {c_l1:+.3f} | trung vị mẫu  = {np.median(y):+.3f}")
+assert abs(c_l2 - y.mean()) < 1e-3
+assert abs(c_l1 - np.median(y)) < 0.05
+# Tỷ lệ mẫu thật nằm gần dự đoán L2 (trong khoảng ±0.5): gần như không có!
+print("tỷ lệ mẫu gần dự đoán L2:", np.mean(np.abs(y - c_l2) < 0.5))
+```
+
+Dự đoán L2 rơi vào khoảng $-0{,}81$, đúng chỗ "thung lũng" giữa hai chế độ, nơi chỉ khoảng 0,6% mẫu thật nằm gần. Dự đoán L1 rơi vào khoảng $-1{,}83$, bên trong chế độ chiếm đa số, nên trông "thật" hơn. Nhưng L1 không phải liều thuốc vạn năng: nếu hai chế độ có trọng số bằng nhau, trung vị cũng có thể rơi vào giữa.
+
+**Liên hệ với TTS.** Trên thực tế cả hai lựa chọn đều phổ biến: Tacotron 2 dùng tổng MSE của mel trước và sau post-net (Shen và cộng sự, 2018), còn HiFi-GAN và VITS dùng khoảng cách L1 giữa mel của âm thanh sinh ra và mel thật như một số hạng phụ trợ (Kong và cộng sự, 2020; Kim và cộng sự, 2021). Hiện tượng "lấy trung bình các chế độ" ở trên chính là nguồn gốc của **over-smoothing**: mel dự đoán bằng hồi quy L1/L2 thường mờ, thiếu chi tiết ở dải tần cao, nghe "bẹt" và đều đều. Đây là động lực chính để chuyển sang **mô hình sinh** (GAN, flow, diffusion, flow matching), được phân tích kỹ ở [Chương 7](../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh.md). [Chương 2](ch02-hoc-may-va-mang-no-ron.md) sẽ khái quát hóa lập luận trên thành nguyên lý **ước lượng hợp lý cực đại** và thêm góc nhìn MAP cho điều chuẩn.
+
+!!! note "Góc tiếng Việt"
+    Trộn nhiều phương ngữ trong dữ liệu huấn luyện mà không cho mô hình biết người nói hay vùng miền là một cách chắc chắn để tạo ra phân phối nhiều chế độ. Ví dụ, thanh hỏi và thanh ngã được phân biệt rõ trong giọng Bắc nhưng thường nhập làm một trong giọng Nam ([Chương 15](../phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md)). Nếu dữ liệu chứa cả hai giọng, đường nét F0 "đúng" của một âm tiết mang thanh ngã sẽ có ít nhất hai chế độ. Một mô hình hồi quy L2 khi đó sẽ học một đường nét trung bình không thuộc giọng nào, nghe như thanh điệu bị "nhòe". Cách khắc phục là thêm điều kiện (embedding người nói/phương ngữ, [Chương 28](../phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning.md)) hoặc dùng mô hình sinh.
