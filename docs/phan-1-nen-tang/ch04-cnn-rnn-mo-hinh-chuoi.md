@@ -676,3 +676,348 @@ Chiều xuôi khớp (sai lệch cỡ $10^{-8}$, chỉ là sai số dấu phẩy
 
 !!! note "Góc tiếng Việt"
     Kiểu câu tiếng Việt thường được đánh dấu bằng **tiểu từ cuối câu**: "Anh đi à?", "Anh đi nhé.", "Anh có đi không?". Ngữ điệu của cả câu — kể cả các âm tiết đầu — phụ thuộc vào tiểu từ này ([Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)). Một bộ mã hóa văn bản hai chiều (BiLSTM, hoặc self-attention ở [Chương 5](ch05-transformer.md)) nhìn được tiểu từ ngay từ đầu. Ngược lại, trong TTS streaming chỉ được nhìn trước một ít token, mô hình có thể đã đọc xong nửa đầu câu với ngữ điệu trần thuật trước khi "thấy" chữ "không?" ở cuối — một lý do để các hệ thống streaming chọn ranh giới đoạn theo cụm từ và dấu câu ([Chương 35](../phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md)).
+
+## 4.8 Mô hình seq2seq và attention
+
+### 4.8.1 Khung encoder–decoder
+
+Nhiều bài toán chuỗi có đầu vào và đầu ra **khác độ dài và không thẳng hàng**: dịch máy, nhận dạng tiếng nói, và tất nhiên TTS — $N$ âm vị phải biến thành $T$ khung mel với $T$ thường lớn gấp nhiều lần $N$. Mô hình **seq2seq** (Sutskever và cộng sự, 2014; Cho và cộng sự, 2014) giải quyết bằng hai mạng:
+
+- **Bộ mã hóa** (*encoder*) đọc toàn bộ đầu vào $\mathbf{x} = (x_1, \ldots, x_N)$ và sinh các biểu diễn $\mathbf{h}_1, \ldots, \mathbf{h}_N$.
+- **Bộ giải mã** (*decoder*) sinh đầu ra từng bước theo phân rã tự hồi quy
+
+$$
+p(\mathbf{y} \mid \mathbf{x}) = \prod_{t=1}^{T} p(y_t \mid y_{<t}, \mathbf{x}),
+$$
+
+với trạng thái $\mathbf{s}_t$ được cập nhật từ $\mathbf{s}_{t-1}$, đầu ra trước $y_{t-1}$ và thông tin từ bộ mã hóa.
+
+Trong phiên bản đầu tiên, "thông tin từ bộ mã hóa" chỉ là **một véc-tơ** — trạng thái cuối $\mathbf{h}_N$. Toàn bộ câu bị nén vào một véc-tơ có kích thước cố định: một **nút cổ chai**. Cho và cộng sự (2014) quan sát thấy chất lượng giảm rõ khi câu dài ra. Với TTS, nơi một câu có thể dài hàng trăm âm vị và hàng nghìn khung, nút cổ chai này là không chấp nhận được.
+
+### 4.8.2 Attention: căn chỉnh mềm có học
+
+**Trực giác.** Khi đọc to một câu, tại mỗi thời điểm bạn chỉ tập trung vào một vài chữ. Attention cho bộ giải mã làm điều tương tự: ở mỗi bước $t$, nó tính một **phân phối trọng số** $\boldsymbol{\alpha}_t$ trên các vị trí của bộ mã hóa, rồi lấy trung bình có trọng số để được **véc-tơ ngữ cảnh** (*context vector*) $\mathbf{c}_t$ (ký hiệu theo Bahdanau; không liên quan đến ô nhớ LSTM ở mục 4.7.4):
+
+$$
+e_{t,i} = \operatorname{score}(\mathbf{s}, \mathbf{h}_i), \qquad
+\alpha_{t,i} = \frac{\exp(e_{t,i})}{\sum_{i'=1}^{N} \exp(e_{t,i'})}, \qquad
+\mathbf{c}_t = \sum_{i=1}^{N} \alpha_{t,i}\, \mathbf{h}_i .
+$$
+
+Mọi phép toán đều khả vi, nên "nhìn vào đâu" được học hoàn toàn từ dữ liệu, không cần nhãn căn chỉnh.
+
+**Attention cộng** (Bahdanau và cộng sự, 2015) dùng trạng thái **trước** $\mathbf{s}_{t-1}$ và một MLP một lớp ẩn:
+
+$$
+e_{t,i} = \mathbf{v}^\top \tanh\!\left(\mathbf{W}_q \mathbf{s}_{t-1} + \mathbf{W}_k \mathbf{h}_i\right),
+$$
+
+rồi đưa $\mathbf{c}_t$ vào cập nhật $\mathbf{s}_t$. Lưu ý $\mathbf{W}_k \mathbf{h}_i$ không phụ thuộc $t$, nên được tính **một lần** cho cả chuỗi.
+
+**Attention nhân** (Luong và cộng sự, 2015) cập nhật $\mathbf{s}_t$ trước rồi mới tính attention với $\mathbf{s}_t$, bằng các hàm điểm đơn giản hơn:
+
+$$
+\operatorname{score}(\mathbf{s}_t, \mathbf{h}_i) \in \left\{\, \mathbf{s}_t^\top \mathbf{h}_i \ (\textit{dot}),\ \ \mathbf{s}_t^\top \mathbf{W}_a \mathbf{h}_i \ (\textit{general}),\ \ \mathbf{v}^\top \tanh(\mathbf{W}_a [\mathbf{s}_t; \mathbf{h}_i]) \ (\textit{concat}) \,\right\}.
+$$
+
+Dạng *dot* và *general* chỉ là tích vô hướng — nhanh, dễ song song hóa thành phép nhân ma trận. Thêm một hệ số tỷ lệ $1/\sqrt{d}$ vào dạng *dot* và bạn có **scaled dot-product attention**, viên gạch của Transformer; vì sao cần hệ số đó được suy ra ở [Chương 5](ch05-transformer.md).
+
+**Ma trận căn chỉnh.** Xếp các $\alpha_{t,i}$ thành ma trận ta được chính **ma trận căn chỉnh mềm** $\mathbf{A} \in [0, 1]^{N \times T}$ trong [bảng ký hiệu](../gioi-thieu/ky-hieu.md), với $A_{i,t} = \alpha_{t,i}$ (mỗi cột có tổng bằng 1). Trong TTS, căn chỉnh đúng phải **đơn điệu** (đọc từ trái sang phải) và gần **đường chéo**. Attention dựa thuần nội dung như ở trên không có ràng buộc nào như vậy, nên có thể nhảy cóc (bỏ từ), quay lui (lặp từ) hoặc "kẹt" (không dừng) — các lỗi kinh điển của Tacotron. Tacotron 2 dùng **attention nhạy vị trí** (*location-sensitive attention*), thêm đặc trưng từ căn chỉnh ở bước trước vào hàm điểm ([Chương 20](../phan-5-mo-hinh-am-hoc/ch20-tacotron.md)); các cơ chế căn chỉnh đơn điệu và cứng được bàn ở [Chương 21](../phan-5-mo-hinh-am-hoc/ch21-alignment.md).
+
+```mermaid
+flowchart LR
+    X["Đầu vào x (âm vị)"] --> E["Bộ mã hóa (BiLSTM)"]
+    E --> H["h_1 ... h_N"]
+    H --> ATT["Attention: α_t, c_t"]
+    S["Trạng thái s_(t-1)"] --> ATT
+    ATT --> D["Bộ giải mã (LSTM)"]
+    Y["Đầu ra trước y_(t-1)"] --> D
+    D --> O["Dự đoán y_t"]
+    D --> S
+```
+
+### 4.8.3 Teacher forcing và exposure bias
+
+Khi huấn luyện, ta có sẵn chuỗi đích, nên ở bước $t$ ta đưa vào bộ giải mã **giá trị thật** $y_{t-1}$ thay vì dự đoán của chính mô hình. Kỹ thuật này gọi là **teacher forcing** (Williams và Zipser, 1989). Nó chính là cực đại hóa log-likelihood theo phân rã ở mục 4.8.1: mỗi thừa số $p(y_t \mid y_{<t}, \mathbf{x})$ được tối ưu với ngữ cảnh $y_{<t}$ lấy từ dữ liệu. Ưu điểm: ổn định, và với bộ giải mã không hồi quy (như Transformer) thì mọi bước được tính song song.
+
+Nhược điểm: khi **suy luận**, mô hình phải ăn chính đầu ra của nó. Nếu nó mắc một lỗi nhỏ ở bước $t$, bước $t+1$ nhận một đầu vào mà nó **chưa bao giờ thấy khi huấn luyện**; lỗi có thể khuếch đại dần. Sự lệch phân phối giữa huấn luyện và suy luận này gọi là **exposure bias** (thuật ngữ do Ranzato và cộng sự, 2016 phổ biến). Các biện pháp:
+
+- **Scheduled sampling** (Bengio và cộng sự, 2015): trong khi huấn luyện, với xác suất tăng dần, thay $y_{t-1}$ thật bằng dự đoán của mô hình.
+- **Thêm nhiễu/dropout vào đầu vào bộ giải mã**: pre-net của Tacotron 2 giữ dropout **cả lúc suy luận** — một lựa chọn nghe lạ nhưng có lý do sâu xa ([Chương 20](../phan-5-mo-hinh-am-hoc/ch20-tacotron.md)).
+- **Giảm số bước tự hồi quy**: sinh nhiều khung mỗi bước (*reduction factor*), hoặc bỏ hẳn tự hồi quy như FastSpeech ([Chương 22](../phan-5-mo-hinh-am-hoc/ch22-fastspeech.md)).
+
+Với đầu ra **liên tục** như mel, vấn đề còn trầm trọng hơn: mô hình hồi quy L1/L2 dự đoán giá trị "trung bình", nên các khung tự sinh mờ hơn khung thật, và bộ giải mã liên tục bị nuôi bằng đầu vào mờ. Mối liên hệ giữa hồi quy và hiện tượng "quá mượt" được phân tích ở [Chương 7](../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh.md).
+
+### 4.8.4 Mã minh họa: seq2seq LSTM có attention
+
+Ta xây một seq2seq nhỏ cho bài toán đồ chơi **đảo ngược dãy chữ số**. Bài toán này hay ở chỗ căn chỉnh đúng là **đường chéo ngược**: bước đầu ra thứ $t$ phải nhìn vào vị trí $N - 1 - t$ của đầu vào. Bộ mã hóa là BiLSTM (có đóng gói chuỗi), bộ giải mã là `LSTMCell` với attention cộng.
+
+```python
+PAD, BOS, EOS, VOCAB = 0, 1, 2, 13                # token 3..12 là 10 "chữ số"
+
+class AdditiveAttention(nn.Module):
+    """Attention cộng (Bahdanau): e_i = v^T tanh(W_q s + W_k h_i)."""
+    def __init__(self, q_dim, k_dim, attn_dim):
+        super().__init__()
+        self.w_q = nn.Linear(q_dim, attn_dim, bias=False)
+        self.w_k = nn.Linear(k_dim, attn_dim, bias=False)
+        self.v = nn.Linear(attn_dim, 1, bias=False)
+
+    def forward(self, query, keys, mask):         # (B, Dq), (B, N, Dk), (B, N) bool
+        e = self.v(torch.tanh(self.w_q(query)[:, None] + self.w_k(keys))).squeeze(-1)  # (B, N)
+        alpha = e.masked_fill(~mask, float("-inf")).softmax(dim=-1)                   # (B, N)
+        context = torch.bmm(alpha[:, None], keys).squeeze(1)                          # (B, Dk)
+        return context, alpha
+
+class Seq2Seq(nn.Module):
+    def __init__(self, vocab=VOCAB, emb=32, hid=64):
+        super().__init__()
+        self.hid = hid
+        self.emb = nn.Embedding(vocab, emb, padding_idx=PAD)
+        self.encoder = nn.LSTM(emb, hid, batch_first=True, bidirectional=True)
+        self.attn = AdditiveAttention(hid, 2 * hid, hid)
+        self.decoder = nn.LSTMCell(emb + 2 * hid, hid)
+        self.out = nn.Linear(hid + 2 * hid, vocab)
+
+    def encode(self, src, src_len):               # src: (B, N)
+        packed = pack_padded_sequence(self.emb(src), src_len, batch_first=True,
+                                      enforce_sorted=False)
+        memory, _ = pad_packed_sequence(self.encoder(packed)[0], batch_first=True,
+                                        total_length=src.shape[1])                    # (B, N, 2H)
+        mask = torch.arange(src.shape[1])[None] < src_len[:, None]                    # (B, N)
+        return memory, mask
+
+    def step(self, y_prev, state, memory, mask):  # y_prev: (B,)
+        context, alpha = self.attn(state[0], memory, mask)     # dùng trạng thái s_{t-1}
+        h, c = self.decoder(torch.cat([self.emb(y_prev), context], -1), state)
+        logits = self.out(torch.cat([h, context], -1))         # (B, V)
+        return logits, (h, c), alpha
+
+    def forward(self, src, src_len, tgt_in):      # teacher forcing; tgt_in: (B, T)
+        memory, mask = self.encode(src, src_len)
+        state = (memory.new_zeros(src.shape[0], self.hid),) * 2
+        logits = []
+        for t in range(tgt_in.shape[1]):
+            l, state, _ = self.step(tgt_in[:, t], state, memory, mask)
+            logits.append(l)
+        return torch.stack(logits, 1)             # (B, T, V)
+
+    @torch.no_grad()
+    def greedy(self, src, src_len, max_len=12):   # tự hồi quy: đầu vào là dự đoán trước đó
+        memory, mask = self.encode(src, src_len)
+        state = (memory.new_zeros(src.shape[0], self.hid),) * 2
+        y = torch.full((src.shape[0],), BOS)
+        out, alphas = [], []
+        for _ in range(max_len):
+            logits, state, alpha = self.step(y, state, memory, mask)
+            y = logits.argmax(-1)
+            out.append(y)
+            alphas.append(alpha)
+        return torch.stack(out, 1), torch.stack(alphas, 1)    # (B, T), (B, T, N)
+```
+
+Huấn luyện bằng teacher forcing, rồi đánh giá ở chế độ **tự hồi quy** (đầu vào mỗi bước là dự đoán của bước trước) — đánh giá đúng như cách mô hình sẽ được dùng.
+
+```python
+def make_batch(batch_size, min_len=3, max_len=8):
+    """Bài toán đồ chơi: đảo ngược một dãy chữ số."""
+    lens = torch.randint(min_len, max_len + 1, (batch_size,))
+    src = torch.full((batch_size, max_len), PAD)
+    tgt = torch.full((batch_size, max_len + 2), PAD)
+    for b, n in enumerate(lens.tolist()):
+        seq = torch.randint(3, VOCAB, (n,))
+        src[b, :n] = seq
+        tgt[b, 0], tgt[b, 1:n + 1], tgt[b, n + 1] = BOS, seq.flip(0), EOS
+    return src, lens, tgt
+
+torch.manual_seed(0)
+model = Seq2Seq()
+opt = torch.optim.Adam(model.parameters(), lr=3e-3)
+loss_fn = nn.CrossEntropyLoss(ignore_index=PAD)
+for step in range(500):
+    src, lens, tgt = make_batch(64)
+    logits = model(src, lens, tgt[:, :-1])        # vào: <bos> y_1 ...; đích: y_1 ... <eos>
+    loss = loss_fn(logits.reshape(-1, VOCAB), tgt[:, 1:].reshape(-1))
+    opt.zero_grad()
+    loss.backward()
+    nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    opt.step()
+
+src, lens, tgt = make_batch(500)
+pred, alphas = model.greedy(src, lens)
+acc = sum(pred[b, :n + 1].tolist() == tgt[b, 1:n + 2].tolist()
+          for b, n in enumerate(lens.tolist())) / len(lens)
+print(f"Loss cuối: {loss.item():.4f} | độ chính xác toàn chuỗi (tự hồi quy): {acc:.1%}")
+assert acc > 0.9
+
+b = int(lens.argmax())                            # một ví dụ dài nhất
+n = lens[b].item()
+print("N =", n, "| vị trí được chú ý nhiều nhất ở mỗi bước:", alphas[b, :n].argmax(-1).tolist())
+```
+
+Sau khoảng 500 bước (vài chục giây trên CPU), mô hình đạt độ chính xác toàn chuỗi gần 100% và dòng in cuối cho dãy vị trí giảm dần $N-1, N-2, \ldots, 0$ — attention đã tự học được căn chỉnh đường chéo ngược mà không hề được dạy. Trong Tacotron, ta mong thấy điều tương tự với đường chéo **xuôi**; khi nó không hình thành, đó là dấu hiệu đầu tiên cần kiểm tra ([Chương 37](../phan-9-thuc-tien/ch37-huan-luyen-va-debug.md)).
+
+## 4.9 Giải mã: greedy, beam search và lấy mẫu
+
+Khi đã có mô hình $p(y_t \mid y_{<t}, \mathbf{x})$, làm sao chọn ra chuỗi đầu ra? Chuỗi "tốt nhất" theo nghĩa MAP, $\hat{\mathbf{y}} = \arg\max_{\mathbf{y}} p(\mathbf{y} \mid \mathbf{x})$, đòi hỏi duyệt $V^T$ chuỗi với $V$ là kích thước từ vựng — bất khả thi. Ba chiến lược thực dụng:
+
+**Greedy.** Ở mỗi bước chọn $\hat{y}_t = \arg\max_{y} p(y \mid \hat{y}_{<t}, \mathbf{x})$. Nhanh, tất định, nhưng **cận thị**: một lựa chọn tốt nhất cục bộ có thể dẫn vào nhánh mà mọi tiếp diễn đều kém.
+
+**Beam search.** Giữ $B$ giả thuyết dở dang tốt nhất (theo tổng log-xác suất). Mỗi bước, mở rộng mỗi giả thuyết bằng mọi token, rồi chỉ giữ lại $B$ ứng viên tốt nhất; giả thuyết nào sinh token kết thúc thì đưa vào danh sách hoàn chỉnh. Chi phí khoảng $O(T B V)$. Vì log-xác suất luôn âm, tổng log-xác suất **thiên vị chuỗi ngắn**; cách chữa phổ biến là **chuẩn hóa độ dài**, chấm điểm bằng $\log p(\mathbf{y} \mid \mathbf{x}) / |\mathbf{y}|^{\alpha}$ với $\alpha \in [0, 1]$ (hệ thống GNMT của Wu và cộng sự, 2016 dùng một biến thể của công thức này). Với $B = 1$ ta có lại greedy; với $B$ đủ lớn, beam search trở thành tìm kiếm vét cạn.
+
+**Lấy mẫu** (*sampling*). Rút $y_t \sim p(\cdot \mid y_{<t}, \mathbf{x})$ — lấy mẫu tổ tiên (*ancestral sampling*). Kết quả **đa dạng** và phản ánh đúng phân phối mô hình, nhưng cũng có thể rút phải token đuôi phân phối kém chất lượng. Các kỹ thuật điều chỉnh — nhiệt độ, top-k, top-p, phạt lặp — được trình bày ở [Chương 5](ch05-transformer.md).
+
+**Mã minh họa.** Beam search tổng quát (nhận vào một hàm trả log-xác suất bước kế tiếp) và một "mô hình ngôn ngữ" đồ chơi được dựng sao cho greedy chọn sai.
+
+```python
+import itertools
+import math
+
+def beam_search(log_prob_fn, bos, eos, beam_size, max_len, alpha=0.0):
+    """Beam search tổng quát. log_prob_fn(seq) -> tensor (V,) log p(y_t | y_<t).
+    alpha > 0: chuẩn hóa độ dài, điểm = log p / (độ dài) ** alpha."""
+    beams, finished = [([bos], 0.0)], []
+    for _ in range(max_len):
+        cands = [(seq + [tok], score + lp)
+                 for seq, score in beams
+                 for tok, lp in enumerate(log_prob_fn(seq).tolist()) if lp > -math.inf]
+        cands.sort(key=lambda c: c[1], reverse=True)
+        beams = []
+        for seq, score in cands:
+            (finished if seq[-1] == eos else beams).append((seq, score))
+            if len(beams) == beam_size:
+                break
+        if not beams:
+            break
+    pool = finished or beams
+    return max(pool, key=lambda c: c[1] / (len(c[0]) - 1) ** alpha)
+
+# "Mô hình ngôn ngữ" đồ chơi (Markov bậc 1): 0=<bos>, 1=<eos>, 2=A, 3=B, 4=C, 5=D
+P = torch.zeros(6, 6)
+P[0, 2], P[0, 3] = 0.6, 0.4                       # <bos> -> A (0.6) | B (0.4)
+P[2, 1], P[2, 4], P[2, 5] = 0.4, 0.3, 0.3         # A -> <eos> | C | D
+P[3, 1], P[3, 2] = 0.9, 0.1                       # B -> <eos> (0.9) | A
+P[4, 1] = P[5, 1] = 1.0
+logP = P.log()                                    # log 0 = -inf
+lm = lambda seq: logP[seq[-1]]
+
+greedy = beam_search(lm, 0, 1, beam_size=1, max_len=5)
+beam = beam_search(lm, 0, 1, beam_size=2, max_len=5)
+print("Greedy:", greedy[0], "p =", round(math.exp(greedy[1]), 3))   # [0, 2, 1] p = 0.24
+print("Beam=2:", beam[0], "p =", round(math.exp(beam[1]), 3))       # [0, 3, 1] p = 0.36
+
+# Đối chiếu với tìm kiếm vét cạn trên mọi chuỗi độ dài <= 4
+def seq_logp(seq):
+    return sum(logP[a, b].item() for a, b in zip(seq, seq[1:]))
+best = max(([0, *mid, 1] for n in range(4) for mid in itertools.product(range(2, 6), repeat=n)),
+           key=seq_logp)
+assert best == beam[0]
+```
+
+Greedy chọn A (0,6) ở bước đầu, rồi chỉ còn chuỗi tốt nhất có xác suất $0{,}6 \times 0{,}4 = 0{,}24$; beam search với $B = 2$ giữ lại cả nhánh B và tìm ra chuỗi $0{,}4 \times 0{,}9 = 0{,}36$.
+
+**Chiến lược nào cho TTS?**
+
+- **Mô hình hồi quy mel tự hồi quy** (Tacotron) không có gì để "tìm kiếm": mỗi bước dự đoán một véc-tơ liên tục (trung bình của một phân phối Gauss hoặc Laplace ngầm định), và đưa thẳng vào bước sau. Quyết định rời rạc duy nhất là **khi nào dừng** (token dừng vượt ngưỡng).
+- **Mô hình token rời rạc** (codec language model, [Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md)) có phân phối trên token và cần chiến lược giải mã. Kinh nghiệm từ sinh văn bản (Holtzman và cộng sự, 2020) là các chiến lược tìm chuỗi xác suất cao (greedy, beam) dễ sa vào **lặp lại suy biến**; với âm thanh, điều này biểu hiện thành vòng lặp âm tiết, khoảng lặng kéo dài hoặc giọng đều đều. Vì vậy các codec LM thường dùng **lấy mẫu** có kiểm soát cho phần tự hồi quy (VALL-E dùng lấy mẫu cho tầng tự hồi quy và greedy cho tầng không tự hồi quy).
+- **Beam search** vẫn hữu ích ở những chỗ khác của hệ thống: ASR dùng để đánh giá ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)), G2P dạng seq2seq ([Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md)), hay chuẩn hóa văn bản bằng mô hình neural ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md)).
+
+## 4.10 Bản đồ: các khối trong chương này nằm ở đâu trong TTS
+
+| Khối xây dựng | Xuất hiện trong | Vai trò |
+|---|---|---|
+| Tích chập nhân quả giãn nở + kích hoạt có cổng | WaveNet, các vocoder streaming | Trường tiếp nhận dài với ít tham số, sinh tự hồi quy |
+| Tích chập chuyển vị | MelGAN, HiFi-GAN | Nâng mẫu từ tốc độ khung lên tốc độ mẫu |
+| Khối dư giãn nở đa kernel (MRF) | HiFi-GAN, BigVGAN | Mô hình hóa cấu trúc ở nhiều thang thời gian |
+| ConvNeXt 1D | Vocos, phần xử lý văn bản của F5-TTS | Xương sống tích chập hiện đại, nhanh |
+| Conv + BiLSTM | Bộ mã hóa văn bản Tacotron 2 | Ngữ cảnh cục bộ + toàn câu |
+| LSTM tự hồi quy + attention | Bộ giải mã Tacotron 2 | Sinh mel từng bước, căn chỉnh mềm |
+| GRU | WaveRNN, LPCNet | Vocoder tự hồi quy hiệu quả trên CPU |
+| Tích chập 1D trong khối FFT | FastSpeech, FastSpeech 2 | Thay FFN từng vị trí bằng tích chập cục bộ |
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Nhầm bố cục `(B, C, T)` và `(B, T, C)`.** `Conv1d` cần `(B, C, T)`; `nn.Linear`, `LayerNorm` và Transformer làm việc trên trục cuối nên cần `(B, T, C)`. Lỗi này nguy hiểm vì khi $C = T$ (ví dụ cả hai đều là 80 trong một bài kiểm thử nhỏ) chương trình vẫn chạy. Hãy viết kiểm thử với các kích thước **đôi một khác nhau** (ví dụ `B=2, C=5, T=7`) và chú thích hình dạng ở mỗi dòng quan trọng.
+- **Rò rỉ tương lai trong tích chập nhân quả.** Nếu dùng `padding=(k-1)*d` của `Conv1d` (đệm cả hai phía) thì phải cắt bỏ đúng $(k-1)d$ phần tử ở **cuối** đầu ra; cắt thiếu hay cắt nhầm đầu là mô hình nhìn trộm tương lai. Loss huấn luyện khi đó giảm "đẹp" bất thường còn suy luận thì vô nghĩa. Luôn chạy kiểm thử nhân quả như ở mục 4.3.
+- **Độ dài đầu ra lệch vài mẫu.** Tích các hệ số nâng mẫu phải đúng bằng hop $H$, và kernel/padding phải cho $T_{\text{out}} = s\,T_{\text{in}}$ chính xác; nếu không, dạng sóng sinh ra lệch vài mẫu so với âm thanh thật, làm hỏng loss so khớp từng mẫu. Hãy `assert` độ dài thay vì cắt tùy tiện.
+- **Trường tiếp nhận quá nhỏ.** Vocoder hay bộ dự đoán ngôn điệu nhìn quá ít ngữ cảnh cho kết quả rè, cao độ chập chờn. Tính trường tiếp nhận (bằng công thức hoặc gradient) và đổi ra mili-giây trước khi huấn luyện.
+- **Tiếng rè tần số cố định** trong vocoder tự thiết kế: kiểm tra $k$ có chia hết cho stride không, thử thay tích chập chuyển vị bằng nội suy + tích chập để khoanh vùng.
+- **BiLSTM trên chuỗi đệm mà không đóng gói** (mục 4.7.6). Nhớ thêm `enforce_sorted=False` nếu batch không được sắp xếp theo độ dài.
+- **Quên `batch_first=True`.** Mặc định `nn.LSTM`, `nn.GRU` dùng bố cục `(T, B, D)`.
+- **Gradient bùng nổ với RNN.** Luôn cắt gradient theo chuẩn (giá trị ngưỡng khoảng 1 là điểm khởi đầu phổ biến); theo dõi chuẩn gradient trong log.
+- **BPTT cắt cụt quên `detach()`.** Nếu truyền trạng thái ẩn sang batch sau mà không cắt gradient, đồ thị tính toán dài mãi và bộ nhớ tăng dần — hoặc PyTorch báo lỗi lan truyền ngược qua đồ thị đã giải phóng.
+- **Chỉ đánh giá bằng teacher forcing.** Loss xác thực khi có teacher forcing có thể rất thấp trong khi suy luận tự hồi quy thất bại hoàn toàn. Luôn đánh giá thêm ở chế độ tự sinh (như mục 4.8.4) và nghe/nhìn kết quả.
+- **Mặt nạ attention bằng `-inf` cho hàng toàn bị che** sẽ cho NaN sau softmax (ví dụ một câu độ dài 0 trong batch). Lọc dữ liệu rỗng từ khâu chuẩn bị dữ liệu.
+
+## Tóm tắt
+
+- `Conv1d` áp đặt tính cục bộ và chia sẻ trọng số theo thời gian; độ dài đầu ra là $\lfloor (T_{\text{in}} + 2p - d(k-1) - 1)/s \rfloor + 1$, số tham số không phụ thuộc độ dài chuỗi.
+- Tích chập nhân quả (đệm trái $(k-1)d$) cho phép huấn luyện song song mô hình tự hồi quy và là nền của streaming; tích chập giãn nở với lịch lũy thừa làm trường tiếp nhận tăng theo hàm mũ độ sâu.
+- Trường tiếp nhận tính theo truy hồi $r_\ell = r_{\ell-1} + (k_\ell - 1) d_\ell j_{\ell-1}$, $j_\ell = j_{\ell-1} s_\ell$; trường hiệu dụng nhỏ hơn trường lý thuyết, nên hãy thiết kế dư dả và kiểm chứng bằng gradient.
+- Tích chập chuyển vị là phép nhân với $\mathbf{C}^\top$; khi kernel không chia hết cho stride (hoặc các bộ lọc pha không cân bằng) nó sinh nhiễu tuần hoàn — tiếng rè tần số cố định trong vocoder.
+- Khối dư, kích hoạt có cổng, tích chập tách theo chiều sâu và ConvNeXt 1D là các viên gạch chủ lực của vocoder và mô hình âm học hiện đại.
+- BPTT nhân các Jacobian $\operatorname{diag}(\tanh') \mathbf{W}$ qua thời gian, dẫn tới gradient tiêu biến ($\sigma_{\max} < 1$) hoặc có thể bùng nổ ($\sigma_{\max} > 1$); cắt gradient chữa bùng nổ, LSTM/GRU chữa tiêu biến nhờ đường cập nhật cộng có cổng.
+- Seq2seq với attention thay nút cổ chai một véc-tơ bằng căn chỉnh mềm có học; ma trận attention chính là ma trận căn chỉnh $\mathbf{A}$, và trong TTS nó phải đơn điệu, gần đường chéo.
+- Teacher forcing giúp huấn luyện ổn định nhưng gây exposure bias khi suy luận; luôn đánh giá ở chế độ tự hồi quy.
+- Greedy và beam search tìm chuỗi xác suất cao; lấy mẫu cho đa dạng. Mô hình mel liên tục không cần tìm kiếm, còn codec LM rời rạc thường dùng lấy mẫu có kiểm soát.
+
+## Bài tập
+
+1. **[Cơ bản]** Một vocoder dùng 3 khối, mỗi khối gồm các tích chập nhân quả kernel $k = 3$ với độ giãn $1, 2, 4, 8, 16, 32$. Tính trường tiếp nhận theo số mẫu và theo mili-giây ở $f_s = 24\,000$ Hz.
+
+    ??? success "Lời giải"
+        Mỗi khối đóng góp $(k-1)(1+2+4+8+16+32) = 2 \times 63 = 126$. Ba khối: $r = 1 + 3 \times 126 = 379$ mẫu, tức $379 / 24\,000 \approx 15{,}8$ ms. Con số này đủ cho chu kỳ cao độ của hầu hết giọng nói (dưới 20 ms) nhưng không đủ để "thấy" đường nét thanh điệu của cả âm tiết — thông tin đó phải đến từ điều kiện mel.
+
+2. **[Cơ bản]** Thiết kế các lớp `ConvTranspose1d` để nâng mẫu từ khung mel lên dạng sóng với hop $H = 300$ (ví dụ 24 kHz với khung 12,5 ms). Chọn các hệ số, kernel và padding sao cho $T_{\text{out}} = H \cdot T_{\text{in}}$ chính xác và không có chồng lấp không đều.
+
+    ??? tip "Gợi ý"
+        Phân tích $300 = 5 \times 5 \times 3 \times 2 \times 2$ hoặc $300 = 10 \times 5 \times 3 \times 2$. Với hệ số chẵn $s$, chọn $k = 2s$, $p = s/2$. Với hệ số lẻ, $k = 2s$ cho $p = s/2$ không nguyên: hãy dùng công thức độ dài ở mục 4.5 để tìm tổ hợp $(k, p, p_{\text{out}})$ phù hợp, ví dụ $k = 2s$, $p = \lceil s/2 \rceil$, $p_{\text{out}} = 1$, rồi kiểm tra bằng hàm `conv_transpose1d_out_len`.
+
+3. **[Nâng cao]** Chứng minh rằng với kernel $k = 2$ và độ giãn $d_\ell = 2^\ell$, $\ell = 0, \ldots, M-1$, mỗi độ trễ $\tau \in \{0, 1, \ldots, 2^M - 1\}$ được nối từ đầu vào tới đầu ra bởi **đúng một** đường đi qua mạng (bỏ qua kết nối dư). Tổng quát hóa cho kernel $k$ với độ giãn $k^\ell$.
+
+    ??? tip "Gợi ý"
+        Mỗi lớp chọn một trong $k$ nhịp, tức là chọn chữ số $b_\ell \in \{0, \ldots, k-1\}$ và đóng góp độ trễ $b_\ell k^\ell$. Dùng tính duy nhất của biểu diễn cơ số $k$.
+
+4. **[Nâng cao]** Với LSTM, hãy viết đầy đủ $\partial \mathbf{c}_t / \partial \mathbf{c}_{t-1}$ khi tính cả ảnh hưởng gián tiếp (qua $\mathbf{h}_{t-1} = \mathbf{o}_{t-1} \odot \tanh(\mathbf{c}_{t-1})$ đi vào các cổng). Giải thích vì sao số hạng $\operatorname{diag}(\mathbf{f}_t)$ vẫn chi phối khi các cổng bão hòa.
+
+5. **[Nâng cao]** Chứng minh rằng beam search với $B \ge V^{T_{\max}}$ (trong đó $T_{\max}$ là độ dài tối đa) trả về đúng chuỗi MAP. Cho một ví dụ (có thể dựng như "mô hình ngôn ngữ" đồ chơi ở mục 4.9) mà beam search với $B = 2$ trả về chuỗi tệ hơn $B = 3$.
+
+6. **[Lập trình]** Dùng hàm `empirical_rf` để đo trường tiếp nhận (tính theo **khung mel đầu vào**) của một bộ sinh kiểu HiFi-GAN thu nhỏ: `Conv1d(k=7)` → `ConvTranspose1d(s=8, k=16, p=4)` → khối dư (kernel 3, độ giãn 1, 3, 5) → `ConvTranspose1d(s=8, k=16, p=4)` → khối dư → `Conv1d(k=7)`. Nhớ dùng đệm "same" cho các tích chập để độ dài khớp. Giải thích vì sao tầng thô đóng góp nhiều nhất vào trường tiếp nhận tính theo khung.
+
+7. **[Lập trình]** Sửa mô hình ở mục 4.8.4 để dùng attention nhân dạng *general* của Luong. Sau đó cài đặt scheduled sampling: ở mỗi bước, với xác suất $\epsilon$ thay token thật bằng token mô hình dự đoán. Huấn luyện với chuỗi dài hơn (8–16 chữ số) và so sánh độ chính xác tự hồi quy khi $\epsilon = 0$ và khi $\epsilon$ tăng dần từ 0 lên 0,25.
+
+8. **[Lập trình]** Cài đặt `PixelShuffle1d` như một `nn.Module` (tích chập ra $C \cdot s$ kênh rồi xếp lại). Khởi tạo sao cho cả $s$ bộ lọc pha **giống hệt nhau** (khởi tạo kiểu "ICNR": khởi tạo một bộ lọc rồi sao chép) và kiểm chứng rằng với đầu vào hằng số, đầu ra (xa biên) là hằng số ngay từ đầu huấn luyện.
+
+## Tài liệu tham khảo
+
+1. Bahdanau, D., Cho, K., và Bengio, Y. (2015). *Neural Machine Translation by Jointly Learning to Align and Translate*. ICLR 2015.
+2. Bengio, S., Vinyals, O., Jaitly, N., và Shazeer, N. (2015). *Scheduled Sampling for Sequence Prediction with Recurrent Neural Networks*. NeurIPS 2015.
+3. Bengio, Y., Simard, P., và Frasconi, P. (1994). *Learning Long-Term Dependencies with Gradient Descent is Difficult*. IEEE Transactions on Neural Networks, 5(2).
+4. Cho, K. và cộng sự (2014). *Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation*. EMNLP 2014.
+5. Chollet, F. (2017). *Xception: Deep Learning with Depthwise Separable Convolutions*. CVPR 2017.
+6. Chung, J., Gulcehre, C., Cho, K., và Bengio, Y. (2014). *Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling*. NIPS 2014 Workshop on Deep Learning.
+7. Dauphin, Y. N., Fan, A., Auli, M., và Grangier, D. (2017). *Language Modeling with Gated Convolutional Networks*. ICML 2017.
+8. Dumoulin, V. và Visin, F. (2016). *A Guide to Convolution Arithmetic for Deep Learning*. arXiv:1603.07285.
+9. Gers, F. A., Schmidhuber, J., và Cummins, F. (2000). *Learning to Forget: Continual Prediction with LSTM*. Neural Computation, 12(10).
+10. Goodfellow, I., Bengio, Y., và Courville, A. (2016). *Deep Learning*, Chương 9–10. MIT Press.
+11. He, K., Zhang, X., Ren, S., và Sun, J. (2016). *Deep Residual Learning for Image Recognition*. CVPR 2016.
+12. Hochreiter, S. và Schmidhuber, J. (1997). *Long Short-Term Memory*. Neural Computation, 9(8).
+13. Holtzman, A. và cộng sự (2020). *The Curious Case of Neural Text Degeneration*. ICLR 2020.
+14. Jozefowicz, R., Zaremba, W., và Sutskever, I. (2015). *An Empirical Exploration of Recurrent Network Architectures*. ICML 2015.
+15. Kong, J., Kim, J., và Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS 2020.
+16. Liu, Z. và cộng sự (2022). *A ConvNet for the 2020s*. CVPR 2022.
+17. Luo, W., Li, Y., Urtasun, R., và Zemel, R. (2016). *Understanding the Effective Receptive Field in Deep Convolutional Neural Networks*. NeurIPS 2016.
+18. Luong, M.-T., Pham, H., và Manning, C. D. (2015). *Effective Approaches to Attention-based Neural Machine Translation*. EMNLP 2015.
+19. Odena, A., Dumoulin, V., và Olah, C. (2016). *Deconvolution and Checkerboard Artifacts*. Distill.
+20. Pascanu, R., Mikolov, T., và Bengio, Y. (2013). *On the Difficulty of Training Recurrent Neural Networks*. ICML 2013.
+21. Pons, J., Pascual, S., Cengarle, G., và Serrà, J. (2021). *Upsampling Artifacts in Neural Audio Synthesis*. ICASSP 2021.
+22. Ranzato, M., Chopra, S., Auli, M., và Zaremba, W. (2016). *Sequence Level Training with Recurrent Neural Networks*. ICLR 2016.
+23. Schuster, M. và Paliwal, K. K. (1997). *Bidirectional Recurrent Neural Networks*. IEEE Transactions on Signal Processing, 45(11).
+24. Shen, J. và cộng sự (2018). *Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions*. ICASSP 2018.
+25. Siuzdak, H. (2024). *Vocos: Closing the Gap between Time-Domain and Fourier-Based Neural Vocoders for High-Quality Audio Synthesis*. ICLR 2024.
+26. Sutskever, I., Vinyals, O., và Le, Q. V. (2014). *Sequence to Sequence Learning with Neural Networks*. NeurIPS 2014.
+27. van den Oord, A. và cộng sự (2016). *WaveNet: A Generative Model for Raw Audio*. arXiv:1609.03499.
+28. van den Oord, A. và cộng sự (2016b). *Conditional Image Generation with PixelCNN Decoders*. NeurIPS 2016.
+29. Werbos, P. J. (1990). *Backpropagation Through Time: What It Does and How to Do It*. Proceedings of the IEEE, 78(10).
+30. Williams, R. J. và Zipser, D. (1989). *A Learning Algorithm for Continually Running Fully Recurrent Neural Networks*. Neural Computation, 1(2).
+31. Wu, Y. và cộng sự (2016). *Google's Neural Machine Translation System: Bridging the Gap between Human and Machine Translation*. arXiv:1609.08144.
