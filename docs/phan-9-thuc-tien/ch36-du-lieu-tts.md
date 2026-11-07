@@ -583,8 +583,8 @@ version: 1.2.0              # tăng phiên bản mỗi khi lọc/sửa nhãn
 motivation: "Giọng đọc tin tức giọng Bắc cho ứng dụng hỗ trợ người khiếm thị"
 speakers:
   - id: spk001
-    gender: nu               # chỉ ghi khi người nói đồng ý công bố
-    dialect: bac
+    gender: "nữ"             # chỉ ghi khi người nói đồng ý công bố
+    dialect: "Bắc"
     consent_form: "consent-v3, ký ngày 2026-03-01"
     allowed_uses: ["huấn luyện TTS", "thương mại nội bộ"]
 recording:
@@ -611,11 +611,11 @@ Trường `known_issues` thường bị bỏ trống nhưng lại là trường 
 ## Lỗi thường gặp và mẹo thực hành
 
 - **Kịch bản chưa chuẩn hóa sang dạng đọc.** Người đọc tự quyết cách đọc "2/9", "TP.HCM", "COVID-19", và bản ghi lời không phản ánh điều đó. Hãy chuẩn hóa kịch bản trước khi thu, và nếu người đọc đọc khác kịch bản, sửa *bản ghi lời* chứ đừng ép âm thanh khớp văn bản.
-- **Trộn tần số lấy mẫu và âm thanh giả băng rộng.** Một vài phần trăm tệp băng hẹp có thể đủ làm vocoder tạo âm "đục" hoặc nhiễu xì ở tần số cao. Đo băng thông hiệu dụng cho mọi tệp.
+- **Trộn tần số lấy mẫu và âm thanh giả băng rộng.** Ngay cả một tỉ lệ nhỏ tệp băng hẹp cũng có thể làm vocoder tạo âm "đục" hoặc nhiễu xì ở tần số cao. Đo băng thông hiệu dụng cho mọi tệp.
 - **Im lặng đầu/cuối không nhất quán.** Mô hình tự hồi quy học "ngập ngừng" ngẫu nhiên và khó dừng; mô hình dự đoán trường độ học sai trường độ của ký hiệu đầu/cuối câu.
 - **Văn bản trộn NFC/NFD hoặc trộn kiểu đặt dấu.** Bộ ký hiệu phình ra với các "ký tự" trùng âm, mỗi biến thể có ít dữ liệu hơn. Chuẩn hóa NFC và thống nhất kiểu đặt dấu *trước* khi đếm ký hiệu.
 - **Tin tuyệt đối vào ASR.** Ảo giác trên đoạn im lặng/nhạc, "sửa" lời nói, viết số không nhất quán. Dùng đồng thuận chéo và lọc theo tốc độ nói.
-- **Đếm giờ dữ liệu bao gồm cả im lặng.** "100 giờ" sau khi cắt im lặng và lọc có thể chỉ còn 60–70 giờ tiếng nói thật. Luôn báo cáo số giờ *sau* xử lý.
+- **Đếm giờ dữ liệu bao gồm cả im lặng.** Sau khi cắt im lặng và lọc, số giờ tiếng nói thật có thể giảm đáng kể — với dữ liệu in-the-wild, mất vài chục phần trăm không phải chuyện hiếm. Luôn báo cáo số giờ *sau* xử lý.
 - **Chuẩn hóa độ to trước khi lọc nhiễu.** Đoạn nhỏ tiếng được khuếch đại làm nhiễu nền to theo. Lọc SNR trước, chuẩn hóa sau.
 - **Nhãn người nói theo kênh/nguồn.** Một kênh nhiều người nói, một người nói nhiều kênh. Kiểm tra bằng phân cụm embedding người nói.
 - **Lọc quá tay gây thiên lệch.** Kiểm tra phân phối giới tính, phương ngữ, phong cách trước và sau lọc.
