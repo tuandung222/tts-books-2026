@@ -471,7 +471,7 @@ print("mas_batch khớp với bản numpy; durations:", A.sum(-1).long().tolist(
 
 ### MAS trong bức tranh lớn
 
-- **Quan hệ với Viterbi.** MAS chính là Viterbi trên một HMM trái-sang-phải mỗi token một trạng thái, với xác suất chuyển "ở lại" và "tiến" bằng nhau (nên số hạng chuyển là hằng số và biến mất khỏi argmax), và "xác suất phát xạ" $e^{S_{n,t}}$.
+- **Quan hệ với Viterbi.** MAS chính là Viterbi trên một HMM trái-sang-phải mỗi token một trạng thái, với "xác suất phát xạ" $e^{S_{n,t}}$ và xác suất chuyển giống nhau cho mọi token. Khi đó mọi căn chỉnh hợp lệ có đúng $N - 1$ lần "tiến" và $T - N$ lần "ở lại", nên tổng log-xác suất chuyển là một hằng số và biến mất khỏi argmax (Bài tập 6).
 - **Quan hệ với DTW.** Dynamic Time Warping (Sakoe và Chiba, 1978) cũng là quy hoạch động trên lưới hai chuỗi, nhưng cho phép cả bước "dọc" (một khung ứng với nhiều token). MAS cấm bước đó: mỗi khung thuộc đúng một token.
 - **Không khả vi.** MAS là một phép argmax rời rạc, không có gradient. Glow-TTS dùng nó theo kiểu **EM cứng** (*hard EM*, hay huấn luyện Viterbi): cố định tham số, tìm $\mathbf{A}^\star$; cố định $\mathbf{A}^\star$, cập nhật tham số bằng gradient của log-likelihood. Chi tiết ở [Chương 23](ch23-glow-grad-matcha.md); VITS dùng cùng cơ chế ([Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)).
 - **Nguy cơ kẹt.** Vì là quyết định cứng ngay từ đầu, MAS có thể khóa vào một căn chỉnh kém khi mô hình còn ngẫu nhiên. VITS2 bổ sung nhiễu vào ma trận điểm trong giai đoạn đầu để tăng khám phá — xem [Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md).
