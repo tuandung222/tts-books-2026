@@ -75,7 +75,7 @@ _PHONE_RE = re.compile(r"(?<![\w.,+])(\+84 ?|0)(\d{2,4}(?:[ .-]?\d{2,4}){1,3})(?
 _DATE_DMY_RE = re.compile(r"(?<![\d/.-])(\d{1,2})([/.-])(\d{1,2})\2(\d{4})(?![\d/.-]?\d)")
 _DATE_ISO_RE = re.compile(r"(?<![\d/.-])(\d{4})-(\d{1,2})-(\d{1,2})(?![\d/.-]?\d)")
 _DATE_MY_RE = re.compile(r"(?<![\d/.-])(\d{1,2})/(\d{4})(?![\d/])")
-_DATE_DM_RE = re.compile(r"(?i:\b(ngày|mùng|mồng|hôm|sáng|trưa|chiều|tối|đêm))\s+(\d{1,2})/(\d{1,2})(?![\d/])")
+_DATE_DM_RE = re.compile(r"(?i:\b(ngày|mùng|mồng|hôm|nay|sáng|trưa|chiều|tối|đêm))\s+(\d{1,2})/(\d{1,2})(?![\d/])")
 _TIME_COLON_RE = re.compile(r"(?<![\d:])(\d{1,2}):(\d{2})(?::(\d{2}))?(?![\d:])")
 _TIME_H_RE = re.compile(r"(?<![\w.,])(\d{1,2})(?:h|g(?=\d))(\d{2})?(?:ph|p|')?(?!\w)")
 _CUR_SUFFIX_RE = re.compile(rf"({NUM})\s?({_alt(CURRENCY_SUFFIX)})(?!\w)")
