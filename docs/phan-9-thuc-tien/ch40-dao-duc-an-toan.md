@@ -103,7 +103,7 @@ Mỗi bước có tỉ lệ lỗi; ngưỡng phải được chọn để cân b
 | CC BY-SA | Mọi mục đích | Ghi công; sản phẩm phái sinh phải dùng cùng giấy phép |
 | CC BY-NC | Phi thương mại | Ghi công; không dùng cho mục đích thương mại |
 | CC BY-NC-SA | Phi thương mại | Như trên, cộng chia sẻ cùng giấy phép |
-| CC BY-ND | Phân phối nguyên vẹn | Không được tạo sản phẩm phái sinh |
+| CC BY-ND | Phân phối nguyên vẹn | Không được chia sẻ sản phẩm phái sinh |
 | Giấy phép tùy chỉnh "chỉ cho nghiên cứu" | Nghiên cứu (đôi khi cả giáo dục) | Thường cấm phân phối lại, cấm thương mại, yêu cầu đăng ký và trích dẫn |
 
 Một câu hỏi pháp lý **chưa có lời đáp thống nhất** là: trọng số mô hình huấn luyện trên dữ liệu có giấy phép NC hay SA có phải "sản phẩm phái sinh" của dữ liệu đó không? Câu trả lời khác nhau giữa các hệ thống pháp luật và có thể thay đổi theo án lệ. Cách làm thận trọng trong kỹ thuật: **coi như ràng buộc lan truyền** — mô hình huấn luyện trên dữ liệu NC thì chỉ dùng phi thương mại, trừ khi có ý kiến pháp lý khác. Đây cũng là cách nhiều nhóm phát hành mô hình đang làm: ví dụ, tính đến thời điểm biên soạn, trang phát hành của F5-TTS ghi mã nguồn theo giấy phép MIT nhưng trọng số tiền huấn luyện theo CC BY-NC, với lý do dữ liệu huấn luyện Emilia có giấy phép phi thương mại.
