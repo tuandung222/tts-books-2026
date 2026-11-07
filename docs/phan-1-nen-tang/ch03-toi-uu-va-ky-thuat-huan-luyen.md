@@ -288,10 +288,10 @@ Một tốc độ học cố định hiếm khi là tối ưu: đầu quá trìn
 **Lịch Noam** (Vaswani và cộng sự, 2017), đặt tên theo một tác giả của bài báo Transformer, kết hợp warmup tuyến tính với suy giảm theo căn bậc hai nghịch đảo:
 
 $$
-\eta_k = d_{\text{model}}^{-0{.}5}\cdot\min\big(k^{-0{.}5},\; k\cdot W^{-1{.}5}\big).
+\eta_k = d_{\text{model}}^{-0.5}\cdot\min\big(k^{-0.5},\; k\cdot W^{-1.5}\big).
 $$
 
-Hai nhánh của $\min$ bằng nhau tại $k = W$, nên tốc độ học đạt đỉnh $\eta_{\text{peak}} = (d_{\text{model}}W)^{-0{.}5}$ tại cuối giai đoạn khởi động, rồi giảm theo $1/\sqrt{k}$. Thừa số $d_{\text{model}}^{-0{.}5}$ làm mô hình rộng hơn tự động dùng tốc độ học nhỏ hơn. Lịch này được nhiều mô hình TTS dựa trên Transformer dùng lại, chẳng hạn FastSpeech 2 (Ren và cộng sự, 2021). Trong thực hành người ta thường nhân thêm một hệ số tùy chỉnh để điều chỉnh đỉnh.
+Hai nhánh của $\min$ bằng nhau tại $k = W$, nên tốc độ học đạt đỉnh $\eta_{\text{peak}} = (d_{\text{model}}W)^{-0.5}$ tại cuối giai đoạn khởi động, rồi giảm theo $1/\sqrt{k}$. Thừa số $d_{\text{model}}^{-0.5}$ làm mô hình rộng hơn tự động dùng tốc độ học nhỏ hơn. Lịch này được nhiều mô hình TTS dựa trên Transformer dùng lại, chẳng hạn FastSpeech 2 (Ren và cộng sự, 2021). Trong thực hành người ta thường nhân thêm một hệ số tùy chỉnh để điều chỉnh đỉnh.
 
 ```python
 import math
