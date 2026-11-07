@@ -420,7 +420,7 @@ Seed-TTS không công bố mã nguồn và trọng số; các con số trong bá
 
 ### IndexTTS
 
-**IndexTTS** (Deng và cộng sự, 2025) của Bilibili phát triển từ dòng XTTS/Tortoise ([Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md)): LM kiểu GPT sinh token tiếng nói, bộ mã hóa điều kiện dựa trên Conformer trích thông tin người nói từ âm thanh mẫu, và một bộ giải mã họ BigVGAN sinh dạng sóng trực tiếp từ biểu diễn ẩn của LM. Với tiếng Trung, mô hình cho phép trộn ký tự Hán và pinyin trong đầu vào để sửa cách đọc các chữ đa âm, một ý tưởng hữu ích tương tự việc trộn chữ và phiên âm cho từ mượn trong tiếng Việt. Phiên bản IndexTTS2 (2025), theo báo cáo, bổ sung khả năng điều khiển trường độ ngay trong LM tự hồi quy và tách bạch cảm xúc khỏi âm sắc.
+**IndexTTS** (Bilibili IndexTTS Team, 2025) phát triển từ dòng XTTS/Tortoise ([Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md)): LM kiểu GPT sinh token tiếng nói, bộ mã hóa điều kiện dựa trên Conformer trích thông tin người nói từ âm thanh mẫu, và một bộ giải mã họ BigVGAN sinh dạng sóng trực tiếp từ biểu diễn ẩn của LM. Với tiếng Trung, mô hình cho phép trộn ký tự Hán và pinyin trong đầu vào để sửa cách đọc các chữ đa âm, một ý tưởng hữu ích tương tự việc trộn chữ và phiên âm cho từ mượn trong tiếng Việt. Phiên bản IndexTTS2 (2025), theo báo cáo, bổ sung khả năng điều khiển trường độ ngay trong LM tự hồi quy và tách bạch cảm xúc khỏi âm sắc.
 
 ### Các hướng khác cần biết
 
