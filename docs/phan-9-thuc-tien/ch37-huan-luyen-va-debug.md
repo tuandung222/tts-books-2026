@@ -528,18 +528,20 @@ Fine-tune là kịch bản phổ biến nhất với tiếng Việt: lấy một
 
 - **Chỉ thay embedding/điều kiện**: học embedding người nói mới, đóng băng mọi thứ khác. Rẻ nhất, đủ cho giọng gần với phân phối huấn luyện.
 - **Đóng băng một phần**: đóng băng vocoder và các tầng thấp, chỉ huấn luyện bộ giải mã hoặc các tầng trên. Khi đổi ngôn ngữ, thường phải mở bộ mã hóa văn bản và embedding ký hiệu.
-- **Adapter và LoRA** (Hu và cộng sự, 2022): giữ trọng số gốc $\mathbf{W}_0 \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}$ cố định và học một hiệu chỉnh hạng thấp
+- **Adapter và LoRA** (Hu và cộng sự, 2022): giữ trọng số gốc cố định và chỉ học một hiệu chỉnh nhỏ (xem công thức ngay dưới).
+- **Fine-tune toàn bộ** với tốc độ học nhỏ: mạnh nhất khi có đủ dữ liệu, nhưng rủi ro quên thảm họa cao nhất.
+
+Cụ thể, LoRA giữ ma trận gốc $\mathbf{W}_0 \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}$ cố định và học một hiệu chỉnh hạng thấp:
 
 $$
 \mathbf{W} = \mathbf{W}_0 + \frac{\alpha}{r}\, \mathbf{B}\mathbf{A}, \qquad \mathbf{B} \in \mathbb{R}^{d_{\text{out}} \times r},\ \mathbf{A} \in \mathbb{R}^{r \times d_{\text{in}}},\ r \ll \min(d_{\text{in}}, d_{\text{out}}).
 $$
 
-  Số tham số học được là $r(d_{\text{in}} + d_{\text{out}})$ thay vì $d_{\text{in}} d_{\text{out}}$; $\mathbf{B}$ khởi tạo bằng 0 nên ban đầu mô hình *đúng bằng* mô hình gốc. Với TTS dựa trên LLM ([Chương 34](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md)), LoRA thường gắn vào các ma trận chiếu của attention và MLP. Lợi ích phụ đáng giá: mỗi giọng là một tệp LoRA nhỏ, có thể **xóa riêng** khi người nói rút lại sự đồng ý ([Chương 40](ch40-dao-duc-an-toan.md)).
-- **Fine-tune toàn bộ** với tốc độ học nhỏ: mạnh nhất khi có đủ dữ liệu, nhưng rủi ro quên thảm họa cao nhất.
+Số tham số học được là $r(d_{\text{in}} + d_{\text{out}})$ thay vì $d_{\text{in}} d_{\text{out}}$; $\mathbf{B}$ khởi tạo bằng 0 nên ban đầu mô hình *đúng bằng* mô hình gốc. Với TTS dựa trên LLM ([Chương 34](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md)), LoRA thường gắn vào các ma trận chiếu của attention và MLP. Lợi ích phụ đáng giá: mỗi giọng là một tệp LoRA nhỏ, có thể **xóa riêng** khi người nói rút lại sự đồng ý ([Chương 40](ch40-dao-duc-an-toan.md)).
 
 **Quên thảm họa** (*catastrophic forgetting*) xảy ra vì gradient trên dữ liệu mới không "biết" gì về dữ liệu cũ (McCloskey và Cohen, 1989; Kirkpatrick và cộng sự, 2017). Các biện pháp: tốc độ học nhỏ và ít bước; trộn lại (*replay*) một phần dữ liệu cũ trong mỗi batch; điều chuẩn kéo trọng số về gần trọng số tiền huấn luyện (ví dụ L2-SP, Li và cộng sự, 2018); đánh giá định kỳ trên một bộ kiểm tra *của khả năng cũ* chứ không chỉ khả năng mới.
 
-**Ký hiệu mới khi đổi ngôn ngữ.** Khi thêm ký tự/âm vị tiếng Việt chưa có trong bộ ký hiệu gốc, cách khởi tạo embedding của chúng ảnh hưởng đến tốc độ hội tụ: khởi tạo bằng trung bình các embedding hiện có, hoặc bằng embedding của âm gần nhất (ví dụ /ɗ/ từ /d/), thường tốt hơn khởi tạo ngẫu nhiên. Với TTS dựa trên LLM, kiểm tra tokenizer: nếu một âm tiết tiếng Việt bị cắt thành nhiều token byte hiếm, mô hình phải học lại cách ghép chúng.
+**Ký hiệu mới khi đổi ngôn ngữ.** Khi thêm ký tự/âm vị tiếng Việt chưa có trong bộ ký hiệu gốc, cách khởi tạo embedding của chúng ảnh hưởng đến tốc độ hội tụ: khởi tạo bằng trung bình các embedding hiện có, hoặc bằng embedding của âm gần nhất (ví dụ /ɗ/ từ /d/), theo kinh nghiệm thực hành thường giúp hội tụ nhanh hơn khởi tạo ngẫu nhiên. Với TTS dựa trên LLM, kiểm tra tokenizer: nếu một âm tiết tiếng Việt bị cắt thành nhiều token byte hiếm, mô hình phải học lại cách ghép chúng.
 
 **Vocoder** cũng nên được fine-tune trên mel GTA của mô hình âm học đã fine-tune, như ở bảng chẩn đoán 37.5.3.
 
