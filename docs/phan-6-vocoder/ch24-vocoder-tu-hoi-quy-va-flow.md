@@ -492,3 +492,335 @@ Lưu ý quy ước dấu: `librosa.lpc` trả về $[1, a_1, \ldots, a_M]$ của
 LPCNet có giới hạn: chủ yếu ở băng rộng 16 kHz, chất lượng thấp hơn các vocoder GAN tốt nhất, và đặc trưng đầu vào (cepstrum Bark + cao độ) khác mel, nên mô hình âm học phải được huấn luyện để dự đoán đúng bộ đặc trưng này. Nhóm tác giả về sau tiếp tục phát triển các biến thể hiệu quả hơn; tính đến thời điểm biên soạn (2026), kho mã LPCNet ghi rằng nó không còn được phát triển tích cực và khuyến nghị FARGAN (Valin và cộng sự, 2024), một mô hình tự hồi quy theo khung kết hợp GAN.
 
 ## 24.6 Chưng cất: Parallel WaveNet và ClariNet
+
+Các vocoder ở mục trước vẫn sinh từng mẫu một. Muốn sinh *mọi* mẫu song song, ta cần một mô hình mà việc **lấy mẫu** không tuần tự. Inverse Autoregressive Flow (IAF, Kingma và cộng sự, 2016; xem [Chương 10](../phan-2-mo-hinh-sinh/ch10-normalizing-flows.md)) có đúng tính chất đó, nhưng lại không huấn luyện hiệu quả được bằng MLE. Parallel WaveNet giải quyết mâu thuẫn này bằng **chưng cất** (*distillation*).
+
+### 24.6.1 IAF: lấy mẫu song song, đánh giá mật độ tuần tự
+
+Một IAF biến nhiễu $\mathbf{z}$ (mỗi $z_n \sim \operatorname{Logistic}(0, 1)$ độc lập) thành dạng sóng bằng phép biến đổi affine mà các tham số chỉ phụ thuộc vào *nhiễu* quá khứ:
+
+$$
+s_n = z_n \cdot b_n(\mathbf{z}_{<n}, \mathbf{Y}) + \mu_n(\mathbf{z}_{<n}, \mathbf{Y}),
+$$
+
+trong đó $b_n > 0$ là hệ số tỉ lệ và $\mu_n$ là độ dịch, đều do một mạng kiểu WaveNet nhân quả tính từ $\mathbf{z}$. Vì toàn bộ $\mathbf{z}$ có sẵn từ đầu, **mọi $s_n$ được tính song song trong một lượt**. Hơn nữa, với $\mathbf{z}_{<n}$ cố định, $s_n$ là hàm affine của $z_n$, nên
+
+$$
+p_S(s_n \mid \mathbf{s}_{<n}) = \operatorname{Logistic}\big(\mu_n, b_n\big),
+$$
+
+và log-likelihood của *chính mẫu mình sinh ra* tính được rẻ: $\log p_S(\mathbf{s}) = \sum_n \big[\log p_Z(z_n) - \log b_n\big]$. Nhưng để tính likelihood của một dạng sóng *thật* $\mathbf{s}$ từ dữ liệu, ta phải khôi phục $z_n = (s_n - \mu_n)/b_n$, mà $\mu_n, b_n$ lại cần $\mathbf{z}_{<n}$, tức là phải tính tuần tự $L$ bước. Huấn luyện IAF bằng MLE trên dữ liệu vì thế chậm như suy luận WaveNet. Đây là đối xứng ngược của MAF/WaveNet: một bên lấy mẫu chậm và đánh giá nhanh, bên kia lấy mẫu nhanh và đánh giá chậm. Trên thực tế, Parallel WaveNet xếp chồng vài IAF (đầu ra của IAF này làm "nhiễu" cho IAF sau) để tăng sức biểu diễn.
+
+### 24.6.2 Chưng cất mật độ xác suất
+
+Ý tưởng của van den Oord và cộng sự (2018): huấn luyện trước một WaveNet **giáo viên** $P_T$ bằng MLE như bình thường (dùng đầu ra MoL), rồi huấn luyện IAF **học sinh** $P_S$ bằng cách cực tiểu phân kỳ KL *ngược*:
+
+$$
+D_{\mathrm{KL}}(P_S \,\Vert\, P_T) = \mathbb{E}_{\mathbf{s} \sim P_S}\big[\log P_S(\mathbf{s}) - \log P_T(\mathbf{s})\big] = H(P_S, P_T) - H(P_S).
+$$
+
+Hai số hạng đều tính được hiệu quả, và đó là toàn bộ mẹo của phương pháp.
+
+**Entropy của học sinh.** Dùng phân rã tự hồi quy và tính chất logistic ở trên, cùng với entropy của $\operatorname{Logistic}(\mu, b)$ là $\ln b + 2$:
+
+$$
+H(P_S) = \sum_{n=1}^{L} \mathbb{E}_{\mathbf{z}_{<n}}\Big[ H\big(\operatorname{Logistic}(\mu_n, b_n)\big) \Big] = \mathbb{E}_{\mathbf{z}}\left[\sum_{n=1}^{L} \ln b_n(\mathbf{z}_{<n})\right] + 2L .
+$$
+
+Chỉ cần lấy mẫu $\mathbf{z}$, chạy học sinh một lượt và cộng các $\ln b_n$; giáo viên không tham gia.
+
+**Entropy chéo.** Viết $-\log P_T(\mathbf{s}) = -\sum_n \log p_T(s_n \mid \mathbf{s}_{<n})$ rồi lấy kỳ vọng theo $P_S$ lần lượt cho từng $n$:
+
+$$
+H(P_S, P_T) = \sum_{n=1}^{L} \mathbb{E}_{\mathbf{s}_{<n} \sim P_S}\Big[ H\big(p_S(\cdot \mid \mathbf{s}_{<n}),\; p_T(\cdot \mid \mathbf{s}_{<n})\big) \Big].
+$$
+
+Quy trình: lấy một $\mathbf{z}$, học sinh sinh $\mathbf{s}$ song song; giáo viên nhận $\mathbf{s}$ và tính *tất cả* các phân phối $p_T(\cdot \mid \mathbf{s}_{<n})$ trong một lượt (giáo viên là WaveNet nên đánh giá song song được); với mỗi $n$, entropy chéo giữa logistic của học sinh và MoL của giáo viên được ước lượng bằng nhiều mẫu $s_n$ rút từ $\operatorname{Logistic}(\mu_n, b_n)$, không cần chạy lại mạng nào. Phương sai của ước lượng vì thế thấp.
+
+**Vì sao cần hàm mất mát phụ?** KL ngược có xu hướng **tìm mốt** (*mode-seeking*): học sinh được thưởng khi đặt khối xác suất vào vùng giáo viên cho xác suất cao, nhưng ít bị phạt khi bỏ sót các vùng khác. Các tác giả báo cáo rằng chỉ dùng KL, học sinh dễ rơi vào lời giải nghe như tiếng *thì thầm*: năng lượng phần hữu thanh bị thiếu. Họ thêm:
+
+- **Mất mát công suất** (*power loss*): $\lVert \phi(G(\mathbf{z}, \mathbf{Y})) - \phi(\mathbf{s}) \rVert^2$, với $\phi$ là công suất STFT trung bình theo thời gian, buộc phổ năng lượng của mẫu sinh khớp với tiếng nói thật.
+- **Mất mát cảm thụ** (*perceptual loss*) dựa trên đặc trưng của một bộ phân loại âm vị đã huấn luyện, để giảm lỗi phát âm.
+- **Mất mát tương phản** (*contrastive loss*): cực tiểu KL với giáo viên khi dùng đúng điều kiện, đồng thời cực đại KL khi giáo viên nhận điều kiện sai, để học sinh bám chặt vào mel.
+
+Đây là lần đầu tiên ta thấy ý tưởng "so khớp phổ biên độ" như một hàm mất mát phụ; ở [Chương 25](ch25-gan-vocoder.md), nó trở thành trụ cột của mọi vocoder GAN. Theo bài báo, Parallel WaveNet đã được đưa vào phục vụ nhiều giọng của Google Assistant, cho thấy hướng đi này khả thi ở quy mô sản phẩm. Nhược điểm cũng rõ: phải huấn luyện giáo viên trước, quá trình chưng cất phức tạp với nhiều hàm mất mát cần cân chỉnh.
+
+### 24.6.3 ClariNet: chưng cất dạng đóng với phân phối Gauss
+
+ClariNet (Ping, Peng và Chen, 2019) đơn giản hóa quy trình bằng cách cho cả giáo viên lẫn học sinh dùng **một phân phối Gauss duy nhất** mỗi mẫu. Giáo viên WaveNet xuất $(\mu_T, \sigma_T)$ (có chặn dưới cho $\log \sigma_T$ để huấn luyện ổn định); học sinh là IAF Gauss. Khi đó KL giữa hai phân phối có điều kiện ở mỗi bước có **dạng đóng** (suy ra ở [Chương 8](../phan-2-mo-hinh-sinh/ch08-vae.md)):
+
+$$
+D_{\mathrm{KL}}\big(\mathcal{N}(\mu_S, \sigma_S^2) \,\Vert\, \mathcal{N}(\mu_T, \sigma_T^2)\big) = \log\frac{\sigma_T}{\sigma_S} + \frac{\sigma_S^2 + (\mu_S - \mu_T)^2}{2\sigma_T^2} - \frac{1}{2}.
+$$
+
+Không cần ước lượng Monte Carlo cho từng bước nữa, nên gradient ít nhiễu hơn và quá trình chưng cất ổn định hơn. ClariNet thêm một số hạng điều chuẩn trên chênh lệch $\log \sigma$ và một hàm mất mát STFT. Bài báo cũng giới thiệu một mô hình TTS hoàn toàn tích chập sinh thẳng dạng sóng từ văn bản, một trong những bước đầu của hướng end-to-end mà [Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md) sẽ phát triển.
+
+## 24.7 Vocoder flow huấn luyện trực tiếp bằng MLE
+
+Nếu đã muốn có một flow, tại sao không chọn loại flow mà *cả hai chiều* đều song song, để huấn luyện bằng MLE thẳng trên dữ liệu và bỏ hẳn giáo viên? Đó là ý tưởng của WaveGlow và FloWaveNet, cùng xuất hiện cuối năm 2018. Với ánh xạ khả nghịch $\mathbf{s} = f_\theta(\mathbf{z}; \mathbf{Y})$, công thức đổi biến cho
+
+$$
+\log p_\theta(\mathbf{s} \mid \mathbf{Y}) = \log p_Z\big(f_\theta^{-1}(\mathbf{s}; \mathbf{Y})\big) + \log \left\lvert \det \frac{\partial f_\theta^{-1}(\mathbf{s}; \mathbf{Y})}{\partial \mathbf{s}} \right\rvert .
+$$
+
+Dùng các lớp **affine coupling** (NICE/RealNVP/Glow) thay cho biến đổi tự hồi quy, ta có Jacobian tam giác khối với log-định thức rẻ, và cả $f$ lẫn $f^{-1}$ đều tính song song.
+
+### 24.7.1 WaveGlow
+
+WaveGlow (Prenger, Valle và Catanzaro, 2019) là Glow áp dụng cho âm thanh, với ba thành phần:
+
+1. **Gom nhóm** (*squeeze*): dãy $L$ mẫu được xếp thành $L/8$ véc-tơ 8 chiều, tức tensor $(B, 8, L/8)$. Các "kênh" bây giờ là 8 mẫu liền nhau; thời gian giảm 8 lần.
+2. **Một bước flow** gồm tích chập $1 \times 1$ khả nghịch (trộn 8 kênh bằng ma trận $\mathbf{W}$) và một lớp affine coupling: nửa đầu kênh giữ nguyên, nửa sau được biến đổi $\mathbf{x}_b \mapsto \mathbf{x}_b \odot \exp(\log \mathbf{s}) + \mathbf{t}$, với $(\log \mathbf{s}, \mathbf{t})$ do một mạng kiểu WaveNet *không nhân quả* (gọi là WN) tính từ nửa đầu và từ mel đã nâng mẫu. Cấu hình chính thức có 12 bước flow, mỗi mạng WN gồm 8 tầng với 256 kênh.
+3. **Xuất sớm** (*early output*): cứ sau 4 bước flow, 2 kênh được đưa thẳng ra $\mathbf{z}$, giống kiến trúc đa thang của Glow, giúp gradient đi tắt và giảm tính toán.
+
+Hàm mục tiêu là log-likelihood âm, với $\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$:
+
+$$
+-\log p_\theta(\mathbf{s} \mid \mathbf{Y}) = \frac{\lVert \mathbf{z} \rVert^2}{2\sigma^2} - \sum_{j} \sum \log \mathbf{s}_j(\mathbf{s}, \mathbf{Y}) - \sum_{k} \frac{L}{8} \log \lvert \det \mathbf{W}_k \rvert + \text{hằng số},
+$$
+
+trong đó tổng thứ nhất chạy qua các lớp coupling (và qua mọi phần tử của $\log \mathbf{s}_j$), tổng thứ hai qua các tích chập $1 \times 1$ (mỗi cột thời gian góp một $\log\lvert\det \mathbf{W}_k\rvert$). Khi suy luận, lấy $\mathbf{z}$ từ Gauss với độ lệch chuẩn *nhỏ hơn* lúc huấn luyện (một dạng "nhiệt độ"; README chính thức gợi ý 0,6), rồi chạy ngược flow.
+
+Đoạn mã dưới đây cài đặt một bước flow như vậy (thu nhỏ), kiểm tra khả nghịch chính xác và so log-định thức theo công thức với giá trị tính trực tiếp từ ma trận Jacobian đầy đủ.
+
+```python
+import torch
+import torch.nn as nn
+
+
+def squeeze(s, group=8):                                    # (B, L) -> (B, group, L/group)
+    B, L = s.shape
+    return s.view(B, L // group, group).transpose(1, 2)
+
+
+class Invertible1x1(nn.Module):
+    """Trộn kênh bằng ma trận khả nghịch W (khởi tạo trực giao), như Glow/WaveGlow."""
+    def __init__(self, ch):
+        super().__init__()
+        self.W = nn.Parameter(torch.linalg.qr(torch.randn(ch, ch))[0])
+
+    def forward(self, x):                                   # x: (B, G, Lg)
+        logdet = x.shape[2] * torch.linalg.slogdet(self.W)[1]   # mỗi cột thời gian góp log|det W|
+        return torch.einsum("ij,bjl->bil", self.W, x), logdet
+
+    def inverse(self, y):
+        return torch.einsum("ij,bjl->bil", torch.linalg.inv(self.W), y)
+
+
+class CondAffineCoupling(nn.Module):
+    def __init__(self, ch=8, cond_ch=80, hidden=64):
+        super().__init__()
+        self.h = ch // 2
+        self.net = nn.Sequential(nn.Conv1d(self.h + cond_ch, hidden, 3, padding=1), nn.Tanh(),
+                                 nn.Conv1d(hidden, 2 * (ch - self.h), 3, padding=1))
+        # WaveGlow khởi tạo tầng cuối bằng 0 -> lớp coupling ban đầu là ánh xạ đồng nhất;
+        # ở đây khởi tạo nhỏ khác 0 để phép kiểm tra log-det bên dưới có ý nghĩa
+
+    def forward(self, x, c):                                # x: (B, G, Lg); c: (B, cond, Lg)
+        xa, xb = x[:, : self.h], x[:, self.h:]
+        log_s, t = self.net(torch.cat([xa, c], 1)).chunk(2, dim=1)
+        return torch.cat([xa, xb * torch.exp(log_s) + t], 1), log_s.sum(dim=(1, 2))
+
+    def inverse(self, y, c):
+        ya, yb = y[:, : self.h], y[:, self.h:]
+        log_s, t = self.net(torch.cat([ya, c], 1)).chunk(2, dim=1)
+        return torch.cat([ya, (yb - t) * torch.exp(-log_s)], 1)
+
+
+torch.manual_seed(0)
+inv1x1, coup = Invertible1x1(8), CondAffineCoupling()
+s = torch.randn(1, 32)                                      # 32 mẫu -> (1, 8, 4) sau khi gom nhóm
+c = torch.randn(1, 80, 4)                                   # mel đã nâng mẫu và gom nhóm
+
+
+def flow(v):                                                # một bước flow: 1x1 conv rồi coupling
+    h, ld1 = inv1x1(squeeze(v))
+    z, ld2 = coup(h, c)
+    return z, ld1 + ld2
+
+
+z, logdet = flow(s)
+s_rec = coup.inverse(z, c)
+s_rec = inv1x1.inverse(s_rec).transpose(1, 2).reshape(1, 32)
+assert torch.allclose(s_rec, s, atol=1e-5)                  # khả nghịch chính xác
+
+J = torch.autograd.functional.jacobian(lambda v: flow(v)[0].reshape(-1), s)   # (32, 1, 32)
+ld_brute = torch.linalg.slogdet(J.reshape(32, 32))[1]
+print(f"log|det J|: công thức = {logdet.item():.5f}, tính trực tiếp = {ld_brute.item():.5f}")
+assert torch.allclose(logdet.squeeze(), ld_brute, atol=1e-4)
+```
+
+Hai con số in ra trùng nhau đến chữ số thứ năm. Phép kiểm tra bằng Jacobian đầy đủ chỉ khả thi với vài chục chiều, nhưng rất đáng làm mỗi khi bạn tự viết một lớp flow: sai một dấu trong log-định thức không làm chương trình lỗi, chỉ làm mô hình học sai một cách âm thầm.
+
+WaveGlow được ưa chuộng một thời gian (Tacotron 2 + WaveGlow là cặp đôi phổ biến khoảng 2019–2020) vì *một mạng, một hàm mất mát, không cần giáo viên, không có GAN*. Cái giá là kích thước: bảng so sánh trong bài HiFi-GAN liệt kê WaveGlow ở mức xấp xỉ 88 triệu tham số, gấp nhiều lần các vocoder GAN cùng chất lượng; huấn luyện cần nhiều bộ nhớ GPU và thời gian dài.
+
+### 24.7.2 FloWaveNet
+
+FloWaveNet (Kim và cộng sự, 2019) xuất hiện cùng thời với WaveGlow và dựa trên cùng ý tưởng: flow đa thang gồm các lớp affine coupling với mạng con kiểu WaveNet không nhân quả, có chuẩn hóa kích hoạt (ActNorm), huấn luyện một giai đoạn bằng MLE, không chưng cất. Hai công trình là ví dụ đẹp về việc hai nhóm độc lập cùng đi tới một lời giải khi các mảnh ghép (Glow, WaveNet) đã sẵn sàng.
+
+### 24.7.3 WaveFlow: nối liền tự hồi quy và flow
+
+WaveFlow (Ping và cộng sự, 2020) quan sát rằng một lớp affine coupling có thể xem như một biến đổi tự hồi quy chỉ có **hai bước** (nửa sau phụ thuộc nửa đầu), còn WaveNet là tự hồi quy $L$ bước. WaveFlow tổng quát hóa: xếp dạng sóng thành ma trận $h \times w$, biến đổi tự hồi quy dọc theo trục chiều cao ($h$ bước) và song song dọc theo chiều rộng ($w$ mẫu mỗi bước), với mạng con dạng tích chập 2-D. Tham số $h$ điều khiển sự đánh đổi: $h$ lớn gần với WaveNet (mạnh, tuần tự), $h$ nhỏ gần với flow coupling (song song, cần mạng to). Theo bài gốc, với $h$ vừa phải, WaveFlow đạt chất lượng tương đương WaveGlow với số tham số nhỏ hơn nhiều lần và chỉ vài chục bước tuần tự.
+
+### 24.7.4 Vì sao flow nhường chỗ cho GAN?
+
+Flow có những ưu điểm thật sự: likelihood chính xác, huấn luyện ổn định, lấy mẫu song song. Nhưng với vocoder, chúng thua GAN ở tỉ lệ chất lượng trên chi phí vì ba lý do:
+
+- **Ràng buộc khả nghịch tốn tham số.** Mỗi lớp phải là song ánh với Jacobian dễ tính, nên sức biểu diễn của mỗi tham số thấp; muốn mạnh phải xếp rất nhiều lớp.
+- **MLE mô hình hóa cả những gì tai không nghe thấy.** Likelihood trên dạng sóng buộc mô hình phân bổ năng lực cho mọi chi tiết, kể cả nhiễu nền khó nghe; GAN với hàm mất mát cảm thụ tập trung vào những gì *nghe* được.
+- **Số chiều ẩn bằng số chiều dữ liệu.** Không có nén, nên chi phí tỉ lệ với $L$ ở mọi lớp.
+
+Flow không biến mất: chúng sống tiếp trong *không gian ẩn* nhỏ hơn nhiều, như flow của Glow-TTS ([Chương 23](../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md)) và flow prior của VITS ([Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)), nơi số chiều thấp làm chi phí trở nên hợp lý.
+
+## 24.8 Nguồn–bộ lọc nơ-ron và DDSP
+
+Một nhánh khác đưa kiến thức ngữ âm học vào thẳng kiến trúc. **Neural source-filter** (NSF, Wang, Takaki và Yamagishi, 2019) tách vocoder thành hai mô-đun theo đúng mô hình nguồn–bộ lọc:
+
+- **Mô-đun nguồn** sinh tín hiệu kích thích từ F0 theo khung (nội suy lên tốc độ mẫu). Ở khung hữu thanh là một sóng sin có pha bằng tích phân của tần số tức thời; ở khung vô thanh là nhiễu:
+
+$$
+e_n =
+\begin{cases}
+\alpha \sin\!\Big(\displaystyle\sum_{m=1}^{n} 2\pi \frac{f_{0,m}}{f_s} + \varphi\Big) + \epsilon_n, & f_{0,n} > 0,\\[2mm]
+\dfrac{\alpha}{3\sigma}\, \epsilon_n, & f_{0,n} = 0,
+\end{cases}
+\qquad \epsilon_n \sim \mathcal{N}(0, \sigma^2).
+$$
+
+Các biến thể về sau cộng thêm các hài bậc cao ($2f_0, 3f_0, \ldots$) và tách nhánh hài/nhiễu.
+
+- **Mô-đun lọc nơ-ron**: các khối tích chập giãn nở biến kích thích thành tiếng nói, nhận điều kiện là đặc trưng âm học.
+
+NSF ban đầu được huấn luyện bằng khoảng cách giữa các phổ biên độ ở nhiều độ phân giải, không tự hồi quy, không GAN. Ưu điểm nổi bật là **kiểm soát F0 tường minh**: muốn đổi cao độ chỉ cần đổi đường F0 cấp cho mô-đun nguồn, điều rất có giá trị với giọng hát và với các ngôn ngữ có thanh điệu. Nhược điểm là phụ thuộc vào chất lượng trích F0: lỗi hữu thanh/vô thanh hay lỗi bát độ của bộ trích F0 đi thẳng vào âm thanh.
+
+```python
+import numpy as np
+
+
+def sine_excitation(f0_frames, sr=24000, hop=240, amp=0.1, noise_std=0.003, seed=0):
+    """Nguồn kích thích kiểu NSF: sin theo F0 cho khung hữu thanh, nhiễu cho khung vô thanh."""
+    rng = np.random.default_rng(seed)
+    t_frame = np.arange(len(f0_frames)) * hop
+    f0 = np.interp(np.arange(len(f0_frames) * hop), t_frame, f0_frames)   # nội suy lên tốc độ mẫu
+    voiced = np.repeat(f0_frames > 0, hop)
+    phase = 2 * np.pi * np.cumsum(f0 / sr)                  # pha tức thời = tích phân của tần số
+    noise = rng.standard_normal(len(f0))
+    e = np.where(voiced, amp * np.sin(phase) + noise_std * noise, amp / 3 * noise)
+    return e, f0, phase
+
+
+# Đường F0 giả lập kiểu thanh hỏi: đi xuống rồi đi lên (0,4 s, bước khung 10 ms)
+frames = np.linspace(0, 1, 40)
+f0_contour = 200 - 60 * np.sin(np.pi * frames) + 30 * frames                # Hz
+f0_contour[:5] = 0                                          # 50 ms đầu vô thanh (ví dụ phụ âm /h/)
+e, f0, phase = sine_excitation(f0_contour)
+inst_freq = np.diff(phase) * 24000 / (2 * np.pi)            # tần số tức thời đo lại từ pha
+voiced = np.repeat(f0_contour > 0, 240)[1:]
+assert np.allclose(inst_freq[voiced], f0[1:][voiced])
+print(f"{len(e)} mẫu; F0 hữu thanh từ {f0_contour[5:].min():.0f} đến {f0_contour[5:].max():.0f} Hz")
+```
+
+Điểm mấu chốt nằm ở dòng `np.cumsum`: pha phải là *tích phân* của tần số. Nếu viết ngây thơ $\sin(2\pi f_{0,n} n / f_s)$ với $f_0$ thay đổi theo thời gian, tần số tức thời sẽ sai và tạo ra tiếng "vút" lạ mỗi khi F0 thay đổi nhanh, đúng lúc các thanh điệu tiếng Việt cần chính xác nhất.
+
+Ý tưởng mô-đun nguồn sin về sau được ghép vào các vocoder GAN. Ví dụ, cấu hình công khai của CosyVoice (tính đến thời điểm biên soạn) dùng bộ sinh HiFT, kết hợp nguồn NSF với đầu ra iSTFT (Li và cộng sự, 2023); cộng đồng tổng hợp giọng hát cũng hay dùng các biến thể "NSF-HiFiGAN". Ta sẽ gặp lại chúng ở [Chương 25](ch25-gan-vocoder.md).
+
+**DDSP** (Engel và cộng sự, 2020) đẩy ý tưởng này đến cùng: một bộ dao động hài (tổng các sin ở bội số của $f_0$ với phân bố biên độ do mạng dự đoán), cộng nhiễu được lọc bởi bộ lọc FIR thay đổi theo thời gian, cộng hồi âm, tất cả đều khả vi để huấn luyện đầu cuối. Mạng nơ-ron chỉ dự đoán các tham số điều khiển, nên mô hình rất nhỏ và dễ diễn giải. DDSP được dùng nhiều cho âm nhạc và giọng hát hơn là cho TTS lời nói, nhưng tinh thần "xử lý tín hiệu số khả vi" lan rộng sang nhiều vocoder và codec sau này.
+
+!!! note "Góc tiếng Việt"
+    Thanh điệu tiếng Việt về bản chất là các đường F0 (kèm chất giọng) trên từng âm tiết ([Chương 15](../phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md)). Vocoder chỉ nhận mel nên phải *suy ra* F0 từ vị trí các hài âm trong mel; một vocoder kém có thể làm rung, làm phẳng hoặc lệch đường F0, khiến "mả" nghe gần "mã" hay "má".
+
+    - Vocoder kiểu NSF cho bảo đảm tường minh về F0 nhưng phụ thuộc bộ trích F0. Thanh ngã và thanh nặng thường kèm **giọng cót két / tắc thanh hầu** (*creaky voice, glottalization*): chu kỳ thanh môn không đều, nhiều bộ trích F0 đánh dấu nhầm là vô thanh hoặc nhảy bát độ. Nếu dùng nguồn sin, hãy kiểm tra kỹ các đoạn này.
+    - Vocoder chỉ dựa trên mel (GAN, flow) có thể tái tạo giọng cót két nếu dữ liệu huấn luyện có đủ; ngược lại, chúng dễ "là phẳng" các đoạn bất thường này thành giọng đều.
+    - Một bài kiểm tra rẻ mà hiệu quả: tổng hợp lại (*copy-synthesis*) bộ sáu tiếng *ma, mà, má, mả, mã, mạ* của cùng người nói, so đường F0 trước và sau vocoder (chỉ số ở [Chương 26](ch26-diffusion-vocoder-va-so-sanh.md)).
+
+## 24.9 Nhìn lại các vocoder thế hệ đầu
+
+| Họ | Ví dụ | Huấn luyện | Số bước tuần tự khi suy luận | Điểm mạnh | Điểm yếu |
+|---|---|---|---|---|---|
+| Tự hồi quy tích chập | WaveNet | MLE (softmax μ-law hoặc MoL) | $L$ | Chất lượng cao, huấn luyện đơn giản | Rất chậm |
+| Tự hồi quy hiệu quả | WaveRNN, LPCNet | MLE | $L$ (subscale: khoảng $L/B$), mỗi bước rẻ | Chạy thời gian thực trên CPU | Vẫn tuần tự, khó tận dụng GPU |
+| Chưng cất IAF | Parallel WaveNet, ClariNet | KL ngược với giáo viên + mất mát phụ | 1 lượt song song | Nhanh trên GPU | Cần giáo viên, quy trình phức tạp |
+| Flow coupling | WaveGlow, FloWaveNet | MLE | 1 lượt song song | Một hàm mất mát, ổn định | Rất nhiều tham số, tốn bộ nhớ |
+| Flow tự hồi quy ngắn | WaveFlow | MLE | $h$ | Nhỏ gọn | Chậm hơn flow thuần khi $h$ lớn |
+| Nguồn–bộ lọc | NSF, DDSP | Khoảng cách phổ đa phân giải | 1 lượt | Kiểm soát F0 tường minh | Phụ thuộc chất lượng trích F0 |
+
+Nhìn bảng, ta thấy chỗ trống: một mô hình **một lượt, song song, nhỏ gọn, không cần giáo viên, không bị ràng buộc khả nghịch**, mà vẫn tránh được hiện tượng trung bình hóa của mục 24.1.2. Đó chính là vocoder GAN: bộ phân biệt đóng vai trò hàm mất mát cảm thụ học được, cùng với các mất mát phổ mà Parallel WaveNet và NSF đã gợi ý.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Quên dịch đầu vào khi teacher forcing.** Nếu đầu vào và nhãn trùng vị trí, mô hình tự hồi quy học cách chép lại đầu vào, loss giảm rất nhanh nhưng sinh ra toàn nhiễu. Luôn kiểm tra: `input = q[:, :-1]`, `target = q[:, 1:]`, và thử một mạng "chép" ngây thơ để chắc loss của nó *không* thấp.
+- **Lệch căn chỉnh mel với mẫu.** Khung mel thứ $t$ ứng với đoạn mẫu nào phụ thuộc vào `center=True/False` và cách đệm khi tính STFT. Lệch nửa khung không làm lỗi chương trình nhưng làm vocoder mờ đi. Hãy viết một phép kiểm tra: $L = T \cdot H$ chính xác sau khi cắt/đệm.
+- **Âm thanh vượt khỏi $[-1, 1]$ trước μ-law.** Tệp WAV 16 bit đọc thành số nguyên phải chia cho 32 768; âm thanh đã chuẩn hóa âm lượng có thể vượt 1 và bị cắt. Kiểm tra `abs(x).max()` trước khi mã hóa.
+- **Lấy mẫu bằng argmax.** Với vocoder tự hồi quy, chọn lớp có xác suất lớn nhất ở mỗi bước thường cho ra im lặng hoặc tiếng ù đơn điệu; phải *lấy mẫu* từ phân phối (có thể hạ nhiệt độ nhẹ).
+- **Đoạn huấn luyện ngắn hơn trường tiếp nhận.** Nếu cắt đoạn huấn luyện ngắn hơn $R$, phần lớn đầu ra được tính trên vùng đệm 0, mô hình học sai thống kê ở đầu câu.
+- **Flow bị NaN.** Thường do $\log \mathbf{s}$ bùng nổ. Khởi tạo tầng cuối của mạng coupling bằng 0 (flow bắt đầu là ánh xạ đồng nhất), chặn hoặc tham số hóa thang đo bằng `sigmoid`/`tanh`, và cẩn thận khi huấn luyện fp16.
+- **Tiếng xì nền của flow.** Kho mã WaveGlow chính thức có một bộ khử nhiễu đơn giản dựa trên "độ lệch" của mô hình (âm thanh sinh ra từ mel im lặng); giảm nhiệt độ lấy mẫu cũng giúp, nhưng quá thấp làm giọng khô.
+- **Đặc trưng LPCNet khác mel.** Nếu dùng LPCNet, mô hình âm học phải dự đoán đúng bộ đặc trưng (cepstrum Bark + cao độ) với đúng quy trình trích xuất; không thể cắm mel vào.
+- **Vocoder huấn luyện trên mel thật nhưng chạy trên mel dự đoán.** Đây là nguồn suy giảm chất lượng lớn nhất trong thực tế với mọi loại vocoder; cách khắc phục chuẩn (fine-tune trên mel "ground-truth aligned") được trình bày ở [Chương 25](ch25-gan-vocoder.md).
+
+## Tóm tắt
+
+- Vocoder phải sinh ra pha và các chi tiết mà mel đã bỏ đi; hồi quy L1/L2 thẳng lên dạng sóng bị trung bình hóa và cho ra tín hiệu "câm", nên cần mô hình sinh hoặc hàm mất mát bất biến với pha.
+- WaveNet phân rã $p(\mathbf{s} \mid \mathbf{Y})$ theo quy tắc chuỗi, dùng tích chập nhân quả giãn nở (trường tiếp nhận $R = 1 + \sum_\ell (k_\ell - 1) d_\ell$ tăng theo hàm mũ của độ sâu), đơn vị có cổng, kết nối dư/skip và điều kiện mel đã nâng mẫu.
+- Đầu ra của vocoder tự hồi quy có thể là softmax 256 lớp trên μ-law (SNR ổn định theo âm lượng), dual softmax 16 bit (WaveRNN) hoặc hỗn hợp logistic rời rạc hóa (PixelCNN++, Tacotron 2).
+- Chi phí sinh tự hồi quy tỉ lệ với số bước tuần tự nhân chi phí mỗi bước; WaveRNN giảm cả ba thừa số bằng một lớp RNN, thưa hóa theo khối và subscale.
+- LPCNet để dự đoán tuyến tính mô hình hóa đường bao phổ, mạng nơ-ron chỉ mô hình hóa phần dư, nhờ đó chạy thời gian thực trên CPU với vài GFLOPS.
+- Parallel WaveNet chưng cất một WaveNet giáo viên vào IAF học sinh bằng $D_{\mathrm{KL}}(P_S \Vert P_T) = H(P_S, P_T) - H(P_S)$, cần thêm mất mát công suất và các mất mát phụ; ClariNet dùng Gauss để có KL dạng đóng.
+- WaveGlow/FloWaveNet là flow coupling huấn luyện thẳng bằng MLE, đơn giản nhưng rất nặng; WaveFlow nối liền flow và tự hồi quy qua tham số $h$.
+- NSF và DDSP đưa mô hình nguồn–bộ lọc vào mạng, cho phép điều khiển F0 tường minh, rất có ích cho giọng hát và ngôn ngữ có thanh điệu, nhưng nhạy với lỗi trích F0.
+
+## Bài tập
+
+1. **[Cơ bản]** Một WaveNet dùng $k = 3$, ba chu kỳ hệ số giãn $1, 2, 4, \ldots, 512$. Tính trường tiếp nhận (bỏ qua tầng đầu vào) theo số mẫu và theo mili-giây ở 24 kHz. Cần bao nhiêu tầng tích chập thường ($d = 1$, $k = 3$) để đạt cùng trường tiếp nhận?
+
+    ??? success "Lời giải"
+        $R = 1 + 3 \times (3 - 1) \times 1023 = 6139$ mẫu, khoảng 256 ms ở 24 kHz. Với tích chập thường, mỗi tầng thêm 2 mẫu nên cần $(6139 - 1)/2 = 3069$ tầng.
+
+2. **[Cơ bản]** Với μ-law ($\mu = 255$, 256 mức), tính xấp xỉ bước lượng tử trong miền biên độ gốc tại $x \approx 0$ và tại $x \approx 1$. Tỉ số hai bước này là bao nhiêu? So với lượng tử tuyến tính 8 bit.
+
+    ??? tip "Gợi ý"
+        Dùng $\Delta x \approx \Delta y / f'(x)$ với $\Delta y = 2/255$. Tại $x = 0$: $f'(0) = \mu / \ln(1 + \mu)$. Tại $x = 1$: $f'(1) = \mu / ((1 + \mu)\ln(1+\mu))$. Tỉ số bằng $1 + \mu = 256$, trong khi lượng tử tuyến tính có bước như nhau ở mọi nơi.
+
+3. **[Nâng cao]** Chứng minh rằng entropy của phân phối $\operatorname{Logistic}(\mu, b)$ bằng $\ln b + 2$, rồi dùng nó để suy ra biểu thức $H(P_S)$ của học sinh IAF trong mục 24.6.2. Vì sao số hạng này không cần đến giáo viên?
+
+    ??? tip "Gợi ý"
+        Với $z \sim \operatorname{Logistic}(0, 1)$, mật độ $p(z) = e^{-z}/(1 + e^{-z})^2$; tính $-\mathbb{E}[\log p(z)] = \mathbb{E}[z] + 2\mathbb{E}[\log(1 + e^{-z})]$ và dùng tính đối xứng. Đổi biến $s = \mu + b z$ cộng thêm $\ln b$. Sau đó dùng $p_S(s_n \mid \mathbf{s}_{<n}) = \operatorname{Logistic}(\mu_n, b_n)$ và tính tuyến tính của kỳ vọng.
+
+4. **[Nâng cao]** Trong WaveFlow, dạng sóng $L$ mẫu được xếp thành ma trận $h \times w$ với $hw = L$. (a) Số bước tuần tự khi lấy mẫu là bao nhiêu? (b) Trường hợp $h = L$ và $h = 2$ tương ứng với mô hình nào đã học? (c) Vì sao không chọn $h = 1$?
+
+    ??? success "Lời giải"
+        (a) $h$ bước, mỗi bước sinh $w$ mẫu song song. (b) $h = L$: tự hồi quy từng mẫu như WaveNet; $h = 2$: giống một lớp affine coupling (nửa sau phụ thuộc nửa đầu). (c) Với $h = 1$ không còn phụ thuộc tự hồi quy nào trong một lớp, mỗi lớp chỉ là biến đổi theo từng phần tử không phụ thuộc lẫn nhau, mất gần hết sức biểu diễn; phải dựa hoàn toàn vào việc xếp chồng và hoán vị.
+
+5. **[Nâng cao]** Mở rộng ví dụ ở mục 24.1.2: giả sử dạng sóng gồm $J$ hài âm $\sum_j A_j \sin(j\omega n + \phi_j)$ với các pha $\phi_j$ độc lập, đều trên $[0, 2\pi)$. Bộ dự đoán MSE tối ưu là gì? Nếu thay MSE bằng khoảng cách giữa các *phổ biên độ* STFT, bộ dự đoán tối ưu còn bằng 0 không? Rút ra bài học gì cho thiết kế hàm mất mát của vocoder?
+
+6. **[Lập trình]** Viết hàm sinh mẫu tự hồi quy cho `TinyWaveNet` theo kiểu Fast WaveNet: mỗi tầng giữ một bộ đệm $(k-1)d$ kích hoạt gần nhất, mỗi bước chỉ tính một vị trí. Kiểm tra rằng logits tính theo từng bước trùng với logits tính một lượt trên toàn chuỗi (với cùng chuỗi đầu vào), rồi đo thời gian sinh 2 000 mẫu so với cách tính lại toàn bộ chuỗi ở mỗi bước.
+
+    ??? tip "Gợi ý"
+        Với $k = 2$, tầng có hệ số giãn $d$ chỉ cần kích hoạt đầu vào tại thời điểm $n - d$ và $n$. Một hàng đợi độ dài $d$ cho mỗi tầng là đủ. So sánh bằng `torch.allclose(..., atol=1e-5)`. Kỹ thuật này được phát triển đầy đủ cho tích chập streaming ở [Chương 35](../phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md).
+
+7. **[Lập trình]** Huấn luyện `TinyWaveNet` (đầu ra softmax μ-law) trên dữ liệu đồ chơi: các đoạn sin có tần số ngẫu nhiên trong 100–400 Hz ở 8 kHz, với "mel" thay bằng một kênh điều kiện chứa tần số chuẩn hóa. Sau vài nghìn bước, sinh một đoạn 0,25 s và kiểm tra tần số trội bằng FFT. Thử lấy mẫu bằng argmax và bằng lấy mẫu ngẫu nhiên; mô tả khác biệt.
+
+## Tài liệu tham khảo
+
+1. van den Oord, A. và cộng sự (2016). *WaveNet: A Generative Model for Raw Audio*. arXiv:1609.03499.
+2. Tamamori, A., Hayashi, T., Kobayashi, K., Takeda, K. và Toda, T. (2017). *Speaker-Dependent WaveNet Vocoder*. Interspeech.
+3. Shen, J. và cộng sự (2018). *Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions*. ICASSP.
+4. Salimans, T., Karpathy, A., Chen, X. và Kingma, D. P. (2017). *PixelCNN++: Improving the PixelCNN with Discretized Logistic Mixture Likelihood and Other Modifications*. ICLR.
+5. Paine, T. L. và cộng sự (2016). *Fast Wavenet Generation Algorithm*. arXiv:1611.09482.
+6. Mehri, S. và cộng sự (2017). *SampleRNN: An Unconditional End-to-End Neural Audio Generation Model*. ICLR.
+7. Sotelo, J. và cộng sự (2017). *Char2Wav: End-to-End Speech Synthesis*. ICLR Workshop.
+8. Kalchbrenner, N. và cộng sự (2018). *Efficient Neural Audio Synthesis*. ICML.
+9. Valin, J.-M. và Skoglund, J. (2019). *LPCNet: Improving Neural Speech Synthesis Through Linear Prediction*. ICASSP. arXiv:1810.11846.
+10. Valin, J.-M., Mustafa, A. và Büthe, J. (2024). *Very Low Complexity Speech Synthesis Using Framewise Autoregressive GAN (FARGAN) with Pitch Prediction*. IEEE Signal Processing Letters. arXiv:2405.21069.
+11. Kingma, D. P. và cộng sự (2016). *Improved Variational Inference with Inverse Autoregressive Flow*. NeurIPS.
+12. van den Oord, A. và cộng sự (2018). *Parallel WaveNet: Fast High-Fidelity Speech Synthesis*. ICML.
+13. Ping, W., Peng, K. và Chen, J. (2019). *ClariNet: Parallel Wave Generation in End-to-End Text-to-Speech*. ICLR.
+14. Prenger, R., Valle, R. và Catanzaro, B. (2019). *WaveGlow: A Flow-based Generative Network for Speech Synthesis*. ICASSP. arXiv:1811.00002.
+15. Kim, S., Lee, S., Song, J., Kim, J. và Yoon, S. (2019). *FloWaveNet: A Generative Flow for Raw Audio*. ICML.
+16. Ping, W., Peng, K., Zhao, K. và Song, Z. (2020). *WaveFlow: A Compact Flow-based Model for Raw Audio*. ICML.
+17. Wang, X., Takaki, S. và Yamagishi, J. (2019). *Neural Source-filter-based Waveform Model for Statistical Parametric Speech Synthesis*. ICASSP.
+18. Engel, J., Hantrakul, L., Gu, C. và Roberts, A. (2020). *DDSP: Differentiable Digital Signal Processing*. ICLR.
+19. Li, Y. A. và cộng sự (2023). *HiFTNet: A Fast High-Quality Neural Vocoder with Harmonic-plus-Noise Filter and Inverse Short Time Fourier Transform*. arXiv:2309.09493.
+20. Griffin, D. và Lim, J. (1984). *Signal Estimation from Modified Short-Time Fourier Transform*. IEEE Transactions on Acoustics, Speech, and Signal Processing.
+21. Kong, J., Kim, J. và Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS. arXiv:2010.05646.
+22. ITU-T (1988). *Recommendation G.711: Pulse Code Modulation (PCM) of Voice Frequencies*.

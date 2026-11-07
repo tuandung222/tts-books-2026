@@ -60,7 +60,7 @@ def forward_sum_loss(attn_logprob: torch.Tensor, token_lens: torch.Tensor,
         n, t = int(token_lens[b]), int(mel_lens[b])
         lp = F.log_softmax(logp[b, :t, : n + 1], dim=-1).unsqueeze(1)  # (T, 1, N+1)
         target = torch.arange(1, n + 1, device=logp.device).unsqueeze(0)  # (1, N)
-        losses.append(F.ctc_loss(lp, target, torch.tensor([t]), torch.tensor([n]),
+        losses.append(F.ctc_loss(lp, target, (t,), (n,),
                                  blank=0, zero_infinity=True))
     return torch.stack(losses).mean()
 
