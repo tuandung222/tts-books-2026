@@ -97,7 +97,7 @@ flowchart LR
     B --> C["Đường thanh âm: họng, miệng, mũi"]
     C --> D["Bức xạ tại môi"]
     D --> E["Sóng âm trong không khí"]
-    C -. "chỗ thu hẹp: nguồn nhiễu" .-> C
+    N["Chỗ thu hẹp: nguồn nhiễu, tiếng nổ"] -.-> C
 ```
 
 ### 13.2.2. Dao động của dây thanh
@@ -538,10 +538,10 @@ Hệ quả cho TTS rất rõ ràng. Mel-spectrogram bỏ hẳn pha và còn làm
 flowchart LR
     P["Tạo tiếng nói: nguồn và bộ lọc"] --> S["Tín hiệu âm"]
     S --> H["Thính giác: ốc tai, dải tới hạn"]
-    P -. "F0, log-F0, nguồn tuần hoàn" .-> T1["Bộ dự đoán cao độ, vocoder NSF/DDSP"]
-    H -. "nén tần số, nén biên độ" .-> T2["Log-mel-spectrogram"]
-    H -. "ít nhạy pha" .-> T3["Vocoder tái tạo pha"]
-    H -. "che lấp" .-> T4["Hàm mất mát trên phổ, nhiều độ phân giải"]
+    P -.->|"F0, log-F0, nguồn tuần hoàn"| T1["Bộ dự đoán cao độ, vocoder NSF/DDSP"]
+    H -.->|"nén tần số, nén biên độ"| T2["Log-mel-spectrogram"]
+    H -.->|"ít nhạy pha"| T3["Vocoder tái tạo pha"]
+    H -.->|"che lấp"| T4["Hàm mất mát trên phổ, nhiều độ phân giải"]
 ```
 
 | Hiện tượng âm học hoặc thính giác | Lựa chọn thiết kế trong TTS | Chương liên quan |
