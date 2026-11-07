@@ -6,7 +6,7 @@
     - **Phân tích** các rủi ro (lừa đảo, mạo danh, thông tin sai lệch, quấy rối, vi phạm sự đồng ý) và lợi ích (hỗ trợ tiếp cận, lưu giữ giọng nói) của TTS và nhân bản giọng.
     - **Giải thích** các thành phần của một sự đồng ý có hiểu biết đối với giọng nói, và **thiết kế** quy trình xác minh sự đồng ý cho dịch vụ nhân bản giọng.
     - **Phân biệt** các loại giấy phép dữ liệu và mô hình (CC BY, CC BY-NC, chỉ dùng cho nghiên cứu, giấy phép mô hình có điều kiện sử dụng) và hệ quả của chúng với mô hình bạn huấn luyện.
-    - **Suy ra** thống kê phát hiện của watermark trải phổ và **cài đặt** một bản đồ chơi kèm kiểm tra độ bền, đồng thời **chỉ ra** giới hạn của nó.
+    - **Suy ra** thống kê phát hiện của watermark trải phổ và **cài đặt** một phiên bản đồ chơi kèm kiểm tra độ bền, đồng thời **chỉ ra** giới hạn của nó.
     - **Mô tả** các hướng phát hiện giọng tổng hợp (ASVspoof, AASIST) và nguồn gốc nội dung (C2PA), cùng giới hạn của từng hướng.
     - **Tóm lược** một cách thận trọng bối cảnh pháp lý tại Việt Nam, EU và Hoa Kỳ tính đến thời điểm biên soạn.
     - **Áp dụng** danh sách kiểm tra thực hành cho đội ngũ xây dựng TTS tiếng Việt.
@@ -14,7 +14,8 @@
 !!! info "Kiến thức cần có"
     - [Chương 28 – Đa người nói và nhân bản giọng](../phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning.md): embedding người nói, nhân bản zero-shot.
     - [Chương 36 – Xây dựng dữ liệu TTS](ch36-du-lieu-tts.md): nguồn dữ liệu, giấy phép, datasheet.
-    - [Chương 1 – Toán nền tảng](../phan-1-nen-tang/ch01-toan-nen-tang.md): kỳ vọng, phương sai, định lý giới hạn trung tâm, kiểm định giả thuyết cơ bản.
+    - [Chương 1 – Toán nền tảng](../phan-1-nen-tang/ch01-toan-nen-tang.md): kỳ vọng, phương sai, phân phối chuẩn.
+    - [Chương 38 – Đánh giá hệ thống TTS](ch38-danh-gia-tts.md): kiểm định giả thuyết, tỉ lệ dương tính giả, so sánh bội.
     - [Chương 14 – Xử lý tín hiệu số](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md): tương quan, nhiễu, SNR.
 
 !!! warning "Đây không phải tư vấn pháp lý"
