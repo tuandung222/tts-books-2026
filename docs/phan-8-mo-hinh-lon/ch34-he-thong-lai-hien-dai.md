@@ -632,3 +632,146 @@ Trong một hệ thống thật, `logits_for` sẽ là lượt truyền thẳng 
 - **Chọn $\beta$.** $\beta$ nhỏ cho phép rời xa mô hình tham chiếu nhiều hơn (tăng rủi ro lách phần thưởng); $\beta$ lớn thì thay đổi ít. Các giá trị trong khoảng 0,01–0,5 thường được thử; cần dò trên tập kiểm định có nghe thử.
 - **Trực tuyến hay ngoại tuyến.** DPO là phương pháp ngoại tuyến trên một tập cặp cố định. Các phương pháp học tăng cường trực tuyến (PPO; Schulman và cộng sự, 2017, hay GRPO; Shao và cộng sự, 2024) lấy mẫu mới ở mỗi vòng và tối ưu trực tiếp phần thưởng, linh hoạt hơn nhưng tốn kém và khó ổn định hơn. Seed-TTS báo cáo đã thử cả hai hướng. Một số công trình năm 2025 cũng thử GRPO cho TTS; đây là hướng đang phát triển nhanh.
 - **Phần thưởng khả vi.** Thay vì học tăng cường, có thể làm cho bộ chấm điểm (ví dụ một mô hình ASR nhỏ nhận trực tiếp token) khả vi theo đầu ra của LM, thông qua các kỹ thuật như Gumbel-softmax, rồi lan truyền ngược trực tiếp. Theo báo cáo, DiffRO của CosyVoice 3 đi theo hướng này.
+
+## 34.9 Đưa kiến trúc lai vào tiếng Việt
+
+Tính đến thời điểm biên soạn (2026), phần lớn các hệ thống lai mã nguồn mở được huấn luyện chủ yếu trên tiếng Trung và tiếng Anh, cộng thêm một số ngôn ngữ châu Á và châu Âu. Tiếng Việt thường không nằm trong danh sách hỗ trợ chính thức, hoặc chỉ có qua các bản fine-tune của cộng đồng mà chất lượng và giấy phép cần được kiểm tra kỹ. Vì vậy con đường thực tế nhất là **fine-tune một mô hình mở** trên dữ liệu tiếng Việt. Mục này đưa ra một quy trình có thứ tự, đi từ kiểm tra rẻ đến huấn luyện đắt. [Dự án 4](../phan-10-du-an/du-an-4-zero-shot-tts.md) áp dụng tinh thần tương tự cho một mô hình NAR.
+
+### Bước 0: kiểm tra giấy phép và phạm vi
+
+Đọc giấy phép của **trọng số** (không chỉ của mã nguồn), giấy phép của dữ liệu bạn định dùng và các điều khoản sử dụng giọng nói ([Chương 40](../phan-9-thuc-tien/ch40-dao-duc-an-toan.md)). Nhiều mô hình chỉ cho phép dùng phi thương mại.
+
+### Bước 1: văn bản và tokenizer văn bản
+
+Nếu LM được khởi tạo từ một LLM văn bản, đầu vào đi qua tokenizer BPE ở mức byte của LLM đó. Ba vấn đề cần kiểm tra:
+
+1. **Chuẩn hóa Unicode.** Văn bản tiếng Việt có thể ở dạng dựng sẵn (NFC) hoặc tổ hợp (NFD), và dấu thanh có thể đặt theo kiểu cũ hoặc kiểu mới ("hòa" và "hoà"). Với tokenizer ở mức byte, hai dạng cho ra **hai chuỗi token khác nhau**. Nếu dữ liệu huấn luyện trộn lẫn các dạng, mô hình phải học hai cách viết cho cùng một âm tiết; nếu suy luận dùng một dạng chưa từng gặp khi huấn luyện, chất lượng giảm mà không báo lỗi. Hãy chuẩn hóa *mọi* văn bản (huấn luyện và suy luận) về cùng một dạng, theo [Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md).
+2. **Độ dài chuỗi token.** Tokenizer của LLM huấn luyện chủ yếu trên tiếng Anh, tiếng Trung thường cắt tiếng Việt thành nhiều token hơn mỗi âm tiết. Điều này không sai, nhưng làm chuỗi dài hơn và quan hệ token văn bản – âm tiết kém đều đặn. Hãy đếm số token trung bình mỗi âm tiết trên dữ liệu của bạn.
+3. **Chuẩn hóa văn bản không chuẩn.** Một LLM khởi tạo từ tiếng Anh có thể "đọc" số theo kiểu tiếng Anh. Đừng phó mặc cho mô hình: chuẩn hóa số, ngày tháng, chữ viết tắt thành chữ trước khi đưa vào.
+
+Đoạn mã nhỏ sau minh họa vì sao NFC quan trọng với tokenizer ở mức byte.
+
+```python
+import unicodedata
+
+text = "Người Việt hỏi: thuở ấy, ai đã ngã?"
+for form in ("NFC", "NFD"):
+    s = unicodedata.normalize(form, text)
+    print(f"{form}: {len(s):3d} ký tự (code point), {len(s.encode('utf-8')):3d} byte UTF-8")
+
+# Hai chuỗi trông giống hệt nhau trên màn hình nhưng KHÁC nhau với máy
+a, b = unicodedata.normalize("NFC", "ngã"), unicodedata.normalize("NFD", "ngã")
+print(a == b, [hex(ord(ch)) for ch in b])
+assert a != b and unicodedata.normalize("NFC", b) == a
+
+# Bảng chữ cái tiếng Việt: 12 nguyên âm x 6 thanh = 72 dạng chữ thường, tất cả có dạng dựng sẵn
+vowels = "aăâeêioôơuưy"
+marks = ["", "̀", "́", "̉", "̃", "̣"]  # huyền, sắc, hỏi, ngã, nặng
+letters = {unicodedata.normalize("NFC", v + m) for v in vowels for m in marks}
+assert len(letters) == 72 and all(len(ch) == 1 for ch in letters)
+print("".join(sorted(letters))[:24], "...")
+```
+
+Với câu ví dụ, dạng NFD dài hơn dạng NFC cả về số ký tự lẫn số byte, và các byte của dấu thanh tách rời khỏi nguyên âm. Các phép gộp (*merge*) BPE học trên văn bản NFC sẽ không áp dụng được cho văn bản NFD. Với mô hình dùng bảng ký tự cố định (như F5-TTS), dòng kiểm tra cuối cho thấy 72 dạng nguyên âm có dấu chữ thường đều là một ký tự đơn ở NFC; hãy chắc chắn chúng (cùng "đ" và chữ hoa) đều có trong bảng ký tự, nếu không chúng sẽ bị thay bằng token "không biết".
+
+### Bước 2: đo trần chất lượng của bộ token hóa
+
+Đây là bước rẻ nhất và quan trọng nhất. Lấy vài trăm câu tiếng Việt có bản ghi chuẩn, rồi **tái tổng hợp** chúng qua đường ống *không có LM*: âm thanh → bộ token hóa → token → bộ giải mã (với prompt là một câu khác của cùng người nói) → vocoder → âm thanh. Sau đó đo:
+
+- CER bằng một mô hình ASR tiếng Việt tốt (ví dụ PhoWhisper hoặc Whisper; [Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md));
+- tỉ lệ lỗi thanh điệu trên một bộ câu chứa các cặp tối thiểu (ma/má/mà/mả/mã/mạ…), chấm bằng tai người hoặc bằng ASR;
+- độ giống giọng.
+
+Kết quả tái tổng hợp là **giới hạn trên** của toàn hệ thống: LM tốt đến đâu cũng không vượt qua được nó. Nếu CER tái tổng hợp đã cao hoặc thanh điệu bị nhầm thường xuyên, bộ token hóa không phù hợp, và bạn cần huấn luyện lại hoặc tinh chỉnh bộ token hóa (rất tốn kém, vì phải làm lại cả LM và bộ giải mã), hoặc chọn một hệ thống có token phù hợp hơn với tiếng Việt.
+
+### Bước 3: fine-tune từng tầng theo thứ tự
+
+1. **LM trước tiên.** Phần lớn tri thức ngôn ngữ đặc thù (văn bản tiếng Việt → token) nằm ở LM. Với vài chục đến vài trăm giờ dữ liệu, fine-tune toàn bộ LM với tốc độ học nhỏ, hoặc dùng LoRA nếu tài nguyên hạn chế ([Chương 37](../phan-9-thuc-tien/ch37-huan-luyen-va-debug.md)). Các con số giờ dữ liệu chỉ mang tính định hướng; mức cần thiết phụ thuộc mô hình gốc và chất lượng dữ liệu.
+2. **Bộ giải mã flow matching khi cần.** Nếu tái tổng hợp ở Bước 2 đã tốt, bộ giải mã thường chuyển giao được sang tiếng Việt mà không cần huấn luyện thêm, vì việc của nó (token → âm thanh, âm sắc từ prompt) ít phụ thuộc ngôn ngữ. Nếu âm sắc hoặc chất lượng phổ kém với giọng Việt, fine-tune nó trên cùng dữ liệu.
+3. **Vocoder hiếm khi cần đổi**, trừ khi dữ liệu có đặc tính rất khác (ví dụ âm thanh điện thoại 8 kHz).
+4. **Hậu huấn luyện (tùy chọn).** Khi mô hình đã đọc được tiếng Việt, một vòng DPO với phần thưởng CER từ ASR tiếng Việt có thể giảm lỗi bỏ chữ, lặp chữ. Hãy cẩn thận với lách phần thưởng: một mô hình ASR thiên về một phương ngữ có thể "đẩy" TTS về phương ngữ đó.
+
+!!! note "Góc tiếng Việt"
+    - **Phương ngữ nhất quán.** Dữ liệu ngoài thực địa thường trộn giọng Bắc, Trung, Nam. Với kiến trúc lai, phương ngữ chủ yếu được quyết định ở LM (qua token) và được "củng cố" qua prompt. Nếu muốn một giọng Bắc chuẩn, hãy lọc dữ liệu fine-tune hoặc gắn nhãn phương ngữ như một token điều kiện.
+    - **Trộn mã Việt–Anh.** LM khởi tạo từ LLM đa ngôn ngữ thường xử lý từ tiếng Anh trong câu tiếng Việt khá tự nhiên, nhưng cách đọc (kiểu Việt hóa hay kiểu Anh) phụ thuộc dữ liệu fine-tune. Xem [Chương 30](../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching.md) để xây dựng tập kiểm thử riêng.
+    - **Prompt và bản ghi phải khớp.** Với các hệ thống dùng cả văn bản prompt và token prompt, bản ghi sai một chữ của âm thanh mẫu có thể làm LM lệch căn chỉnh và đọc sai câu đích. Hãy kiểm tra bản ghi prompt bằng ASR trước khi dùng.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Lệch tốc độ khung giữa các tầng.** Tốc độ token, tỉ lệ tăng mẫu trong bộ giải mã và bước nhảy mel phải khớp nhau. Ví dụ token 25 Hz, tăng mẫu 2 lần, mel 50 Hz ứng với bước nhảy 480 mẫu ở 24 kHz. Đổi một tham số mà quên các tham số kia sẽ làm giọng nhanh/chậm bất thường hoặc gây lỗi kích thước khó hiểu.
+- **Vocoder không khớp cấu hình mel.** Vẫn là lỗi kinh điển của mọi hệ thống hai tầng: tần số lấy mẫu, `fmax`, kiểu chuẩn hóa mel phải trùng với lúc huấn luyện vocoder ([Chương 26](../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh.md)).
+- **LM không dừng hoặc dừng quá sớm.** Luôn đặt giới hạn số token tối thiểu và tối đa theo độ dài văn bản; ghi log các trường hợp chạm giới hạn để phát hiện câu "khó".
+- **Prompt quá dài hoặc quá ồn.** Prompt dài làm chậm LM và có thể khiến mô hình bắt chước cả tiếng ồn. Thường vài giây âm thanh sạch là đủ; hãy cắt im lặng hai đầu.
+- **CFG quá mạnh.** Cường độ hướng dẫn lớn làm giọng "gắt", méo phổ. Dò $w$ trên tập kiểm định, nghe thử ở nhiều giọng.
+- **Mặt nạ attention sai quy ước.** `True` nghĩa là *được nhìn* với `scaled_dot_product_attention` nhưng là *bị che* với `key_padding_mask`. Hãy viết kiểm thử kiểu "thay đổi tương lai không làm đổi quá khứ" như đoạn mã ở Mục 34.6.
+- **Tích chập phá vỡ tính nhân quả.** Một lớp `Conv1d` đệm đối xứng trong bộ giải mã đủ làm streaming sai. Kiểm tra từng khối, không chỉ attention.
+- **Đánh giá bằng một thước đo duy nhất.** WER thấp không có nghĩa giọng tự nhiên; SIM cao không có nghĩa phát âm đúng. Báo cáo ít nhất WER/CER, SIM và một đánh giá chủ quan.
+- **Lách phần thưởng khi hậu huấn luyện.** Theo dõi cả các thước đo *không* được tối ưu (ví dụ tốc độ nói, MOS chủ quan) để phát hiện sớm.
+
+## Tóm tắt
+
+- Kiến trúc lai tách TTS thành hai bài toán: LM tự hồi quy sinh chuỗi token tốc độ thấp mang nội dung và cách nói; bộ giải mã flow matching sinh mel mang âm sắc và chi tiết phổ, lấy thông tin người nói từ prompt.
+- Phép phân rã $p(\mathbf{Y} \mid \mathbf{x}, \mathbf{c}) = \sum_{\mathbf{q}} p(\mathbf{q} \mid \mathbf{x}, \mathbf{c})\, p(\mathbf{Y} \mid \mathbf{q}, \mathbf{c})$ được huấn luyện tách rời vì token do bộ token hóa tất định tạo ra; khi suy luận ta lấy mẫu tuần tự qua hai tầng.
+- Lựa chọn token quyết định cả hệ thống. Token ngữ nghĩa có giám sát (ASR + VQ/FSQ) bám sát văn bản nên LM dễ học, ít bỏ chữ, và tách bạch người nói tương đối tốt; bitrate chỉ vài trăm bit/giây.
+- Khởi tạo LM từ LLM văn bản và bỏ embedding người nói khỏi LM là hai xu hướng tiêu biểu, nhằm tận dụng hiểu biết văn bản và giữ "ranh giới sạch": LM lo cách nói, bộ giải mã lo giọng ai.
+- Mặt nạ chunk $A^{(M)}_{ij} = \mathbb{1}[\lfloor j/M \rfloor \leq \lfloor i/M \rfloor]$ cho phép flow matching sinh theo luồng với attention hai chiều trong chunk; huấn luyện với nhiều loại mặt nạ cho một mô hình phục vụ nhiều mức độ trễ.
+- Các hệ thống tiêu biểu (CosyVoice, Seed-TTS, Fish-Speech, Spark-TTS, MiniMax-Speech, IndexTTS) khác nhau dọc các trục: loại token, LM, bộ giải mã, điều kiện người nói, streaming và đa ngôn ngữ.
+- Hậu huấn luyện (DPO, học tăng cường) tối ưu trực tiếp các thước đo đo được tự động như WER, SIM; DPO suy ra từ bài toán tối đa phần thưởng có ràng buộc KL và mô hình Bradley–Terry, trong đó hằng số chuẩn hóa tự triệt tiêu.
+- Với tiếng Việt: chuẩn hóa NFC, kiểm tra tokenizer văn bản, **đo trần tái tổng hợp của bộ token hóa** trước khi fine-tune, rồi fine-tune LM trước, bộ giải mã khi cần.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Tính bitrate tối đa và số token cho một câu dài 8 giây với: (a) token FSQ 25 Hz, $V = 6\,561$; (b) codec 50 Hz, 4 sổ mã, mỗi sổ 1 024 mục; (c) token 12,5 Hz, $V = 65\,536$. Với LM có độ phức tạp attention bậc hai theo độ dài chuỗi, chi phí attention của (b) (nếu trải phẳng mọi sổ mã) gấp bao nhiêu lần (a)?
+
+??? success "Lời giải"
+    (a) $25 \times \log_2 6561 \approx 25 \times 12{,}68 \approx 317$ bit/s; 200 token. (b) $50 \times 4 \times 10 = 2\,000$ bit/s; $50 \times 8 \times 4 = 1\,600$ token khi trải phẳng. (c) $12{,}5 \times 16 = 200$ bit/s; 100 token. Tỉ lệ chi phí attention (b)/(a) $\approx (1600/200)^2 = 64$ lần.
+
+**Bài 2 [Cơ bản].** Giải thích bằng lời vì sao CosyVoice 2 bỏ x-vector khỏi LM nhưng vẫn giữ nó ở bộ giải mã flow matching. Điều gì có thể xảy ra nếu làm ngược lại (giữ ở LM, bỏ ở bộ giải mã)?
+
+??? tip "Gợi ý"
+    Nghĩ về "ranh giới sạch": tầng nào nên chịu trách nhiệm về âm sắc? Nếu bộ giải mã không có thông tin người nói (ngoài prompt mel), còn token lại được ép mang ít thông tin người nói, thì âm sắc sẽ lấy từ đâu?
+
+**Bài 3 [Nâng cao].** (a) Chứng minh rằng với mặt nạ chunk $A^{(M)}$, nếu $M$ chia hết $M'$ thì mọi cặp $(i, j)$ được phép bởi $A^{(M)}$ cũng được phép bởi $A^{(M')}$. (b) Từ đó giải thích vì sao chế độ chunk-$2M$ có chất lượng không kém chunk-$M$ (về mặt thông tin khả dụng) nhưng có độ trễ lớn hơn.
+
+??? tip "Gợi ý"
+    Nếu $M' = kM$ thì $\lfloor i/M' \rfloor = \lfloor \lfloor i/M \rfloor / k \rfloor$. Hàm $a \mapsto \lfloor a/k \rfloor$ không giảm.
+
+**Bài 4 [Nâng cao].** Trong DPO, xét trường hợp đặc biệt khi chỉ có một cặp $(\mathbf{q}_w, \mathbf{q}_l)$ và mô hình có thể biểu diễn mọi phân phối. (a) Hàm mất mát có cực tiểu hữu hạn không? (b) Điều gì xảy ra với $\pi_\theta(\mathbf{q}_l)$ khi tối ưu đến cùng? (c) Vai trò của $\pi_{\text{ref}}$ và $\beta$ trong việc hạn chế hiện tượng này trên thực tế là gì, khi DPO không có số hạng KL tường minh?
+
+??? success "Lời giải"
+    (a) Không: $-\log\sigma(\Delta)$ giảm về 0 khi $\Delta \to \infty$ nhưng không đạt được, nên tối ưu đến cùng sẽ đẩy $\Delta$ ra vô cùng. (b) Cách dễ nhất để tăng $\Delta$ vô hạn là đẩy $\pi_\theta(\mathbf{q}_l) \to 0$; mô hình có thể đồng thời làm thay đổi tùy ý xác suất của các chuỗi *không* xuất hiện trong dữ liệu. (c) $\pi_{\text{ref}}$ và $\beta$ chỉ xuất hiện qua phần thưởng ngầm; ràng buộc KL chỉ được bảo đảm ở *nghiệm tối ưu lý thuyết* với dữ liệu sở thích phủ đủ rộng. Trên thực tế, người ta hạn chế bằng dừng sớm, số epoch nhỏ, $\beta$ đủ lớn, dữ liệu đa dạng, và theo dõi các thước đo không được tối ưu.
+
+**Bài 5 [Lập trình].** Mở rộng đoạn mã ở Mục 34.6: thêm vào "bộ giải mã" đồ chơi một lớp `Conv1d` với `kernel_size=3, padding=1` (đệm đối xứng) giữa các tầng attention. Chạy lại các kiểm thử và giải thích vì sao chúng thất bại. Sau đó sửa lớp tích chập thành nhân quả (đệm 2 mẫu bên trái) và xác nhận kiểm thử lại vượt qua.
+
+??? tip "Gợi ý"
+    Tích chập đệm đối xứng cho khung cuối của chunk $k$ nhìn thấy khung đầu của chunk $k + 1$. Sau nhiều tầng, "rò rỉ" này lan rộng. Dùng `F.pad(x, (2, 0))` rồi `Conv1d(..., padding=0)`.
+
+**Bài 6 [Lập trình].** Viết hàm `build_pairs(scores, min_gap)` nhận ma trận điểm WER có kích thước (số câu, số mẫu mỗi câu) và trả về chỉ số mẫu thắng, mẫu thua cho mỗi câu, bỏ các câu có chênh lệch điểm nhỏ hơn `min_gap`. Sau đó sửa `seq_logprob` để có thêm phiên bản chuẩn hóa theo độ dài, và thiết kế một thí nghiệm đồ chơi cho thấy phiên bản không chuẩn hóa thiên vị chuỗi ngắn khi mẫu thắng ngắn hơn mẫu thua một cách hệ thống.
+
+**Bài 7 [Nâng cao].** Chọn một hệ thống TTS công bố gần đây mà chương này không đề cập. Đọc báo cáo kỹ thuật và điền một dòng vào bảng không gian thiết kế ở Mục 34.7 (token, phần tự hồi quy, phần sinh âm học, thông tin người nói, streaming). Ô nào báo cáo không nêu rõ, hãy ghi "không công bố rõ" thay vì suy đoán.
+
+## Tài liệu tham khảo
+
+1. Du, Z. và cộng sự (2024a). *CosyVoice: A Scalable Multilingual Zero-shot Text-to-speech Synthesizer based on Supervised Semantic Tokens*. arXiv preprint.
+2. Du, Z. và cộng sự (2024b). *CosyVoice 2: Scalable Streaming Speech Synthesis with Large Language Models*. arXiv preprint.
+3. Du, Z. và cộng sự (2025). *CosyVoice 3: Towards In-the-wild Speech Generation via Scaling-up and Post-training*. arXiv preprint.
+4. FunAudioLLM Team (2024). *FunAudioLLM: Voice Understanding and Generation Foundation Models for Natural Interaction Between Humans and LLMs*. Báo cáo kỹ thuật, arXiv preprint.
+5. Anastassiou, P. và cộng sự (2024). *Seed-TTS: A Family of High-Quality Versatile Speech Generation Models*. Báo cáo kỹ thuật, arXiv preprint.
+6. Liao, S. và cộng sự (2024). *Fish-Speech: Leveraging Large Language Models for Advanced Multilingual Text-to-Speech Synthesis*. arXiv preprint.
+7. Wang, X. và cộng sự (2025). *Spark-TTS: An Efficient LLM-Based Text-to-Speech Model with Single-Stream Decoupled Speech Tokens*. arXiv preprint.
+8. MiniMax (2025). *MiniMax-Speech: Intrinsic Zero-Shot Text-to-Speech with a Learnable Speaker Encoder*. Báo cáo kỹ thuật, arXiv preprint.
+9. Bilibili IndexTTS Team (2025). *IndexTTS: An Industrial-Level Controllable and Efficient Zero-Shot Text-To-Speech System*. arXiv preprint.
+10. Mentzer, F. và cộng sự (2024). *Finite Scalar Quantization: VQ-VAE Made Simple*. ICLR 2024.
+11. Lipman, Y. và cộng sự (2023). *Flow Matching for Generative Modeling*. ICLR 2023.
+12. Mehta, S. và cộng sự (2024). *Matcha-TTS: A Fast TTS Architecture with Conditional Flow Matching*. ICASSP 2024.
+13. Le, M. và cộng sự (2023). *Voicebox: Text-Guided Multilingual Universal Speech Generation at Scale*. NeurIPS 2023.
+14. Wang, C. và cộng sự (2023). *Neural Codec Language Models are Zero-Shot Text to Speech Synthesizers* (VALL-E). arXiv preprint.
+15. Chen, Y. và cộng sự (2024). *F5-TTS: A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching*. arXiv preprint.
+16. Li, Y. A. và cộng sự (2023). *StyleTTS 2: Towards Human-Level Text-to-Speech through Style Diffusion and Adversarial Training with Large Speech Language Models*. NeurIPS 2023.
+17. Ouyang, L. và cộng sự (2022). *Training Language Models to Follow Instructions with Human Feedback*. NeurIPS 2022.
+18. Rafailov, R. và cộng sự (2023). *Direct Preference Optimization: Your Language Model is Secretly a Reward Model*. NeurIPS 2023.
+19. Bradley, R. A. và Terry, M. E. (1952). *Rank Analysis of Incomplete Block Designs: I. The Method of Paired Comparisons*. Biometrika.
+20. Schulman, J. và cộng sự (2017). *Proximal Policy Optimization Algorithms*. arXiv preprint.
+21. Shao, Z. và cộng sự (2024). *DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models*. arXiv preprint (giới thiệu GRPO).
+22. Meng, Y. và cộng sự (2024). *SimPO: Simple Preference Optimization with a Reference-Free Reward*. NeurIPS 2024.
+23. Zhang, D. và cộng sự (2024). *SpeechAlign: Aligning Speech Generation to Human Preferences*. arXiv preprint.
