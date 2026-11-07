@@ -532,7 +532,7 @@ with torch.no_grad():
 print(f"NLL MDN cuối: {loss_mdn.item():.3f}")
 ```
 
-Tại $x = 0{,}5$, phương trình $y + 0{,}3\sin(2\pi y) = 0{,}5$ có ba nghiệm xấp xỉ $0{,}22$, $0{,}5$ và $0{,}78$. Bộ hồi quy L2 trả về một con số gần $0{,}48$, xấp xỉ trung bình có trọng số của ba nhánh. MDN học được ba thành phần với trung bình gần $0{,}22$, $0{,}49$, $0{,}77$; trọng số của chúng phản ánh mật độ dữ liệu trên từng nhánh (nhánh giữa có độ dốc nhỏ nên "dày" hơn), và mẫu lấy từ MDN rơi vào cả ba nhánh.
+Tại $x = 0{,}5$, phương trình $y + 0{,}3\sin(2\pi y) = 0{,}5$ có ba nghiệm xấp xỉ $0{,}22$, $0{,}5$ và $0{,}78$. Bộ hồi quy L2 trả về một con số gần $0{,}48$, xấp xỉ trung bình có trọng số của ba nhánh. MDN học được ba thành phần với trung bình gần $0{,}22$, $0{,}49$, $0{,}77$; trọng số của chúng phản ánh mật độ dữ liệu trên từng nhánh (ở nhánh giữa, $x$ thay đổi chậm hơn theo $y$ nên có nhiều giá trị $y$ cho ra $x \approx 0{,}5$ hơn), và mẫu lấy từ MDN rơi vào cả ba nhánh.
 
 ### 7.5.4. MDN trong TTS và giới hạn của nó
 
