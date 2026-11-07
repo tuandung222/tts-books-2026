@@ -244,7 +244,7 @@ $$
 D^\ast(\mathbf{x}) = \frac{b\, p_{\text{data}}(\mathbf{x}) + a\, p_g(\mathbf{x})}{p_{\text{data}}(\mathbf{x}) + p_g(\mathbf{x})}.
 $$
 
-**Phân kỳ được tối ưu.** Thêm vào mục tiêu của $G$ số hạng $\tfrac12 \mathbb{E}_{p_{\text{data}}}[(D(\mathbf{x}) - c)^2]$, không phụ thuộc $G$ nên không đổi nghiệm, rồi thay $D^\ast$:
+**Phân kỳ được tối ưu.** Theo Mao và cộng sự (2017), thêm vào mục tiêu của $G$ số hạng $\tfrac12 \mathbb{E}_{p_{\text{data}}}[(D(\mathbf{x}) - c)^2]$; khi $D$ được giữ cố định trong bước cập nhật $G$, số hạng này không chứa tham số của $G$ nên không làm thay đổi gradient của $G$. Thay $D^\ast$ vào:
 
 $$
 2C(G) = \int \frac{\big( (b - c)\, p_{\text{data}} + (a - c)\, p_g \big)^2}{p_{\text{data}} + p_g}\, d\mathbf{x}.
