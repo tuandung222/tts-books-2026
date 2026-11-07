@@ -209,7 +209,7 @@ g2p("Xin chào Việt Nam.") ->
 ['s', 'i', 'n', 'T1', ' ', 'c', 'a', 'w', 'T2', ' ', 'v', 'iə', 't', 'T6', ' ', 'n', 'a', 'm', 'T1', '.']
 ```
 
-**Token trống (*blank*).** Cấu hình `add_blank: true` của VITS chèn một token trống giữa mọi cặp ký hiệu ($[a, b] \to [\varnothing, a, \varnothing, b, \varnothing]$). Cấu hình chuẩn của mã gốc bật tùy chọn này, và kinh nghiệm thực hành của cộng đồng là nó thường giúp phát âm rõ hơn. Trực giác là nó cho MAS thêm "chỗ" để đặt các khung chuyển tiếp giữa hai âm vị. Mã gốc dùng ID 0 (trùng với ký hiệu đệm) làm blank. `vn_frontend` có token `<blank>` riêng (`BLANK_ID`) và hàm `vnf.intersperse`. Cách nào cũng được, **miễn là lúc huấn luyện, lúc suy luận PyTorch và lúc chạy ONNX dùng cùng một quy ước**.
+**Token trống (*blank*).** Cấu hình `add_blank: true` của VITS chèn một token trống giữa mọi cặp ký hiệu ($[a, b] \to [\varnothing, a, \varnothing, b, \varnothing]$). Bài báo gốc chèn token trống theo cách cài đặt của Glow-TTS, cấu hình chuẩn của mã gốc bật tùy chọn này, và kinh nghiệm thực hành của cộng đồng là nó thường giúp phát âm rõ hơn. Trực giác là nó cho MAS thêm "chỗ" để đặt các khung chuyển tiếp giữa hai âm vị. Mã gốc dùng ID 0 (trùng với ký hiệu đệm) làm blank. `vn_frontend` có token `<blank>` riêng (`BLANK_ID`) và hàm `vnf.intersperse`. Cách nào cũng được, **miễn là lúc huấn luyện, lúc suy luận PyTorch và lúc chạy ONNX dùng cùng một quy ước**.
 
 ### 4.2. Sửa mã VITS gốc (phác thảo)
 
@@ -405,7 +405,7 @@ Với VITS thật, áp dụng `load_partial` cho `net_g` với `torch.load("G_xx
 
 ### 6.3. Huấn luyện bao lâu?
 
-Không có con số chung. Theo bài báo gốc, mô hình trên LJSpeech được huấn luyện hàng trăm nghìn bước trên nhiều GPU. Khi fine-tune từ checkpoint, tài liệu Piper (tại thời điểm biên soạn) gợi ý bắt đầu với khoảng 2 000 epoch cho dưới 5 giờ âm thanh. Con số này chỉ là điểm xuất phát, phụ thuộc kích thước batch và dữ liệu. Tiêu chí dừng tốt nhất không phải là một con số loss, mà là:
+Không có con số chung. Bài báo gốc huấn luyện mô hình tới 800 nghìn bước trên 4 GPU V100, batch 64 mỗi GPU, độ chính xác hỗn hợp; đó là mức cho huấn luyện từ đầu trên khoảng 24 giờ LJSpeech. Khi fine-tune từ checkpoint, tài liệu Piper (tại thời điểm biên soạn) gợi ý bắt đầu với khoảng 2 000 epoch cho dưới 5 giờ âm thanh. Con số này chỉ là điểm xuất phát, phụ thuộc kích thước batch và dữ liệu. Tiêu chí dừng tốt nhất không phải là một con số loss, mà là:
 
 1. Chất lượng nghe được trên tập kiểm tra cố định không còn cải thiện qua vài lần đánh giá liên tiếp.
 2. CER qua ASR (Mục 10) đã bão hòa.
@@ -489,7 +489,7 @@ Ba tham số điều khiển tương ứng với ba nguồn ngẫu nhiên và m�
 - `noise_scale_w`: nhiễu của bộ dự đoán trường độ ngẫu nhiên. Tham số này điều khiển độ đa dạng của nhịp điệu.
 - `length_scale`: nhân trường độ, nên lớn hơn 1 là nói chậm hơn.
 
-Các giá trị 0,667 / 0,8 / 1,0 là mặc định của sổ tay suy luận trong mã gốc và cũng là mặc định trong cấu hình suy luận của các giọng Piper. Đó là điểm khởi đầu tốt, không phải tối ưu cho mọi giọng.
+Các giá trị 0,667 / 0,8 / 1,0 là giá trị dùng trong thí nghiệm của bài báo gốc, mặc định của sổ tay suy luận trong mã gốc và cũng là mặc định trong cấu hình suy luận của các giọng Piper. Đó là điểm khởi đầu tốt, không phải tối ưu cho mọi giọng.
 
 !!! note "Góc tiếng Việt"
     Với ngôn ngữ thanh điệu, `noise_scale` cao có thể làm đường F0 dao động đủ mạnh để một thanh nghe "lệch" sang thanh khác (hỏi sang ngã, sắc yếu nghe như ngang). Đây là một nhận xét kinh nghiệm, không phải kết quả đã công bố. Khi tinh chỉnh tham số suy luận, đừng chỉ nghe câu thường; hãy chạy lại bài cặp tối thiểu ở Mục 10.
