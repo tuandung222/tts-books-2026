@@ -543,3 +543,214 @@ MDN và các biến thể hỗn hợp từng là lựa chọn hấp dẫn cho t�
 - Huấn luyện dễ gặp sự cố: một thành phần co $\sigma \to 0$ quanh một điểm dữ liệu làm likelihood tiến tới vô cùng; một số thành phần "chết" (trọng số $\pi_k \approx 0$).
 
 MDN vì vậy hợp với đầu ra **ít chiều** (một mẫu âm thanh, một giá trị F0, một trường độ). Để mô hình hóa các đối tượng nhiều chiều có tương quan phức tạp, ta cần những ý tưởng mạnh hơn: biến ẩn liên tục ([Chương 8](ch08-vae.md)), biến đổi nhiễu bằng mạng ([Chương 9](ch09-gan.md), [Chương 10](ch10-normalizing-flows.md)), hoặc khử nhiễu lặp ([Chương 11](ch11-diffusion.md), [Chương 12](ch12-flow-matching.md)).
+
+## 7.6. Đánh giá mô hình sinh
+
+Đánh giá một bộ phân loại thì dễ: so nhãn dự đoán với nhãn thật. Đánh giá một mô hình sinh khó hơn nhiều, vì không có "đáp án đúng" cho một mẫu sinh ra: ta cần biết cả phân phối mẫu có giống phân phối dữ liệu không. Mỗi thước đo dưới đây chỉ nhìn được một mặt của vấn đề.
+
+### 7.6.1. Log-likelihood trên tập kiểm tra
+
+Với các mô hình tính được mật độ, thước đo tự nhiên là log-likelihood âm (NLL) trung bình trên dữ liệu chưa thấy. Với dữ liệu rời rạc, người ta thường quy về **bit trên mỗi chiều** (*bits per dimension*): $\text{bpd} = \text{NLL} / (d \ln 2)$ với NLL tính bằng nat và $d$ là số chiều. Có ba cái bẫy:
+
+- **Mật độ liên tục phụ thuộc phép đổi thang.** Nếu $\mathbf{y}' = a\mathbf{y}$ với $\mathbf{y} \in \mathbb{R}^d$ thì $\log p(\mathbf{y}') = \log p(\mathbf{y}) - d \log \lvert a \rvert$. Đổi cách chuẩn hóa log-mel (cơ số log, trừ trung bình, chia độ lệch chuẩn) làm NLL dịch đi một hằng số. Chỉ so NLL khi tiền xử lý giống hệt nhau.
+- **Dữ liệu thực ra là rời rạc.** Âm thanh 16 bit là rời rạc; đặt mật độ liên tục lên đó có thể cho likelihood lớn vô hạn bằng cách co mật độ quanh các giá trị nguyên. Kỹ thuật *dequantization* xử lý vấn đề này ([Chương 10](ch10-normalizing-flows.md)).
+- **Likelihood và chất lượng mẫu có thể gần như độc lập** (Theis và cộng sự, 2016). Xét mô hình hỗn hợp $p_{\text{mix}} = \alpha\, p_{\text{tốt}} + (1-\alpha)\, q_{\text{rác}}$. Vì $\log p_{\text{mix}}(\mathbf{x}) \ge \log \alpha + \log p_{\text{tốt}}(\mathbf{x})$, NLL của nó kém mô hình tốt **tối đa** $-\log \alpha$ nat mỗi mẫu. Với $\alpha = 0.01$ đó là khoảng 4,6 nat. Chia cho số chiều của một mel-spectrogram cỡ $200 \times 80 = 16\,000$, mức chênh chỉ khoảng $3 \times 10^{-4}$ nat mỗi chiều, gần như không nhìn thấy được, trong khi **99% mẫu sinh ra là rác**. Ngược lại, một mô hình cho mẫu tuyệt đẹp nhưng bỏ sót một mode sẽ có NLL rất tệ (thậm chí vô cùng) trên những mẫu thuộc mode bị bỏ sót.
+
+### 7.6.2. Khoảng cách giữa các phân phối embedding: FID và FAD
+
+Với các mô hình không tính được mật độ (GAN) hoặc khi quan tâm đến chất lượng mẫu, người ta so sánh **tập mẫu sinh** với **tập mẫu thật** trong một không gian embedding do một mạng được huấn luyện trước cung cấp. Khớp mỗi tập một phân phối Gauss $\mathcal{N}(\boldsymbol{\mu}_r, \boldsymbol{\Sigma}_r)$ và $\mathcal{N}(\boldsymbol{\mu}_g, \boldsymbol{\Sigma}_g)$, rồi tính **khoảng cách Fréchet** (khoảng cách Wasserstein-2 giữa hai Gauss):
+
+$$
+\operatorname{FD} = \lVert \boldsymbol{\mu}_r - \boldsymbol{\mu}_g \rVert^2 + \operatorname{tr}\Big( \boldsymbol{\Sigma}_r + \boldsymbol{\Sigma}_g - 2\big(\boldsymbol{\Sigma}_r \boldsymbol{\Sigma}_g\big)^{1/2} \Big).
+$$
+
+Với ảnh, embedding lấy từ mạng Inception và thước đo có tên FID (Heusel và cộng sự, 2017); với âm thanh, phiên bản tương ứng là FAD (*Fréchet Audio Distance*), ban đầu dùng embedding VGGish (Kilgour và cộng sự, 2019). Số hạng vết của công thức phạt đúng hiện tượng co rút phương sai ở mục 7.4.3:
+
+```python
+import numpy as np
+from scipy import linalg
+
+def frechet_distance(feat_a, feat_b):
+    """Khoảng cách Fréchet giữa hai Gauss khớp với hai tập embedding (n, d)."""
+    mu_a, mu_b = feat_a.mean(0), feat_b.mean(0)
+    cov_a = np.cov(feat_a, rowvar=False)
+    cov_b = np.cov(feat_b, rowvar=False)
+    covmean = linalg.sqrtm(cov_a @ cov_b)
+    covmean = covmean.real                       # bỏ phần ảo rất nhỏ do sai số số học
+    return float(np.sum((mu_a - mu_b) ** 2) + np.trace(cov_a + cov_b - 2 * covmean))
+
+rng = np.random.default_rng(0)
+real = rng.normal(size=(2000, 8))                # embedding của âm thanh thật (giả lập)
+diverse = rng.normal(size=(2000, 8))             # mô hình tốt: cùng phân phối
+smooth = 0.4 * rng.normal(size=(2000, 8))        # mô hình "trơn": đúng trung bình, thiếu phương sai
+print(f"FD(thật, đa dạng) = {frechet_distance(real, diverse):.3f}")
+print(f"FD(thật, trơn)    = {frechet_distance(real, smooth):.3f}")
+assert frechet_distance(real, smooth) > 10 * frechet_distance(real, diverse)
+```
+
+Mô hình "trơn" có trung bình đúng nhưng độ lệch chuẩn chỉ bằng 0,4 lần; FD của nó xấp xỉ $8 \times (1 + 0.16 - 2 \times 0.4) = 2.88$, gấp hơn trăm lần mô hình tốt. Nhưng FD/FAD cũng có điểm mù: giá trị phụ thuộc mạnh vào mạng embedding; ước lượng bị chệch khi số mẫu ít, nên chỉ so sánh khi dùng cùng số mẫu; giả định Gauss trong không gian embedding chỉ là xấp xỉ. Quan trọng nhất với TTS: **FAD không kiểm tra tính đúng điều kiện**. Một mô hình phớt lờ văn bản và chỉ sinh ra tiếng nói tự nhiên ngẫu nhiên vẫn có thể có FAD rất tốt.
+
+### 7.6.3. Precision và recall cho mô hình sinh
+
+FID/FAD gộp hai loại lỗi vào một con số. Sajjadi và cộng sự (2018), rồi Kynkäänniemi và cộng sự (2019), đề xuất tách chúng ra: **precision** là tỉ lệ mẫu sinh ra nằm trong vùng của dữ liệu thật (đo *chất lượng*), **recall** là tỉ lệ dữ liệu thật nằm trong vùng mà mô hình sinh ra được (đo *độ phủ*, *đa dạng*). Theo ngôn ngữ của mục 7.2.2: mô hình tìm mode có precision cao, recall thấp; mô hình phủ mode nhưng họ quá nghèo có recall cao, precision thấp.
+
+### 7.6.4. Đánh giá riêng cho TTS
+
+Với TTS, một mô hình sinh phải được đánh giá trên nhiều trục cùng lúc, chi tiết ở [Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md):
+
+| Thước đo | Đo cái gì | Điểm mù |
+|---|---|---|
+| MOS, CMOS (người nghe chấm) | Độ tự nhiên cảm nhận | Tốn kém, phương sai cao, phụ thuộc thiết kế thí nghiệm |
+| WER/CER qua ASR | Độ dễ hiểu, tính đúng nội dung | Không đo độ tự nhiên; phụ thuộc chất lượng ASR và chuẩn hóa văn bản |
+| Độ tương đồng người nói (cosine embedding) | Tính đúng điều kiện người nói | Phụ thuộc mô hình embedding |
+| Thống kê ngôn điệu (phương sai F0, phân phối trường độ, GV) | Hiện tượng trơn quá mức | Không nói gì về tính đúng nội dung |
+| Độ đa dạng giữa nhiều mẫu của cùng một câu | Khả năng mô hình hóa một–nhiều | Đa dạng cao chưa chắc đã hợp lý |
+| NLL (nếu tính được) | Độ khớp phân phối | Không tương quan chặt với chất lượng nghe |
+| FAD | Độ giống phân phối tiếng nói thật | Không kiểm tra điều kiện văn bản |
+| RTF, độ trễ | Tốc độ | Không nói gì về chất lượng |
+
+Thước đo "độ đa dạng giữa nhiều mẫu" xứng đáng được nhấn mạnh vì nó kiểm tra trực tiếp luận điểm trung tâm của chương: sinh nhiều lần cùng một câu với các hạt giống ngẫu nhiên khác nhau, rồi đo độ biến thiên của tổng trường độ và đường F0. Một mô hình hồi quy thuần cho độ biến thiên bằng 0; một mô hình sinh tốt cho độ biến thiên gần với độ biến thiên giữa các lần đọc thật của cùng một người (nếu có dữ liệu như vậy).
+
+## 7.7. Bản đồ: các họ mô hình sinh trong TTS
+
+Bảng dưới xếp các hệ thống TTS nổi tiếng theo họ mô hình sinh *chủ đạo* của thành phần tương ứng. Hầu hết hệ thống hiện đại là **lai**: VITS kết hợp VAE, flow và GAN; CosyVoice kết hợp mô hình ngôn ngữ trên token, flow matching và một vocoder GAN. Danh sách phản ánh hiểu biết tính đến thời điểm biên soạn (2026); các hệ thống mới xuất hiện rất nhanh.
+
+| Họ | Mục tiêu huấn luyện | Lấy mẫu | Hệ thống TTS tiêu biểu | Chương |
+|---|---|---|---|---|
+| Tự hồi quy trên giá trị liên tục | NLL chính xác (hoặc hồi quy từng bước) | Tuần tự, chậm với dạng sóng | Vocoder: WaveNet, WaveRNN, LPCNet. Mô hình âm học: Tacotron, Tacotron 2 (loss hồi quy cho từng khung) | [20](../phan-5-mo-hinh-am-hoc/ch20-tacotron.md), [24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md) |
+| Mô hình ngôn ngữ trên token rời rạc | Cross-entropy trên token | Tuần tự theo token | VALL-E, SPEAR-TTS, XTTS, tầng mô hình ngôn ngữ của CosyVoice | [31](../phan-8-mo-hinh-lon/ch31-audio-codec-speech-token.md)–[34](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md) |
+| VAE / CVAE | Cận dưới ELBO | Một lượt | VITS (CVAE kết hợp flow và GAN), bộ mã hóa tham chiếu dạng VAE cho ngôn điệu, NaturalSpeech | [8](ch08-vae.md), [27](../phan-7-e2e-bieu-cam/ch27-vits.md), [29](../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach.md) |
+| GAN | Trò chơi đối kháng, thường kèm loss phổ phụ trợ | Một lượt, rất nhanh | Vocoder: MelGAN, Parallel WaveGAN, HiFi-GAN, BigVGAN, Vocos. Loss đối kháng trong VITS, StyleTTS 2 | [9](ch09-gan.md), [25](../phan-6-vocoder/ch25-gan-vocoder.md) |
+| Normalizing flow | NLL chính xác qua đổi biến | Một lượt (coupling) hoặc tuần tự (một số flow tự hồi quy) | WaveGlow, FloWaveNet, Parallel WaveNet (IAF, chưng cất), Glow-TTS, Flowtron, khối flow trong VITS | [10](ch10-normalizing-flows.md), [23](../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md) |
+| Diffusion | ELBO đơn giản hóa / khớp score | Nhiều bước lặp | Vocoder: WaveGrad, DiffWave. Mô hình âm học: Grad-TTS, DiffSinger. NaturalSpeech 2 (diffusion trên latent của codec) | [11](ch11-diffusion.md), [23](../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md), [26](../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh.md) |
+| Flow matching | Hồi quy trường vận tốc | Giải ODE, thường ít bước hơn diffusion | Matcha-TTS, Voicebox, E2 TTS, F5-TTS, bộ giải mã flow matching của CosyVoice | [12](ch12-flow-matching.md), [33](../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon.md) |
+
+Một bảng thứ hai so sánh định tính các họ theo các trục của "bộ ba bất khả". Đây là khái quát hóa thô, mọi ô đều có ngoại lệ; bạn nên đọc nó như một tấm bản đồ để định hướng, không phải như một kết luận thực nghiệm:
+
+| Họ | Mật độ | Tốc độ lấy mẫu | Chất lượng mẫu | Độ phủ mode | Độ ổn định huấn luyện |
+|---|---|---|---|---|---|
+| Tự hồi quy | Chính xác | Chậm | Cao | Tốt | Ổn định; exposure bias khi suy luận |
+| VAE | Cận dưới | Nhanh | Dễ nhòe nếu bộ giải mã quá đơn giản | Tốt | Ổn định; coi chừng sụp hậu nghiệm |
+| GAN | Không có | Rất nhanh | Rất cao | Có nguy cơ sụp mode | Khó |
+| Normalizing flow | Chính xác | Nhanh | Khá | Tốt | Ổn định; tốn tham số |
+| Diffusion | Cận dưới | Chậm (nhiều bước) | Rất cao | Tốt | Ổn định |
+| Flow matching | Tính được qua ODE (tốn kém) | Trung bình (ít bước) | Rất cao | Tốt | Ổn định |
+
+## 7.8. Nhìn trước Chương 8–12
+
+- **[Chương 8 – VAE](ch08-vae.md)** đưa vào biến ẩn $\mathbf{z}$ để "hấp thụ" phần thông tin mà điều kiện không quyết định. Ta sẽ suy ra cận dưới ELBO, mẹo tái tham số hóa, KL giữa hai Gauss, hiện tượng sụp hậu nghiệm, CVAE (nền tảng của VITS) và VQ-VAE (tổ tiên của các codec âm thanh).
+- **[Chương 9 – GAN](ch09-gan.md)** thay hàm mất mát cố định bằng một bộ phân biệt được học: thay vì hỏi "mẫu này có gần mục tiêu không" (câu hỏi dẫn đến trung bình hóa), GAN hỏi "mẫu này có giống thật không". Đó là chìa khóa của các vocoder nhanh và sắc nét.
+- **[Chương 10 – Normalizing flows](ch10-normalizing-flows.md)** xây dựng các biến đổi khả nghịch có Jacobian dễ tính để có likelihood chính xác mà vẫn lấy mẫu song song (Glow-TTS, WaveGlow, khối flow của VITS).
+- **[Chương 11 – Diffusion](ch11-diffusion.md)** học cách khử nhiễu từng bước, biến bài toán sinh khó thành chuỗi các bài toán hồi quy dễ, mỗi bài *đơn mode* một cách cục bộ, một cách khéo léo để né đúng cái bẫy của mục 7.4.
+- **[Chương 12 – Flow matching](ch12-flow-matching.md)** đơn giản hóa diffusion thành bài toán hồi quy một trường vận tốc dọc theo các đường đi xác suất, nền tảng của Matcha-TTS, F5-TTS và bộ giải mã của nhiều hệ thống lai hiện đại.
+
+Một sợi chỉ đỏ nối các chương: **mỗi họ là một cách khác nhau để biến một nguồn ngẫu nhiên đơn giản thành mẫu của một phân phối phức tạp, đa mode**, sao cho mẫu nằm *trong* một mode thay vì nằm *giữa* các mode.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Cố ép loss mel L1/L2 xuống thấp mãi.** Theo Mệnh đề 7.1, loss có một cái sàn bằng phần phương sai có điều kiện mà văn bản không quyết định. Khi loss validation đã chững lại, tăng mô hình hay huấn luyện lâu thêm thường chỉ dẫn đến quá khớp. Hãy nghe thử mẫu, đo thống kê ngôn điệu, thay vì nhìn mỗi con số loss.
+- **Đánh giá mô hình sinh bằng đúng một mẫu cho mỗi câu.** Sinh ít nhất vài mẫu với các hạt giống khác nhau. Nếu các mẫu giống hệt nhau, mô hình của bạn thực chất đã thoái hóa thành một bộ hồi quy (hoặc một mode duy nhất).
+- **Rò rỉ tương lai trong mô hình tự hồi quy.** Đệm sai phía trong tích chập, quên mặt nạ nhân quả, hoặc dùng chuẩn hóa theo cả chuỗi (ví dụ BatchNorm trên trục thời gian khi huấn luyện) đều có thể làm rò rỉ. Dấu hiệu: loss huấn luyện thấp bất thường, suy luận ra rác. Hãy viết phép kiểm tra "song song bằng tuần tự" như ở mục 7.3.2.
+- **So sánh NLL giữa các cấu hình tiền xử lý khác nhau.** Đổi cách chuẩn hóa log-mel, đổi tần số lấy mẫu hay số kênh mel đều làm NLL không còn so sánh được.
+- **Lạm dụng nhiệt độ lấy mẫu.** Hạ nhiệt độ làm mẫu "sạch" hơn nhưng đơn điệu hơn, che giấu khuyết điểm của mô hình. Luôn báo cáo nhiệt độ và các tham số lấy mẫu (top-k, top-p) khi so sánh hệ thống.
+- **MDN cho ra NaN.** Nguyên nhân thường gặp: không giới hạn $\log \sigma$, tính log của tổng thay vì dùng `logsumexp`, tốc độ học quá lớn khiến một thành phần co $\sigma$ về 0. Kẹp $\log\sigma$ trong một khoảng hợp lý và khởi tạo các trung bình tách xa nhau.
+- **Nhãn bẩn làm bài toán một–nhiều nặng thêm.** Phiên âm sai, chuẩn hóa văn bản không nhất quán (cùng "2024" lúc đọc "hai nghìn không trăm hai mươi tư", lúc đọc "hai không hai bốn") khiến cùng một văn bản đi với nhiều tiếng nói hoàn toàn khác nhau, mô hình sẽ "trung bình hóa" giữa chúng. Làm sạch dữ liệu ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md), [Chương 36](../phan-9-thuc-tien/ch36-du-lieu-tts.md)) thường rẻ hơn mọi cải tiến mô hình.
+- **Tin FAD một mình.** FAD tốt không bảo đảm mô hình đọc đúng văn bản; luôn đi kèm WER/CER và nghe thử.
+
+## Tóm tắt
+
+- Mô hình sinh học phân phối $p_\theta(\mathbf{x})$ hoặc $p_\theta(\mathbf{x} \mid \mathbf{c})$; ba việc chính là ước lượng mật độ, lấy mẫu và học biểu diễn. Các họ mô hình khác nhau ở cách chúng xử lý likelihood: chính xác (tự hồi quy, flow), xấp xỉ (VAE, diffusion), ẩn (GAN), hoặc huấn luyện bằng hồi quy trường vận tốc (flow matching).
+- MLE tương đương cực tiểu hóa $D_{\mathrm{KL}}(p_{\text{data}} \Vert p_\theta)$, có xu hướng phủ mode; với một họ mô hình quá nghèo, MLE đặt khối xác suất vào giữa các mode.
+- Mô hình tự hồi quy phân rã mật độ chính xác theo quy tắc chuỗi, huấn luyện song song nhờ teacher forcing nhưng suy luận tuần tự, và chịu exposure bias.
+- TTS là bài toán sinh có điều kiện **một–nhiều**: $H(\mathbf{Y} \mid \mathbf{x})$ lớn vì văn bản không quyết định trường độ, F0, năng lượng, phong cách, kênh thu, pha.
+- Hồi quy L2 hội tụ về $\mathbb{E}[\mathbf{Y} \mid \mathbf{x}]$, L1 hội tụ về trung vị từng chiều. Cả hai là MLE với họ đơn mode, độc lập giữa các chiều, phương sai cố định.
+- Hệ quả là hiện tượng trơn quá mức: trung bình rơi vào vùng mật độ thấp, cấu trúc hài và chuyển tiếp bị nhòe, phương sai bị co rút một cách có hệ thống (định luật phương sai toàn phần). Với dạng sóng, trung bình qua pha gần như triệt tiêu tín hiệu.
+- Hai lối thoát bổ sung cho nhau: thêm điều kiện để giảm bất định (trường độ, F0, người nói, tham chiếu) và dùng mô hình sinh đầy đủ để lấy mẫu từ phần bất định còn lại.
+- MDN là cách sửa đơn giản nhất cho tính đơn mode, tốt cho đầu ra ít chiều nhưng không mở rộng được cho mel-spectrogram.
+- Không thước đo đơn lẻ nào đủ để đánh giá mô hình sinh: likelihood, FAD, precision/recall, MOS, WER, độ tương đồng người nói và độ đa dạng mẫu mỗi thứ nhìn một mặt.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Cho $Y$ nhận giá trị $-1$ và $+1$, mỗi giá trị với xác suất $1/2$ (hãy hình dung $Y$ là "độ dài khoảng ngắt" đã chuẩn hóa: hoặc ngắt dài, hoặc không ngắt). Tìm *mọi* nghiệm của $\min_c \mathbb{E}[(Y - c)^2]$ và $\min_c \mathbb{E}\lvert Y - c \rvert$, cùng giá trị loss tối ưu. Nghiệm nào trong số đó là một giá trị $Y$ có thể xảy ra?
+
+??? success "Lời giải"
+    $\mathbb{E}[(Y-c)^2] = 1 + c^2$ (vì $\mathbb{E}[Y] = 0$, $\mathbb{E}[Y^2] = 1$), cực tiểu duy nhất tại $c = 0$, loss bằng 1. Với L1: khi $c \in [-1, 1]$ thì $\mathbb{E}\lvert Y - c\rvert = \tfrac12(1 + c) + \tfrac12(1 - c) = 1$; khi $\lvert c \rvert > 1$ thì giá trị bằng $\lvert c \rvert > 1$. Vậy mọi $c \in [-1, 1]$ đều là nghiệm, loss bằng 1. Nghiệm L2 ($c = 0$, "ngắt nửa vời") không bao giờ xảy ra; với L1, chỉ hai đầu mút $c = \pm 1$ là giá trị có thật, và trình tối ưu không có lý do gì để chọn chúng thay vì một điểm ở giữa.
+
+**Bài 2 [Cơ bản].** Trong lớp `CausalConvAR` ở mục 7.3.2, giả sử ta đệm đối xứng hai phía (`Fn.pad(h, (pad // 2, pad - pad // 2))`) thay vì chỉ đệm bên trái. (a) Phép kiểm tra `assert` sẽ ra sao? (b) Khi huấn luyện, loss sẽ trông thế nào, và vì sao mô hình đó vô dụng khi suy luận?
+
+??? success "Lời giải"
+    (a) Đầu ra tại vị trí $t$ giờ phụ thuộc vào đầu vào tại các vị trí sau $t$, mà đầu vào tại $t+1$ chính là $s_t$ (do dịch phải một bước). Khi tính song song, mạng "nhìn thấy" giá trị cần dự đoán; khi tính tuần tự trên tiền tố, phần tương lai không tồn tại (bị đệm bằng 0). Hai cách tính cho kết quả khác nhau nên `assert` thất bại. (b) Khi huấn luyện, mạng học cách sao chép $s_t$ từ đầu vào, loss giảm rất nhanh xuống mức thấp bất thường. Khi suy luận, thông tin tương lai không có, nên mô hình chưa bao giờ học cách dự đoán thực sự và sinh ra rác.
+
+**Bài 3 [Cơ bản].** Chứng minh rằng nếu khớp một phân phối Gauss $\mathcal{N}(\mu, \sigma^2)$ vào một phân phối $p$ bất kỳ (có mô-men bậc hai hữu hạn) bằng cách cực tiểu $D_{\mathrm{KL}}(p \Vert \mathcal{N}(\mu, \sigma^2))$, nghiệm là $\mu = \mathbb{E}_p[y]$, $\sigma^2 = \operatorname{Var}_p(y)$. Áp dụng cho hỗn hợp $p = \sum_k \pi_k \mathcal{N}(\mu_k, \sigma_k^2)$ và kiểm tra lại con số $\sigma \approx 2{,}06$ trong mục 7.2.2.
+
+??? success "Lời giải"
+    Cực tiểu KL thuận tương đương cực đại $J(\mu, \sigma^2) = \mathbb{E}_p[\log \mathcal{N}(y; \mu, \sigma^2)] = -\tfrac12 \log(2\pi\sigma^2) - \mathbb{E}_p[(y - \mu)^2] / (2\sigma^2)$. Đạo hàm theo $\mu$: $\mathbb{E}_p[y - \mu] / \sigma^2 = 0 \Rightarrow \mu = \mathbb{E}_p[y]$. Đạo hàm theo $\sigma^2$: $-1/(2\sigma^2) + \mathbb{E}_p[(y-\mu)^2] / (2\sigma^4) = 0 \Rightarrow \sigma^2 = \mathbb{E}_p[(y-\mu)^2]$. Với hỗn hợp: $\mu = \sum_k \pi_k \mu_k$ và $\sigma^2 = \sum_k \pi_k(\sigma_k^2 + \mu_k^2) - \mu^2$. Với $\pi = (0.5, 0.5)$, $\mu_k = \pm 2$, $\sigma_k = 0.5$: $\mu = 0$, $\sigma^2 = 0.25 + 4 = 4.25$, $\sigma \approx 2.06$.
+
+**Bài 4 [Nâng cao].** Mô hình hóa biên độ phổ (thang tuyến tính) của một khung hữu thanh là $Y(k) = \sum_{h \ge 1} g(k - h f_0)$ với $g(u) = \exp(-u^2 / (2w^2))$, trong đó $k$ là chỉ số bin và $f_0 \sim \mathcal{N}(\bar{f}, s^2)$ thay đổi giữa các lần đọc. Chứng minh
+
+$$
+\mathbb{E}[Y(k)] = \sum_{h \ge 1} \frac{w}{\sqrt{w^2 + h^2 s^2}} \exp\!\left( -\frac{(k - h\bar{f})^2}{2(w^2 + h^2 s^2)} \right).
+$$
+
+Từ đó giải thích vì sao các hài bậc cao bị nhòe nhiều hơn hài bậc thấp. Tính chiều cao đỉnh của hài thứ nhất và thứ mười khi $w = 0.6$ và $s = 0.5$ (đơn vị bin).
+
+??? tip "Gợi ý"
+    Vị trí hài thứ $h$ là $u = h f_0 \sim \mathcal{N}(h\bar{f}, h^2 s^2)$. Cần tính tích chập của một hàm Gauss (chưa chuẩn hóa) với một mật độ Gauss.
+
+??? success "Lời giải"
+    $\mathbb{E}[g(k - u)] = \int \exp\!\big(-\tfrac{(k-u)^2}{2w^2}\big)\, \mathcal{N}(u; h\bar{f}, h^2 s^2)\, du = \sqrt{2\pi w^2}\, \int \mathcal{N}(k; u, w^2)\, \mathcal{N}(u; h\bar{f}, h^2s^2)\, du = \sqrt{2\pi w^2}\, \mathcal{N}(k; h\bar{f}, w^2 + h^2 s^2)$, vì tích chập hai mật độ Gauss là một mật độ Gauss có phương sai bằng tổng. Rút gọn được biểu thức cần chứng minh. Đỉnh hài thứ $h$ có chiều cao $w / \sqrt{w^2 + h^2 s^2}$ (giảm theo $h$) và độ rộng $\sqrt{w^2 + h^2 s^2}$ (tăng theo $h$). Với $w = 0.6$, $s = 0.5$: hài thứ nhất cao $0.6 / \sqrt{0.61} \approx 0.77$, hài thứ mười chỉ còn $0.6 / \sqrt{25.36} \approx 0.12$. Trong phổ trung bình, vùng tần số cao gần như mất hẳn cấu trúc hài, đó là nguồn gốc của âm sắc "đục" và "rè".
+
+**Bài 5 [Nâng cao].** (a) Chứng minh $\log\big(\alpha p(\mathbf{x}) + (1-\alpha) q(\mathbf{x})\big) \ge \log \alpha + \log p(\mathbf{x})$ với mọi $\alpha \in (0, 1]$. (b) Dùng kết quả này để lập luận rằng một mô hình có 99% mẫu là rác vẫn có thể có NLL trên mỗi chiều gần như bằng một mô hình tốt khi số chiều $d$ lớn. (c) Điều này nói gì về việc dùng NLL để chọn checkpoint cho một mô hình TTS?
+
+??? success "Lời giải"
+    (a) Vì $(1-\alpha) q(\mathbf{x}) \ge 0$ và $\log$ đồng biến. (b) NLL của hỗn hợp không vượt quá NLL của $p$ cộng $-\log \alpha$; chia cho $d$, mức chênh lệch trên mỗi chiều tối đa là $-\log(\alpha)/d$, tiến về 0 khi $d$ lớn (ví dụ $4.6 / 16000 \approx 3 \times 10^{-4}$ nat). (c) NLL có thể dùng để phát hiện mô hình hỏng nặng hoặc quá khớp, nhưng không đủ để chọn giữa các checkpoint có NLL gần nhau; cần kết hợp nghe thử, WER và các thước đo theo mẫu.
+
+**Bài 6 [Nâng cao].** Chứng minh rằng thêm điều kiện $\mathbf{c}$ không làm tăng phần lỗi không thể giảm trong Mệnh đề 7.1, tức là $\mathbb{E}\big[\operatorname{tr}\operatorname{Cov}(\mathbf{Y} \mid \mathbf{x}, \mathbf{c})\big] \le \mathbb{E}\big[\operatorname{tr}\operatorname{Cov}(\mathbf{Y} \mid \mathbf{x})\big]$. Khi nào xảy ra dấu bằng? Liên hệ với bộ thích nghi phương sai của FastSpeech 2.
+
+??? success "Lời giải"
+    Áp dụng định luật phương sai toàn phần có điều kiện trên $\mathbf{x}$: $\operatorname{Cov}(\mathbf{Y} \mid \mathbf{x}) = \mathbb{E}\big[\operatorname{Cov}(\mathbf{Y} \mid \mathbf{x}, \mathbf{c}) \,\big\vert\, \mathbf{x}\big] + \operatorname{Cov}\big(\mathbb{E}[\mathbf{Y} \mid \mathbf{x}, \mathbf{c}] \,\big\vert\, \mathbf{x}\big)$. Lấy vết: số hạng thứ hai có vết không âm vì là ma trận hiệp phương sai. Lấy kỳ vọng theo $\mathbf{x}$ được bất đẳng thức. Dấu bằng xảy ra khi $\mathbb{E}[\mathbf{Y} \mid \mathbf{x}, \mathbf{c}]$ không phụ thuộc $\mathbf{c}$ (hầu chắc chắn), tức $\mathbf{c}$ không mang thêm thông tin nào về trung bình của $\mathbf{Y}$. FastSpeech 2 cung cấp trường độ, cao độ, năng lượng thật khi huấn luyện, chính là những $\mathbf{c}$ giải thích phần lớn biến thiên của mel, nên bộ giải mã hồi quy bớt nhòe.
+
+**Bài 7 [Lập trình].** Sửa thí nghiệm ở mục 7.4.4 theo "lối A": nối thêm giá trị F0 (đã trừ đi 6) vào đầu vào one-hot, tăng kích thước mạng và số bước huấn luyện. Đo lại độ tương phản phổ và tỉ lệ phương sai được tái tạo. So sánh với kết quả ban đầu và giải thích bằng Bài 6.
+
+??? tip "Gợi ý"
+    Một MLP hai lớp ẩn 256 đơn vị, khoảng 1500 bước Adam với tốc độ học $3 \times 10^{-3}$ là đủ. Khi người biên soạn thử, độ tương phản phổ trở về xấp xỉ mức của dữ liệu và tỉ lệ phương sai được tái tạo lên gần 100%: một khi biết F0, phần còn lại của bài toán gần như là một–một.
+
+**Bài 8 [Lập trình].** Với ví dụ MDN ở mục 7.5.3: (a) huấn luyện với $K = 1, 3, 5$ và so sánh NLL cuối cùng; (b) với $K = 3$, sinh 1000 mẫu tại $x = 0.5$ và vẽ histogram; (c) kiểm tra bằng số rằng trung bình của các mẫu MDN xấp xỉ bằng dự đoán của bộ hồi quy L2, rồi giải thích vì sao điều đó phải đúng.
+
+??? tip "Gợi ý"
+    (c) Bộ hồi quy L2 tối ưu xuất ra $\mathbb{E}[y \mid x]$; một MDN khớp tốt có trung bình $\sum_k \pi_k \mu_k \approx \mathbb{E}[y \mid x]$. Hai mô hình đồng ý về *trung bình*, chỉ khác nhau ở chỗ MDN biết rằng không mẫu thật nào nằm gần trung bình đó.
+
+**Bài 9 [Lập trình].** Viết hàm `diversity(samples)` nhận một tensor `(S, T)` gồm $S$ đường F0 sinh ra cho cùng một câu (đã căn về cùng độ dài) và trả về độ lệch chuẩn trung bình theo trục mẫu. Dùng nó để so sánh (a) một "mô hình hồi quy" luôn trả về cùng một đường, (b) một "mô hình sinh" cộng thêm biến thiên ngẫu nhiên có tương quan theo thời gian (ví dụ nhiễu Gauss đã làm trơn bằng trung bình trượt). Thảo luận: vì sao nhiễu trắng độc lập theo từng khung là một mô hình *tồi* cho biến thiên ngôn điệu, dù nó cho độ đa dạng cao?
+
+## Tài liệu tham khảo
+
+1. Bishop, C. M. (1994). *Mixture Density Networks*. Technical Report NCRG/94/004, Aston University.
+2. Bishop, C. M. (2006). *Pattern Recognition and Machine Learning*. Springer.
+3. Goodfellow, I., Bengio, Y., Courville, A. (2016). *Deep Learning*. MIT Press.
+4. Goodfellow, I. (2016). *NIPS 2016 Tutorial: Generative Adversarial Networks*. arXiv.
+5. Murphy, K. P. (2023). *Probabilistic Machine Learning: Advanced Topics*. MIT Press.
+6. Xiao, Z., Kreis, K., Vahdat, A. (2022). *Tackling the Generative Learning Trilemma with Denoising Diffusion GANs*. ICLR.
+7. van den Oord, A. và cộng sự (2016a). *WaveNet: A Generative Model for Raw Audio*. arXiv:1609.03499.
+8. van den Oord, A., Kalchbrenner, N., Kavukcuoglu, K. (2016b). *Pixel Recurrent Neural Networks*. ICML.
+9. Salimans, T., Karpathy, A., Chen, X., Kingma, D. P. (2017). *PixelCNN++: Improving the PixelCNN with Discretized Logistic Mixture Likelihood and Other Modifications*. ICLR.
+10. Ranzato, M., Chopra, S., Auli, M., Zaremba, W. (2016). *Sequence Level Training with Recurrent Neural Networks*. ICLR.
+11. Bengio, S., Vinyals, O., Jaitly, N., Shazeer, N. (2015). *Scheduled Sampling for Sequence Prediction with Recurrent Neural Networks*. NeurIPS.
+12. Huszár, F. (2015). *How (not) to Train your Generative Model: Scheduled Sampling, Likelihood, Adversary?* arXiv.
+13. Wang, Y. và cộng sự (2017). *Tacotron: Towards End-to-End Speech Synthesis*. Interspeech.
+14. Shen, J. và cộng sự (2018). *Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions*. ICASSP.
+15. Ren, Y. và cộng sự (2021). *FastSpeech 2: Fast and High-Quality End-to-End Text to Speech*. ICLR.
+16. Ren, Y., Tan, X., Qin, T., Zhao, Z., Liu, T.-Y. (2022). *Revisiting Over-Smoothness in Text to Speech*. ACL.
+17. Toda, T., Tokuda, K. (2007). *A Speech Parameter Generation Algorithm Considering Global Variance for HMM-Based Speech Synthesis*. IEICE Transactions on Information and Systems, E90-D(5).
+18. Zen, H., Senior, A. (2014). *Deep Mixture Density Networks for Acoustic Modeling in Statistical Parametric Speech Synthesis*. ICASSP.
+19. Theis, L., van den Oord, A., Bethge, M. (2016). *A Note on the Evaluation of Generative Models*. ICLR.
+20. Heusel, M. và cộng sự (2017). *GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium*. NeurIPS.
+21. Kilgour, K., Zuluaga, M., Roblek, D., Sharifi, M. (2019). *Fréchet Audio Distance: A Reference-Free Metric for Evaluating Music Enhancement Algorithms*. Interspeech.
+22. Sajjadi, M. S. M. và cộng sự (2018). *Assessing Generative Models via Precision and Recall*. NeurIPS.
+23. Kynkäänniemi, T. và cộng sự (2019). *Improved Precision and Recall Metric for Assessing Generative Models*. NeurIPS.
+24. Tan, X., Qin, T., Soong, F., Liu, T.-Y. (2021). *A Survey on Neural Speech Synthesis*. arXiv.
+25. Kim, J., Kong, J., Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML.
+26. Kong, J., Kim, J., Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS.
+27. Kim, J., Kim, S., Kong, J., Yoon, S. (2020). *Glow-TTS: A Generative Flow for Text-to-Speech via Monotonic Alignment Search*. NeurIPS.
+28. Popov, V. và cộng sự (2021). *Grad-TTS: A Diffusion Probabilistic Model for Text-to-Speech*. ICML.
+29. Mehta, S. và cộng sự (2024). *Matcha-TTS: A Fast TTS Architecture with Conditional Flow Matching*. ICASSP.
+30. Wang, C. và cộng sự (2023). *Neural Codec Language Models are Zero-Shot Text to Speech Synthesizers*. arXiv:2301.02111.

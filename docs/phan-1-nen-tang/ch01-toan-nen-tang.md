@@ -852,3 +852,105 @@ print("DFT bằng ma trận khớp np.fft.fft; định lý Parseval được ngh
 Nhân ma trận trực tiếp tốn $O(N^2)$ phép tính; thuật toán **FFT** tính cùng kết quả trong $O(N\log N)$ bằng cách khai thác cấu trúc đặc biệt của $\mathbf{F}$. Với tín hiệu thực, $X[N - k]$ là liên hợp phức của $X[k]$, nên chỉ cần giữ $N/2 + 1$ bin đầu: đó là lý do `n_fft = 1024` cho 513 bin như ở Mục 1.2.7. Với $f_s = 22\,050$ Hz, các bin cách nhau $22\,050/1024 \approx 21{,}5$ Hz.
 
 **Liên hệ với TTS.** Áp DFT lên từng đoạn ngắn của tín hiệu ta được STFT, một ma trận số phức theo thời gian và tần số. Mel-spectrogram chỉ giữ **biên độ** (qua $\lvert\cdot\rvert^2$) rồi chiếu xuống thang mel, nên **toàn bộ thông tin pha bị bỏ đi**. Khôi phục pha là bài toán khó: Griffin–Lim làm điều đó bằng lặp ([Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md)), các vocoder nơ-ron học cách sinh dạng sóng trực tiếp ([Chương 24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md), [Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)), còn những vocoder như Vocos dự đoán thẳng biên độ và pha rồi dùng STFT ngược.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Lấy logarit của số 0.** Mel-spectrogram có những ô năng lượng bằng hoặc gần 0 (đoạn im lặng, dải tần bị lọc). `log(0) = -inf` sẽ lan ra thành `NaN` trong gradient. Luôn kẹp giá trị trước khi lấy log, ví dụ `torch.log(torch.clamp(mel, min=1e-5))` như trong mã nguồn HiFi-GAN. Ngưỡng kẹp và cơ số log là một phần của "hợp đồng" giữa mô hình âm học và vocoder: hai bên phải dùng **cùng** cấu hình ([Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md), [Chương 26](../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh.md)).
+- **Tràn số trong softmax.** Tính $e^{z}$ với $z = 1000$ cho `inf`. Dùng mẹo log-sum-exp: $\log\sum_j e^{z_j} = m + \log\sum_j e^{z_j - m}$ với $m = \max_j z_j$. Trong PyTorch, hãy dùng `torch.logsumexp`, `F.log_softmax` và truyền **logit** (chưa qua softmax) vào `F.cross_entropy`; đừng tự tính `softmax` rồi lấy `log`.
+- **Định thức tràn hoặc mất số.** Định thức của ma trận lớn dễ vượt khỏi dải biểu diễn của số thực dấu phẩy động. Khi cần $\log\lvert\det\mathbf{A}\rvert$, dùng `torch.linalg.slogdet` thay vì `torch.log(torch.det(A))`.
+- **Nhầm độ lệch chuẩn với phương sai.** `torch.distributions.Normal(loc, scale)` nhận **độ lệch chuẩn**, còn `torch.nn.GaussianNLLLoss` nhận **phương sai**. Thêm nữa, `torch.var` mặc định dùng ước lượng không chệch (chia cho $n - 1$), còn `numpy.var` mặc định chia cho $n$. Khi so sánh số liệu thống kê giữa hai thư viện, hãy kiểm tra tham số này.
+- **Nhầm chiều của KL.** `F.kl_div(input, target)` coi `input` là **log** xác suất của $q$ và `target` là xác suất của $p$, rồi tính $D_{\mathrm{KL}}(p \,\Vert\, q)$. Truyền xác suất thay vì log xác suất, hoặc đảo vai trò hai đối số, đều không báo lỗi nhưng cho kết quả sai. Dùng `reduction="batchmean"` để có đúng giá trị KL trung bình trên mỗi mẫu.
+- **Ma trận hiệp phương sai "gần như" PSD.** Do sai số làm tròn, một ma trận hiệp phương sai ước lượng từ dữ liệu có thể có trị riêng hơi âm, khiến phân rã Cholesky thất bại. Mẹo chuẩn: cộng một lượng nhỏ $\varepsilon\mathbf{I}$ (*jitter*) vào đường chéo.
+- **Kiểm chứng gradient bằng `float32`.** Sai phân hữu hạn với `float32` rất kém chính xác. Hãy kiểm chứng công thức bằng `float64`, còn huấn luyện thì dùng `float32` hoặc thấp hơn ([Chương 3](ch03-toi-uu-va-ky-thuat-huan-luyen.md)).
+- **Lẫn lộn bit và nat.** Bài báo về codec hoặc mô hình ngôn ngữ thường báo cáo theo bit (hoặc bit trên mỗi chiều), còn PyTorch trả về loss theo nat. Chia cho $\ln 2$ để đổi nat sang bit trước khi so sánh.
+
+## Tóm tắt
+
+- Mọi dữ liệu trong TTS là tensor: một khung mel là véc-tơ trong $\mathbb{R}^{F}$, một câu là ma trận $T \times F$, một batch là tensor `(B, T, F)`. Một lớp tuyến tính là một ngân hàng các tích vô hướng.
+- Bộ lọc mel là ma trận $80 \times 513$ có hạng tối đa 80; theo định lý hạng–số khuyết, không gian rỗng có ít nhất 433 chiều, nên mel làm mất thông tin và vocoder phải *sinh* lại chi tiết chứ không thể chỉ "nghịch đảo".
+- Phân rã riêng mô tả ma trận đối xứng (hiệp phương sai, Hessian); SVD mô tả mọi ma trận. Giá trị kỳ dị lớn nhất là chuẩn phổ (cơ sở của spectral normalization), và SVD rút gọn cho xấp xỉ hạng thấp tối ưu (ý tưởng nền của LoRA).
+- Gradient là hướng tăng nhanh nhất; khai triển Taylor giải thích vì sao bước gradient nhỏ làm giảm hàm mất mát và vì sao sai phân trung tâm có sai số $O(h^2)$.
+- Jacobian của hàm hợp là tích các Jacobian; với hàm mất mát vô hướng, lan truyền ngược là chuỗi tích véc-tơ–Jacobian tính từ cuối về đầu.
+- Giả định nhiễu Gauss dẫn tới mất mát L2 (dự đoán trung bình), nhiễu Laplace dẫn tới L1 (dự đoán trung vị). Khi $p(\mathbf{Y} \mid \mathbf{x})$ nhiều chế độ, cả hai đều gây over-smoothing, và đây là động lực cho các mô hình sinh.
+- Công thức đổi biến $\log p_{\mathbf{Y}} = \log p_{\mathbf{X}} - \log\lvert\det\mathbf{J}\rvert$ là nền tảng của normalizing flow; ước lượng Monte Carlo có sai số giảm theo $1/\sqrt{n}$ và có mặt trong mọi gradient minibatch.
+- Cực tiểu entropy chéo, cực tiểu KL thuận và cực đại log-likelihood là cùng một việc. KL thuận phủ mọi chế độ, KL nghịch bám một chế độ. Thông tin tương hỗ là ngôn ngữ của bài toán tách rời giọng nói và nội dung.
+- Số phức gói biên độ và pha vào một con số; DFT là phép biến đổi tuyến tính trực giao. Mel-spectrogram bỏ đi pha, và khôi phục pha là nhiệm vụ của vocoder.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Một cấu hình phổ biến khác dùng `n_fft = 2048` và 128 kênh mel. Ma trận bộ lọc mel khi đó có kích thước bao nhiêu? Không gian rỗng có ít nhất bao nhiêu chiều? Tăng số kênh mel có làm bài toán vocoder "dễ hơn" không, và cái giá phải trả là gì?
+
+??? success "Lời giải"
+    Phổ có $2048/2 + 1 = 1025$ bin, nên ma trận có kích thước $128 \times 1025$, hạng tối đa 128, và không gian rỗng có ít nhất $1025 - 128 = 897$ chiều. Thêm kênh mel giữ lại nhiều chi tiết tần số hơn (không gian rỗng nhỏ đi tương đối), nên vocoder phải "đoán" ít hơn. Cái giá là mô hình âm học phải dự đoán một mục tiêu nhiều chiều hơn, và mỗi kênh mel hẹp hơn nên chứa ít bin hơn, có thể nhiễu hơn. Dù vậy, pha vẫn bị bỏ đi hoàn toàn bất kể số kênh mel.
+
+**Bài 2 [Cơ bản].** Tiếng Việt có sáu thanh. (a) Nếu sáu thanh xuất hiện đồng khả năng, entropy của thanh điệu là bao nhiêu bit? (b) Với một phân phối giả định $(0{,}30;\, 0{,}20;\, 0{,}20;\, 0{,}10;\, 0{,}05;\, 0{,}15)$, entropy là bao nhiêu? Vì sao nó nhỏ hơn ở câu (a)?
+
+??? success "Lời giải"
+    (a) $\log_2 6 \approx 2{,}585$ bit. (b) $H = -\sum_k p_k\log_2 p_k \approx 0{,}521 + 2 \times 0{,}464 + 0{,}332 + 0{,}216 + 0{,}411 \approx 2{,}41$ bit. Phân phối đều có entropy lớn nhất trong các phân phối trên cùng tập giá trị; mọi độ lệch khỏi phân phối đều đều làm kết quả dễ đoán hơn, tức entropy nhỏ hơn. (Tần suất thanh điệu thật phụ thuộc kho ngữ liệu; con số ở câu (b) chỉ để luyện tập.)
+
+**Bài 3 [Cơ bản].** Chứng minh $\nabla_{\mathbf{x}}(\mathbf{x}^\top\mathbf{A}\mathbf{x}) = (\mathbf{A} + \mathbf{A}^\top)\mathbf{x}$ bằng cách viết biểu thức dưới dạng tổng theo từng thành phần. Suy ra $\nabla_{\mathbf{x}}\lVert\mathbf{x}\rVert_2^2 = 2\mathbf{x}$.
+
+??? tip "Gợi ý"
+    Viết $\mathbf{x}^\top\mathbf{A}\mathbf{x} = \sum_{i}\sum_{j} x_i A_{ij} x_j$. Khi lấy đạo hàm theo $x_k$, có hai nhóm số hạng chứa $x_k$: nhóm $i = k$ cho $\sum_j A_{kj}x_j = (\mathbf{A}\mathbf{x})_k$ và nhóm $j = k$ cho $\sum_i x_i A_{ik} = (\mathbf{A}^\top\mathbf{x})_k$. Với $\mathbf{A} = \mathbf{I}$ ta được kết quả thứ hai.
+
+**Bài 4 [Nâng cao].** Với $\tau \in (0, 1)$, hàm mất mát phân vị (*pinball loss*) là $\rho_\tau(u) = u\,(\tau - \mathbb{1}[u < 0])$. Chứng minh rằng $c^\star = \arg\min_c \mathbb{E}[\rho_\tau(Y - c)]$ thỏa mãn $P(Y \le c^\star) = \tau$, tức $c^\star$ là phân vị mức $\tau$. Kiểm tra rằng $\tau = 0{,}5$ cho lại kết quả "L1 dự đoán trung vị".
+
+??? tip "Gợi ý"
+    Giả sử $Y$ có mật độ. Tách kỳ vọng thành hai miền $Y \ge c$ và $Y < c$: $\mathbb{E}[\rho_\tau(Y - c)] = \tau\int_{c}^{\infty}(y - c)p(y)\,dy + (\tau - 1)\int_{-\infty}^{c}(y - c)p(y)\,dy$. Lấy đạo hàm theo $c$ (quy tắc Leibniz; các số hạng biên bằng 0 vì hàm dưới dấu tích phân triệt tiêu tại $y = c$) được $-\tau(1 - F(c)) + (1 - \tau)F(c) = F(c) - \tau$. Với $\tau = 0{,}5$, $\rho_{0.5}(u) = \tfrac{1}{2}\lvert u \rvert$.
+
+**Bài 5 [Nâng cao].** Cho phân phối $p$ bất kỳ trên $\mathbb{R}$ có kỳ vọng $m$ và phương sai $s^2$. Chứng minh rằng trong họ Gauss $q = \mathcal{N}(\mu, \sigma^2)$, KL thuận $D_{\mathrm{KL}}(p \,\Vert\, q)$ nhỏ nhất khi $\mu = m$ và $\sigma^2 = s^2$ (**khớp mô-men**). Áp dụng cho hỗn hợp $\tfrac{1}{2}\mathcal{N}(-2{,}5;\, 0{,}6^2) + \tfrac{1}{2}\mathcal{N}(2{,}5;\, 0{,}6^2)$ và so sánh với kết quả tìm kiếm lưới ở Mục 1.5.3.
+
+??? success "Lời giải"
+    $D_{\mathrm{KL}}(p \,\Vert\, q) = -h(p) - \mathbb{E}_p[\log q(X)]$, và số hạng đầu không phụ thuộc $(\mu, \sigma)$. Ta có $-\mathbb{E}_p[\log q(X)] = \tfrac{1}{2}\log(2\pi\sigma^2) + \frac{\mathbb{E}_p[(X - \mu)^2]}{2\sigma^2}$. Vì $\mathbb{E}_p[(X - \mu)^2] = s^2 + (m - \mu)^2$, cực tiểu theo $\mu$ cho $\mu = m$. Thay vào và lấy đạo hàm theo $\sigma^2$: $\frac{1}{2\sigma^2} - \frac{s^2}{2\sigma^4} = 0 \Rightarrow \sigma^2 = s^2$. Với hỗn hợp đã cho, $m = 0$ và $s^2 = 0{,}6^2 + 2{,}5^2 = 6{,}61$ (phương sai trong mỗi thành phần cộng phương sai của các tâm), nên $\sigma \approx 2{,}571$, khớp với giá trị lưới $2{,}55$ trong phạm vi bước lưới $\approx 0{,}05$.
+
+**Bài 6 [Nâng cao].** Cho $\mathbf{x} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ trong $\mathbb{R}^{d}$ và $\mathbf{y} = \mathbf{A}\mathbf{x} + \mathbf{b}$ với $\mathbf{A}$ khả nghịch. Dùng công thức đổi biến để viết $\log p_{\mathbf{Y}}(\mathbf{y})$, rồi chứng tỏ kết quả trùng với $\log\mathcal{N}(\mathbf{y}; \mathbf{b}, \mathbf{A}\mathbf{A}^\top)$.
+
+??? tip "Gợi ý"
+    $\mathbf{x} = \mathbf{A}^{-1}(\mathbf{y} - \mathbf{b})$ và $\mathbf{J}_{\mathbf{g}} = \mathbf{A}$. Dùng $\lVert\mathbf{A}^{-1}\mathbf{u}\rVert_2^2 = \mathbf{u}^\top(\mathbf{A}\mathbf{A}^\top)^{-1}\mathbf{u}$ và $\log\lvert\det\mathbf{A}\rvert = \tfrac{1}{2}\log\det(\mathbf{A}\mathbf{A}^\top)$.
+
+**Bài 7 [Lập trình].** Viết hàm `logsumexp(z)` ổn định số học bằng numpy theo mẹo trừ giá trị lớn nhất. So sánh với cách tính ngây thơ `np.log(np.sum(np.exp(z)))` và với `torch.logsumexp` cho `z = [1000.0, 1000.5, 999.0]` và `z = [-1000.0, -1000.5, -999.0]`.
+
+??? success "Lời giải"
+    ```python
+    import numpy as np
+    import torch
+
+    def logsumexp(z):
+        m = np.max(z)
+        return m + np.log(np.sum(np.exp(z - m)))   # mọi số mũ đều <= 0
+
+    for z in [np.array([1000.0, 1000.5, 999.0]), np.array([-1000.0, -1000.5, -999.0])]:
+        with np.errstate(over="ignore", divide="ignore"):
+            naive = np.log(np.sum(np.exp(z)))      # inf hoặc -inf
+        stable = logsumexp(z)
+        ref = torch.logsumexp(torch.tensor(z), dim=0).item()
+        print(naive, stable, ref)
+        assert np.isclose(stable, ref)
+    ```
+
+    Cách ngây thơ cho `inf` ở trường hợp đầu (tràn trên) và `-inf` ở trường hợp sau (tràn dưới), trong khi hàm ổn định cho kết quả đúng ở cả hai.
+
+**Bài 8 [Lập trình].** Tạo 1 024 mẫu của sóng sin 440 Hz với $f_s = 22\,050$ Hz. Dùng `np.fft.rfft` tìm bin có biên độ lớn nhất và đổi chỉ số bin ra Hz. Vì sao kết quả không đúng bằng 440 Hz, và vì sao năng lượng "lan" sang các bin lân cận? (Câu hỏi này dẫn vào khái niệm rò rỉ phổ ở [Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md).)
+
+??? tip "Gợi ý"
+    Bin $k$ ứng với tần số $k f_s/N \approx 21{,}5k$ Hz. Ta có $440/21{,}53 \approx 20{,}4$, không phải số nguyên, nên đỉnh nằm ở bin 20 (khoảng 430,7 Hz). Vì 1 024 mẫu không chứa một số nguyên chu kỳ của sóng, khi DFT ngầm coi tín hiệu là tuần hoàn thì xuất hiện chỗ "gãy" ở biên, gây rò rỉ năng lượng sang các bin lân cận.
+
+## Tài liệu tham khảo
+
+1. Goodfellow, I., Bengio, Y., Courville, A. (2016). *Deep Learning* (Chương 2–4). MIT Press.
+2. Deisenroth, M. P., Faisal, A. A., Ong, C. S. (2020). *Mathematics for Machine Learning*. Cambridge University Press.
+3. Bishop, C. M. (2006). *Pattern Recognition and Machine Learning*. Springer.
+4. Murphy, K. P. (2022). *Probabilistic Machine Learning: An Introduction*. MIT Press.
+5. Strang, G. (2016). *Introduction to Linear Algebra* (ấn bản 5). Wellesley-Cambridge Press.
+6. Petersen, K. B., Pedersen, M. S. (2012). *The Matrix Cookbook*. Technical University of Denmark.
+7. Shannon, C. E. (1948). *A mathematical theory of communication*. Bell System Technical Journal.
+8. Cover, T. M., Thomas, J. A. (2006). *Elements of Information Theory* (ấn bản 2). Wiley.
+9. Eckart, C., Young, G. (1936). *The approximation of one matrix by another of lower rank*. Psychometrika.
+10. Oppenheim, A. V., Schafer, R. W. (2010). *Discrete-Time Signal Processing* (ấn bản 3). Pearson.
+11. Shen, J. và cộng sự (2018). *Natural TTS synthesis by conditioning WaveNet on mel spectrogram predictions*. ICASSP.
+12. Kong, J., Kim, J., Bae, J. (2020). *HiFi-GAN: Generative adversarial networks for efficient and high fidelity speech synthesis*. NeurIPS.
+13. Kim, J., Kong, J., Son, J. (2021). *Conditional variational autoencoder with adversarial learning for end-to-end text-to-speech*. ICML.
+14. van den Oord, A. và cộng sự (2016). *WaveNet: A generative model for raw audio*. arXiv:1609.03499.
+15. van den Oord, A. và cộng sự (2018). *Parallel WaveNet: Fast high-fidelity speech synthesis*. ICML.
+16. Wang, C. và cộng sự (2023). *Neural codec language models are zero-shot text to speech synthesizers*. arXiv:2301.02111.
+17. Hu, E. J. và cộng sự (2022). *LoRA: Low-rank adaptation of large language models*. ICLR.
