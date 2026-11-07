@@ -159,7 +159,9 @@ def g2p(text: str, dialect: str = "north", *, normalize: bool = True) -> list[st
             if tokens and tokens[-1] == WORD_BOUNDARY:
                 tokens.pop()
             if tokens and tokens[-1] in PUNCTUATION:
-                continue  # gộp dấu câu liên tiếp
+                if tokens[-1] == "," and p in ".!?…":
+                    tokens[-1] = p  # gộp dấu câu liên tiếp, giữ dấu "mạnh" hơn
+                continue
             if tokens:
                 tokens.append(p)
             continue
