@@ -1,0 +1,9 @@
+site/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+*.wav
+!docs/assets/**/*.wav
+.ipynb_checkpoints/

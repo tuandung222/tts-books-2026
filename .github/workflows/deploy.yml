@@ -1,0 +1,61 @@
+name: Build & Deploy giáo trình
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Kiểm tra và build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cài đặt phụ thuộc
+        run: pip install -r requirements.txt
+
+      - name: Kiểm tra cấu trúc giáo trình
+        run: python scripts/check_book.py --stats
+
+      - name: Build site (strict)
+        run: mkdocs build --strict
+
+  deploy:
+    name: Deploy lên GitHub Pages (nhánh gh-pages)
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cài đặt phụ thuộc
+        run: pip install -r requirements.txt
+
+      - name: Cấu hình git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Đẩy site lên nhánh gh-pages
+        run: mkdocs gh-deploy --force --clean --message "Deploy {sha} với MkDocs {version}"
