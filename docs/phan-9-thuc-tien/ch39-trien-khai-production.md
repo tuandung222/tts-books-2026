@@ -409,7 +409,7 @@ Với TTS dựa trên LLM ([Chương 34](../phan-8-mo-hinh-lon/ch34-he-thong-lai
 
 - **PCM 16 bit** (*s16le*): không nén, không thêm độ trễ. Bitrate bằng $f_s \times 16$ bit/s cho một kênh: 256 kbit/s ở 16 kHz, 384 kbit/s ở 24 kHz. Với 1 000 luồng đồng thời ở 24 kHz, riêng băng thông đã là 384 Mbit/s.
 - **G.711** (μ-law hoặc A-law, 8 kHz, 64 kbit/s): chuẩn của mạng điện thoại; cần lấy mẫu lại xuống 8 kHz nếu hệ thống chạy qua tổng đài.
-- **Opus** (Valin và cộng sự, 2012): codec mở, độ trễ thấp, khung từ 2,5 đến 60 ms (mặc định 20 ms), bitrate từ 6 đến 510 kbit/s; với tiếng nói, vài chục kbit/s thường đã cho chất lượng tốt. Đây là lựa chọn mặc định cho streaming qua mạng.
+- **Opus** (Valin và cộng sự, 2012): codec mở, độ trễ thấp, khung từ 2,5 đến 60 ms (20 ms là lựa chọn phổ biến), bitrate từ 6 đến 510 kbit/s; với tiếng nói, vài chục kbit/s thường đã cho chất lượng tốt. Đây là lựa chọn mặc định cho streaming qua mạng.
 - **MP3/AAC**: phù hợp tệp tải về, không lý tưởng cho hội thoại vì độ trễ mã hóa và đặc điểm khung.
 
 Hai cái bẫy định dạng: (1) tệp WAV có trường kích thước dữ liệu ở phần đầu, mà khi streaming ta chưa biết kích thước; một số máy chủ ghi giá trị lớn nhất có thể vào đó, nhưng cách người dùng xử lý không thống nhất. Gửi PCM thô kèm khai báo định dạng, hoặc dùng định dạng chứa thiết kế cho streaming (Ogg, WebM), sẽ an toàn hơn. (2) Kiểu MIME `audio/L16` (RFC 2586) quy định thứ tự byte **big-endian**, trong khi PCM mà hầu hết thư viện sinh ra là little-endian; ghi nhãn sai sẽ cho ra tiếng rè.
@@ -633,3 +633,170 @@ Kết quả là 11 đoạn, ví dụ `Segment(kind='text', text='2/9/2026', ctrl
     - **`<prosody pitch>` và thanh điệu.** Thay đổi cao độ cho tiếng Việt phải giữ hình dạng đường nét thanh điệu. Dịch F0 theo thang logarit (cộng một số nửa cung, tức nhân tần số với một hằng số) giữ nguyên hình dạng tương đối của các thanh; còn nén khoảng biến thiên F0 ("đọc đều giọng") có thể làm các thanh huyền, ngang, sắc khó phân biệt ([Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)).
     - **`<say-as interpret-as="date">`.** Người Việt viết ngày theo thứ tự ngày/tháng/năm; mặc định của nhiều hệ thống quốc tế lại là tháng/ngày. Hãy đặt mặc định đúng và kiểm thử với các chuỗi mơ hồ như "2/9".
     - **`<say-as interpret-as="characters">`.** Đánh vần "AB12" theo tên chữ cái tiếng Việt ("a bê một hai") hay tiếng Anh ("ây bi") là quyết định sản phẩm, cần thống nhất với cách xử lý chữ viết tắt trong frontend ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md), [Chương 30](../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching.md)).
+
+## 39.7 Giám sát, chi phí và mở rộng quy mô
+
+### Giám sát
+
+Một dịch vụ TTS có thể "chạy bình thường" về mặt kỹ thuật (không lỗi, độ trễ ổn) trong khi chất lượng âm thanh đã giảm sút: sau khi cập nhật thư viện, một cấu hình mel bị đổi; sau khi cập nhật mô hình, một loại câu bắt đầu bị đọc lặp. Vì vậy giám sát cần hai lớp: **chỉ số hệ thống** và **chỉ số chất lượng**.
+
+| Nhóm | Chỉ số | Ghi chú |
+|---|---|---|
+| Độ trễ | TTFA và tổng thời gian, p50/p95/p99, tách theo độ dài văn bản | Cảnh báo theo p95, không theo trung bình |
+| Thông lượng | Số yêu cầu mỗi giây, số luồng đồng thời, RTF dưới tải | RTF dưới tải khác RTF khi máy rảnh |
+| Lỗi | Tỉ lệ lỗi 4xx/5xx, quá thời gian, hủy giữa chừng | Tách lỗi do người dùng và lỗi hệ thống |
+| Tài nguyên | Độ dài hàng đợi, mức dùng GPU và bộ nhớ GPU, CPU | Độ dài hàng đợi là tín hiệu sớm nhất của quá tải |
+| Chất lượng tự động | Tỉ lệ im lặng, tỉ lệ cắt đỉnh (*clipping*), tỉ lệ thời lượng âm thanh trên số âm tiết | Thời lượng bất thường là dấu hiệu của đọc lặp hoặc bỏ chữ |
+| Chất lượng định kỳ | CER bằng ASR và MOS dự đoán trên một bộ "câu vàng" cố định, chạy theo lịch | So sánh với giá trị nền trước mỗi lần cập nhật |
+
+Về nhật ký (*log*): văn bản người dùng gửi lên có thể chứa thông tin cá nhân (tên, số điện thoại, địa chỉ). Mặc định không ghi văn bản thô, hoặc chỉ ghi dạng đã che, và tuân thủ quy định về dữ liệu cá nhân ([Chương 40](../phan-9-thuc-tien/ch40-dao-duc-an-toan.md)).
+
+### Ước lượng chi phí
+
+Gọi $\rho_{\text{tải}}$ là RTF của mỗi luồng khi một GPU phục vụ đồng thời $n$ luồng (đo dưới tải, không phải khi máy rảnh). Mỗi giây đồng hồ, GPU sinh ra tổng cộng
+
+$$
+\Theta = \frac{n}{\rho_{\text{tải}}} \quad \text{(giây âm thanh trên mỗi giây)}.
+$$
+
+Nếu giá thuê một GPU là $P$ (USD/giờ), chi phí cho mỗi giờ âm thanh là $P / \Theta$. Ví dụ với số liệu **giả định**: giá thuê 2 USD/giờ, GPU phục vụ 16 luồng mà mỗi luồng vẫn đạt $\rho_{\text{tải}} = 0.5$, thì $\Theta = 32$ và chi phí khoảng $2/32 \approx 0{,}06$ USD cho mỗi giờ âm thanh, chưa tính CPU, mạng, lưu trữ, thời gian GPU nhàn rỗi và dự phòng. Công thức cho thấy hai đòn bẩy chi phí: tăng số luồng mỗi GPU (gom batch tốt hơn) và giảm RTF (các kỹ thuật ở Mục 39.3–39.4). Trong thực tế, chi phí bị chi phối bởi **tải đỉnh** và mức nhàn rỗi ngoài giờ cao điểm, nên khả năng co giãn quan trọng không kém tốc độ.
+
+### Lập kế hoạch năng lực với định luật Little
+
+**Định luật Little** (Little, 1961) phát biểu rằng trong một hệ thống ổn định, số yêu cầu trung bình đang nằm trong hệ thống bằng tốc độ đến nhân với thời gian trung bình mỗi yêu cầu ở trong hệ thống:
+
+$$
+L = \lambda\, W.
+$$
+
+Định luật đúng với hầu như mọi hệ thống hàng đợi, không cần giả định về phân phối. Ví dụ: một dịch vụ tổng đài nhận trung bình $\lambda = 20$ yêu cầu mỗi giây, mỗi yêu cầu streaming kéo dài trung bình $W = 3$ giây (thời gian phát câu trả lời), thì trung bình có $L = 60$ luồng đồng thời. Nếu mỗi GPU phục vụ tốt tối đa 16 luồng, cần ít nhất 4 GPU cho tải trung bình; cộng dự phòng cho tải đỉnh và cho việc một máy gặp sự cố, con số thực tế sẽ cao hơn. Lưu ý $W$ ở đây là thời gian *luồng chiếm tài nguyên*: với streaming, một luồng giữ chỗ trong suốt thời gian phát, chứ không chỉ trong thời gian sinh.
+
+### Mở rộng quy mô
+
+- **Co giãn theo độ dài hàng đợi hoặc độ trễ**, không theo mức dùng CPU: một dịch vụ GPU có thể quá tải trong khi CPU nhàn rỗi.
+- **Khởi động lạnh** (*cold start*): nạp mô hình vài GB, biên dịch, khởi động có thể mất từ vài chục giây đến vài phút. Giữ một nhóm bản sao "ấm" và chỉ đưa bản sao mới vào phục vụ sau khi đã khởi động và qua kiểm tra sức khỏe.
+- **Kết nối có trạng thái**: WebSocket và luồng streaming gắn với một bản sao; khi thu nhỏ quy mô phải "rút cạn" (*drain*) kết nối cũ một cách nhẹ nhàng, không cắt ngang câu đang đọc.
+- **Triển khai dần và so sánh**: đưa phiên bản mô hình mới cho một phần nhỏ lưu lượng, so sánh chỉ số chất lượng với phiên bản cũ trước khi mở rộng; luôn có đường lùi về phiên bản trước.
+
+## 39.8 Thiết bị biên và trình duyệt
+
+Chạy TTS ngay trên thiết bị loại bỏ độ trễ mạng, hoạt động khi không có kết nối, và giữ dữ liệu người dùng trên máy. Các ràng buộc chính là bộ nhớ, năng lượng, nhiệt và kích thước ứng dụng.
+
+**Ước lượng bộ nhớ.** Bộ nhớ cho trọng số xấp xỉ bằng số tham số nhân số byte mỗi tham số. Một mô hình 82 triệu tham số cần khoảng 328 MB ở fp32, 164 MB ở fp16 và 82 MB ở int8, chưa kể activation và bộ đệm. Một LM 0,5 tỉ tham số cần khoảng 1 GB ở fp16, vẫn khả thi trên điện thoại cao cấp nhưng tốn pin và sinh nhiệt khi chạy liên tục.
+
+**Bộ công cụ** (tính đến thời điểm biên soạn, 2026; hãy kiểm tra tài liệu và giấy phép mới nhất):
+
+- **ONNX Runtime** (bản di động và bản web với WebAssembly/WebGPU) là nền tảng chung của nhiều giải pháp.
+- **sherpa-onnx** (thuộc dự án k2-fsa) đóng gói suy luận ASR, TTS và phát hiện giọng nói trên ONNX Runtime cho nhiều nền tảng (Android, iOS, máy tính nhúng, WebAssembly), hỗ trợ một số họ mô hình TTS như VITS/Piper, Matcha-TTS và Kokoro.
+- **Piper** là hệ thống TTS cục bộ dựa trên VITS, xuất sang ONNX, dùng espeak-ng để chuyển văn bản thành âm vị, với nhiều giọng do cộng đồng huấn luyện, trong đó có giọng tiếng Việt. Dự án đã chuyển kho mã và có thay đổi về giấy phép trong năm 2025, nên hãy đọc kỹ trước khi dùng cho sản phẩm. [Dự án 3](../phan-10-du-an/du-an-3-vits-tieng-viet.md) hướng dẫn xuất mô hình VITS tiếng Việt theo hướng này.
+- **ExecuTorch** là môi trường chạy trên thiết bị của hệ sinh thái PyTorch, nhận đầu vào từ `torch.export`; **Core ML** trên thiết bị Apple; **LiteRT** (tên mới của TensorFlow Lite) trong hệ sinh thái TensorFlow.
+
+**Mẹo thực hành trên thiết bị:**
+
+- Chọn mô hình nhỏ ngay từ đầu (VITS, Matcha-TTS với vocoder nhẹ, mô hình cỡ Kokoro) thay vì cố nén một mô hình lớn.
+- Đặt số luồng bằng số lõi hiệu năng cao; dùng quá nhiều luồng trên lõi tiết kiệm điện thường chậm hơn.
+- Nạp và khởi động mô hình trước khi người dùng cần (khi mở ứng dụng), dùng ánh xạ bộ nhớ (*memory mapping*) cho tệp trọng số lớn.
+- Sinh và phát theo câu hoặc theo cụm để người dùng nghe được ngay ([Chương 35](../phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md)).
+- Theo dõi hiện tượng giảm xung nhịp do nhiệt: RTF đo trong 10 giây đầu có thể tốt hơn nhiều so với sau 10 phút đọc liên tục.
+
+!!! note "Góc tiếng Việt"
+    - **Frontend phải đi theo mô hình.** Chuẩn hóa văn bản và G2P tiếng Việt viết bằng Python ([Dự án 1](../phan-10-du-an/du-an-1-frontend-tieng-viet.md)) không chạy được trực tiếp trên điện thoại hay trình duyệt. Cần chuyển sang ngôn ngữ của nền tảng (Kotlin, Swift, C++, JavaScript) hoặc thiết kế frontend dạng bảng quy tắc dữ liệu để dùng chung. Một nguồn lỗi thường gặp là hai phiên bản frontend (máy chủ và thiết bị) xử lý khác nhau cùng một câu; hãy dùng chung một bộ kiểm thử.
+    - **Dữ liệu cá nhân.** Với các ứng dụng đọc nội dung nhạy cảm (tin nhắn, tài liệu cá nhân), chạy trên thiết bị giúp đơn giản hóa việc tuân thủ quy định về bảo vệ dữ liệu cá nhân; xem [Chương 40](../phan-9-thuc-tien/ch40-dao-duc-an-toan.md).
+
+## 39.9 Danh sách kiểm tra trước khi đưa vào vận hành
+
+- [ ] Mô hình đã xuất được kiểm thử số học với bản gốc ở nhiều độ dài, kể cả rất ngắn và rất dài.
+- [ ] Mọi tối ưu (lượng tử hóa, giảm số bước, biên dịch) đều đã qua lại toàn bộ bộ đánh giá chất lượng (CER, SIM, thanh điệu, nghe thử AB).
+- [ ] Cấu hình mel giữa mô hình âm học và vocoder được kiểm tra tự động, không chỉ bằng tài liệu.
+- [ ] Frontend ở môi trường triển khai cho kết quả giống hệt môi trường huấn luyện trên bộ câu kiểm thử (số, ngày, viết tắt, NFC).
+- [ ] Độ trễ (TTFA, p95) và RTF dưới tải đã được đo bằng kiểm thử tải với phân phối văn bản thực tế.
+- [ ] Có giới hạn đầu vào (độ dài văn bản, kích thước SSML, số kết nối) và thời gian chờ ở mọi tầng.
+- [ ] Bộ đệm trạng thái streaming gắn với từng phiên và được xóa khi kết thúc.
+- [ ] Hủy yêu cầu giải phóng tài nguyên GPU ngay lập tức.
+- [ ] Giám sát có cả chỉ số hệ thống và chỉ số chất lượng; có cảnh báo theo p95 và theo độ dài hàng đợi.
+- [ ] Không ghi văn bản thô của người dùng vào nhật ký khi không cần thiết.
+- [ ] Có quy trình triển khai dần, so sánh và quay lui phiên bản.
+- [ ] Đã rà soát giấy phép của trọng số, dữ liệu và giọng nói ([Chương 40](../phan-9-thuc-tien/ch40-dao-duc-an-toan.md)).
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Đo RTF mà quên đồng bộ GPU**: con số đẹp một cách đáng ngờ (RTF 0,0001) thường là dấu hiệu chỉ đo thời gian gửi lệnh.
+- **Trục động bị ghi cứng**: mô hình ONNX chạy đúng với độ dài lúc xuất nhưng lỗi hoặc sai với độ dài khác. Luôn kiểm thử nhiều độ dài.
+- **Weight norm còn trong đồ thị**: đồ thị cồng kềnh, chậm hơn; gỡ trước khi xuất.
+- **Lượng tử hóa nhầm trục kênh** của `ConvTranspose1d` (trục 1, không phải trục 0).
+- **Tràn số fp16** ở vocoder sinh ra `NaN` hoặc tiếng nổ; thử bf16 hoặc giữ một số lớp ở fp32.
+- **Tin rằng int8 luôn nhanh hơn**: lượng tử hóa động có thể làm mạng tích chập chậm đi; luôn đo trên phần cứng đích.
+- **Biên dịch lại liên tục** với `torch.compile` khi độ dài đầu vào thay đổi; đánh dấu trục động hoặc gom độ dài vào thùng.
+- **Ghi nhãn MIME sai** cho PCM (`audio/L16` là big-endian) hoặc gửi tiêu đề WAV với kích thước sai khi streaming.
+- **Bộ nhớ đệm đầu ra không chứa phiên bản mô hình** trong khóa, phát âm thanh cũ sau khi cập nhật.
+- **Cảnh báo theo trung bình**: trung bình độ trễ ổn trong khi 5% người dùng chờ vài giây.
+- **Bỏ quên frontend** khi tối ưu: một hàm chuẩn hóa văn bản dùng biểu thức chính quy kém hiệu quả có thể chậm hơn cả mô hình với câu dài.
+
+## Tóm tắt
+
+- Chọn mục tiêu triển khai (GPU, CPU, thiết bị, trình duyệt) trước, vì nó quyết định kích thước mô hình, công cụ xuất và kiến trúc phục vụ; đo phân bố thời gian trước khi tối ưu, theo định luật Amdahl.
+- Xuất mô hình (qua `torch.export`, ONNX, TensorRT) loại bỏ chi phí Python và cho phép tối ưu đồ thị; với TTS, tách mô hình tại các điểm có kích thước phụ thuộc dữ liệu, xuất từng bước cho vòng lặp, truyền nhiễu như đầu vào, và luôn kiểm thử số học ở nhiều độ dài.
+- Sai số lượng tử hóa đều có phương sai $s^2/12$, cho quy tắc khoảng 6 dB mỗi bit; thang đo tỉ lệ với giá trị lớn nhất nên giá trị ngoại lai là kẻ thù chính; lượng tử hóa theo kênh và cân bằng giữa các lớp là các cách đối phó.
+- Lượng tử hóa chỉ-trọng-số hiệu quả cho phần LM (giới hạn bởi băng thông bộ nhớ); với mạng tích chập, lượng tử hóa động có thể làm chậm đi; vocoder là khâu nhạy cảm nhất về chất lượng.
+- Giảm số bước sinh là đòn bẩy tốc độ lớn nhất cho mô hình khuếch tán/flow matching; `torch.compile` và CUDA graphs giảm chi phí khởi chạy nhưng cần khởi động và kích thước ổn định.
+- Phục vụ hiệu quả dựa vào gom batch động, batch liên tục cho phần tự hồi quy, gom theo độ dài để giảm đệm, và bộ nhớ đệm ở nhiều tầng.
+- Chọn giao thức theo nhu cầu: HTTP streaming cho văn bản có sẵn, WebSocket khi văn bản đến dần, WebRTC cho hội thoại thời gian thực; Opus là codec mặc định cho streaming qua mạng.
+- SSML ánh xạ xuống frontend (chuẩn hóa, G2P) và mô hình (trường độ, F0, giọng); với tiếng Việt, thay đổi cao độ phải giữ đường nét thanh điệu.
+- Giám sát cả chỉ số hệ thống lẫn chất lượng; ước lượng chi phí bằng thông lượng dưới tải và năng lực bằng định luật Little $L = \lambda W$.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Một đường ống TTS có phân bố thời gian: chuẩn hóa văn bản 15%, LM 50%, flow matching 25%, vocoder 10%. (a) Tăng tốc LM 2 lần bằng lượng tử hóa trọng số thì tốc độ tổng thể tăng bao nhiêu? (b) Nếu đồng thời giảm số bước flow matching từ 10 xuống 5, tốc độ tổng thể tăng bao nhiêu? (c) Giới hạn trên của tốc độ tổng thể nếu không động đến chuẩn hóa văn bản là bao nhiêu?
+
+??? success "Lời giải"
+    (a) $S = 1/(0.5 + 0.5/2) = 1/0.75 \approx 1.33$. (b) Thời gian còn lại: $0.15 + 0.25 + 0.125 + 0.10 = 0.625$, nên $S = 1/0.625 = 1.6$. (c) $1/0.15 \approx 6.7$ lần.
+
+**Bài 2 [Cơ bản].** Một dịch vụ phục vụ 2 000 luồng đồng thời. Tính băng thông ra khi gửi (a) PCM 16 bit, 24 kHz, một kênh; (b) Opus 24 kbit/s. (c) Khi nào nên chấp nhận chi phí CPU của việc mã hóa Opus?
+
+??? success "Lời giải"
+    (a) $2000 \times 384$ kbit/s $= 768$ Mbit/s. (b) $2000 \times 24$ kbit/s $= 48$ Mbit/s, ít hơn 16 lần. (c) Khi băng thông đắt hoặc người dùng ở mạng di động; trong mạng nội bộ giữa các dịch vụ, PCM thường đơn giản và đủ tốt.
+
+**Bài 3 [Nâng cao].** Trọng số phân phối chuẩn $\mathcal{N}(0, \sigma^2)$ không bị chặn, nên phải chọn ngưỡng cắt $c = k\sigma$ và đặt $s = c / (2^{b-1} - 1)$. Lập biểu thức (có thể để dạng tích phân) cho sai số bình phương trung bình gồm hai phần: sai số làm tròn bên trong $[-c, c]$ và sai số cắt bên ngoài. Giải thích vì sao tồn tại một $k$ tối ưu, và vì sao $k$ tối ưu tăng theo số bit $b$. Kiểm chứng bằng mô phỏng số với $b = 4$ và $b = 8$.
+
+??? tip "Gợi ý"
+    Sai số làm tròn xấp xỉ $\frac{s^2}{12} P(\lvert w \rvert \le c)$, tăng theo $k^2$; sai số cắt là $2 \int_c^\infty (w - c)^2 p(w)\, dw$, giảm rất nhanh theo $k$. Với nhiều bit, $s$ nhỏ nên ta "đủ sức" mở rộng $c$.
+
+**Bài 4 [Lập trình].** Cài đặt cân bằng giữa các lớp cho cặp `pre` (Conv1d) và `ups[1]` (ConvTranspose1d) của vocoder đồ chơi đã bị chỉnh tỉ lệ ở Mục 39.3: với $r^{(1)}_c$ là biên độ lớn nhất của kênh ra $c$ ở lớp thứ nhất và $r^{(2)}_c$ là biên độ lớn nhất của kênh vào $c$ ở lớp thứ hai, chia trọng số (và bias) kênh $c$ lớp thứ nhất cho $\alpha_c = \sqrt{r^{(1)}_c / r^{(2)}_c}$ và nhân kênh vào $c$ lớp thứ hai với $\alpha_c$. (a) Chứng minh hàm của mạng không đổi. (b) Chứng minh sau cân bằng hai biên độ bằng nhau. (c) Đo SNR đầu ra khi lượng tử hóa per-tensor *cả hai* lớp, trước và sau cân bằng.
+
+??? tip "Gợi ý"
+    Sau cân bằng, biên độ kênh $c$ của lớp thứ nhất là $r^{(1)}_c / \alpha_c = \sqrt{r^{(1)}_c r^{(2)}_c}$ và của lớp thứ hai là $r^{(2)}_c \alpha_c = \sqrt{r^{(1)}_c r^{(2)}_c}$. Nhớ rằng trọng số `ConvTranspose1d` có dạng `(C_in, C_out, k)`, nên kênh vào là trục 0.
+
+**Bài 5 [Lập trình].** Viết một mô-đun `VelocityStep` bọc một mạng trường vận tốc đồ chơi (nhận `y_t`, `t`, điều kiện `mu`), xuất **một bước** sang ONNX với trục thời gian động, rồi viết vòng lặp Euler 10 bước bằng NumPy gọi ONNX Runtime. Nhiễu khởi đầu truyền từ ngoài vào. Kiểm chứng kết quả trùng với vòng lặp Euler viết bằng PyTorch.
+
+**Bài 6 [Lập trình].** Cài đặt một bộ gom batch động bằng `asyncio`: các yêu cầu được đưa vào hàng đợi; một tác vụ nền lấy tối đa `max_batch` yêu cầu hoặc chờ tối đa `max_wait_ms`, gom chúng (đệm theo độ dài lớn nhất), gọi một hàm "mô hình" giả có thời gian chạy tỉ lệ với $B \cdot \max_i \ell_i$, rồi trả kết quả cho từng yêu cầu. Đo hiệu suất đệm $\eta$ và độ trễ p95 với và không với gom theo độ dài, dưới một luồng yêu cầu có độ dài ngẫu nhiên.
+
+??? tip "Gợi ý"
+    Mỗi yêu cầu kèm một `asyncio.Future`; tác vụ nền đặt kết quả bằng `future.set_result`. Để gom theo độ dài, dùng nhiều hàng đợi, mỗi hàng đợi một khoảng độ dài.
+
+**Bài 7 [Nâng cao].** Một tổng đài viên ảo dự kiến nhận 5 cuộc gọi mới mỗi giây vào giờ cao điểm; mỗi cuộc gọi kéo dài trung bình 120 giây, trong đó hệ thống nói khoảng 40% thời gian. Mỗi GPU phục vụ tốt 24 luồng tổng hợp đồng thời. (a) Dùng định luật Little ước lượng số cuộc gọi đồng thời và số luồng tổng hợp đồng thời trung bình. (b) Ước lượng số GPU, có tính dự phòng. (c) Những giả định nào trong phép tính có thể sai trong thực tế?
+
+??? success "Lời giải"
+    (a) Số cuộc gọi đồng thời $L = 5 \times 120 = 600$. Nếu một luồng tổng hợp chỉ bận khi hệ thống nói, số luồng tổng hợp đồng thời trung bình là $5 \times (0.4 \times 120) = 240$. (b) $240 / 24 = 10$ GPU cho tải trung bình; cần thêm dự phòng cho dao động ngẫu nhiên và sự cố (ví dụ thêm 30–50%), tức khoảng 13–15 GPU. (c) Giả định thời gian nói phân bố đều (thực tế các lượt nói dồn cục), giả định 24 luồng/GPU không phụ thuộc độ dài câu, bỏ qua thời gian giữ tài nguyên khi chờ LLM, bỏ qua tài nguyên cho ASR và LLM.
+
+## Tài liệu tham khảo
+
+1. Amdahl, G. M. (1967). *Validity of the Single Processor Approach to Achieving Large Scale Computing Capabilities*. AFIPS Spring Joint Computer Conference.
+2. Little, J. D. C. (1961). *A Proof for the Queuing Formula: L = λW*. Operations Research.
+3. Jacob, B. và cộng sự (2018). *Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference*. CVPR 2018.
+4. Nagel, M. và cộng sự (2019). *Data-Free Quantization Through Weight Equalization and Bias Correction*. ICCV 2019.
+5. Xiao, G. và cộng sự (2023). *SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models*. ICML 2023.
+6. Dettmers, T. và cộng sự (2022). *LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale*. NeurIPS 2022.
+7. Frantar, E. và cộng sự (2023). *GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers*. ICLR 2023.
+8. Lin, J. và cộng sự (2024). *AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration*. MLSys 2024.
+9. Hinton, G., Vinyals, O. và Dean, J. (2015). *Distilling the Knowledge in a Neural Network*. NIPS 2014 Deep Learning Workshop, arXiv preprint.
+10. Han, S., Mao, H. và Dally, W. J. (2016). *Deep Compression: Compressing Deep Neural Networks with Pruning, Trained Quantization and Huffman Coding*. ICLR 2016.
+11. Kalchbrenner, N. và cộng sự (2018). *Efficient Neural Audio Synthesis* (WaveRNN). ICML 2018.
+12. Siuzdak, H. (2024). *Vocos: Closing the Gap between Time-Domain and Fourier-Based Neural Vocoders for High-Quality Audio Synthesis*. ICLR 2024.
+13. Yu, G.-I. và cộng sự (2022). *Orca: A Distributed Serving System for Transformer-Based Generative Models*. OSDI 2022.
+14. Kwon, W. và cộng sự (2023). *Efficient Memory Management for Large Language Model Serving with PagedAttention*. SOSP 2023.
+15. W3C (2010). *Speech Synthesis Markup Language (SSML) Version 1.1*. W3C Recommendation.
+16. Valin, J.-M., Vos, K. và Terriberry, T. (2012). *Definition of the Opus Audio Codec*. IETF RFC 6716.
+17. Salsman, J. và Alvestrand, H. (1999). *The Audio/L16 MIME Content Type*. IETF RFC 2586.
+18. ITU-T (1988). *Recommendation G.711: Pulse Code Modulation (PCM) of Voice Frequencies*.
+19. PyTorch Team. *torch.export* và *torch.onnx* (tài liệu chính thức, truy cập 2026). pytorch.org.
+20. ONNX Runtime Team. *ONNX Runtime Documentation: Quantization, Execution Providers* (tài liệu chính thức, truy cập 2026). onnxruntime.ai.
