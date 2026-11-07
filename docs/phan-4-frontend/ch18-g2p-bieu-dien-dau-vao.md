@@ -570,10 +570,10 @@ for form in ("NFC", "NFD"):
     n_chars = sum(len(w) for w in words)
     print(f"{form}: {n_chars} ký hiệu ban đầu → {n_tokens} token sau 12 phép gộp")
     print("   các token dài nhất:",
-          sorted({t for w in vocab for t in w}, key=len, reverse=True)[:5])
+          sorted({t for w in vocab for t in w}, key=lambda t: (-len(t), t))[:5])
 # Kết quả:
 # NFC: 74 ký hiệu ban đầu → 35 token sau 12 phép gộp
-#    các token dài nhất: ['tiếng', 'người', 'việt', 'nói', 'ng']
+#    các token dài nhất: ['người', 'tiếng', 'việt', 'nói', 'ng']
 # NFD: 102 ký hiệu ban đầu → 53 token sau 12 phép gộp
 #    (các token dài nhất gồm 'việt', 'nói' và các mảnh lẻ như dấu sắc dính với 'ng')
 ```

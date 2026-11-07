@@ -240,7 +240,7 @@ Theo báo cáo gốc, hai thủ thuật này giúp DAC sử dụng sổ mã đ�
 
 ### FSQ: bỏ hẳn sổ mã học được
 
-Finite Scalar Quantization (Mentzer và cộng sự, 2023) đặt câu hỏi: nếu sổ mã hay sụp đổ, sao không **cố định** nó? FSQ chiếu $\mathbf{z}$ xuống $d$ chiều (rất nhỏ, ví dụ 4–8), chặn mỗi chiều $i$ vào một khoảng hữu hạn, rồi **làm tròn** về một trong $L_i$ mức:
+Finite Scalar Quantization (Mentzer và cộng sự, 2023) đặt câu hỏi: nếu sổ mã hay sụp đổ, sao không **cố định** nó? FSQ chiếu $\mathbf{z}$ xuống $d$ chiều (rất nhỏ, ví dụ 4–8), chặn mỗi chiều $i$ vào một khoảng hữu hạn, rồi **làm tròn** về một trong $L_i$ mức (ký hiệu $L_i$ theo bài báo gốc, không liên quan đến số mẫu âm thanh $L$):
 
 $$
 \hat{z}_i = \operatorname{round}\big(f_i(z_i)\big), \qquad f_i: \mathbb{R} \to \Big[-\tfrac{L_i - 1}{2}, \tfrac{L_i - 1}{2}\Big],
@@ -331,13 +331,13 @@ class VectorQuantizer(nn.Module):
         self.register_buffer("initted", torch.tensor(False))
 
     def forward(self, r):                                   # r: (B, T, C)
-        flat = r.reshape(-1, r.shape[-1])                   # (M, C), M = B*T
+        flat = r.reshape(-1, r.shape[-1])                   # (B*T, C)
         if self.training and not self.initted:              # khởi tạo từ dữ liệu
             self._init_from(flat.detach())
         dist = (flat.pow(2).sum(1, keepdim=True)
                 - 2 * flat @ self.embed.t()
-                + self.embed.pow(2).sum(1)[None])           # (M, V)
-        idx = dist.argmin(dim=1)                            # (M,)
+                + self.embed.pow(2).sum(1)[None])           # (B*T, V)
+        idx = dist.argmin(dim=1)                            # (B*T,)
         e = self.embed[idx].view_as(r)                      # (B, T, C)
         commit = F.mse_loss(r, e.detach())                  # ||r - sg(e)||^2
         if self.use_ema:
@@ -360,7 +360,7 @@ class VectorQuantizer(nn.Module):
     @torch.no_grad()
     def _ema_update(self, flat, idx):
         V = self.embed.shape[0]
-        onehot = F.one_hot(idx, V).type(flat.dtype)         # (M, V)
+        onehot = F.one_hot(idx, V).type(flat.dtype)         # (B*T, V)
         self.cluster_size.mul_(self.decay).add_(onehot.sum(0), alpha=1 - self.decay)
         self.embed_sum.mul_(self.decay).add_(onehot.t() @ flat, alpha=1 - self.decay)
         n = self.cluster_size.sum()                         # làm trơn Laplace
@@ -483,11 +483,11 @@ $$
 
     Nhiều cửa sổ giúp ràng buộc đồng thời độ phân giải thời gian và tần số (nhắc lại đánh đổi thời gian–tần số ở [Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md)). EnCodec thêm cả mất mát L1 trên miền thời gian.
 
-- **Mất mát đối kháng** $\mathcal{L}_{\text{adv}}$: SoundStream và EnCodec dùng dạng *hinge*. Với $K$ bộ phân biệt $D_k$:
+- **Mất mát đối kháng** $\mathcal{L}_{\text{adv}}$: SoundStream và EnCodec dùng dạng *hinge*. Với $N_D$ bộ phân biệt $D_k$, $k = 1, \ldots, N_D$:
 
     $$
-    \mathcal{L}_D = \frac{1}{K}\sum_{k} \Big( \mathbb{E}\big[\max(0, 1 - D_k(s))\big] + \mathbb{E}\big[\max(0, 1 + D_k(\hat{s}))\big] \Big), \qquad
-    \mathcal{L}_{\text{adv}} = \frac{1}{K}\sum_k \mathbb{E}\big[\max(0, 1 - D_k(\hat{s}))\big].
+    \mathcal{L}_D = \frac{1}{N_D}\sum_{k} \Big( \mathbb{E}\big[\max(0, 1 - D_k(s))\big] + \mathbb{E}\big[\max(0, 1 + D_k(\hat{s}))\big] \Big), \qquad
+    \mathcal{L}_{\text{adv}} = \frac{1}{N_D}\sum_k \mathbb{E}\big[\max(0, 1 - D_k(\hat{s}))\big].
     $$
 
 - **Feature matching** $\mathcal{L}_{\text{feat}}$: khoảng cách L1 giữa các đặc trưng trung gian của bộ phân biệt trên $s$ và $\hat{s}$ ([Chương 9](../phan-2-mo-hinh-sinh/ch09-gan.md)).

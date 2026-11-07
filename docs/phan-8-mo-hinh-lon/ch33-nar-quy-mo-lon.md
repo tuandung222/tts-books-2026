@@ -89,7 +89,7 @@ thường chuẩn hóa bằng số phần tử bị che. Vì sao bỏ các khung
 
 ### Mô hình trường độ
 
-Vì cần $\mathbf{a}$ căn theo khung, khi suy luận ta phải biết **mỗi âm vị kéo dài bao nhiêu khung**. Voicebox có một mô hình trường độ riêng, huấn luyện cũng theo kiểu điền chỗ trống trên chuỗi trường độ âm vị: cho trường độ của các âm vị trong ngữ cảnh, dự đoán trường độ các âm vị bị che. Bài báo thử cả hồi quy (mất mát L1 trên log-trường độ) lẫn flow matching; phiên bản flow matching cho trường độ đa dạng hơn. Điểm khác FastSpeech 2: trường độ được dự đoán **có điều kiện trên trường độ của prompt**, nên tốc độ nói của người nói đích được bảo toàn.
+Vì cần $\mathbf{a}$ căn theo khung, khi suy luận ta phải biết **mỗi âm vị kéo dài bao nhiêu khung**. Voicebox có một mô hình trường độ riêng, huấn luyện cũng theo kiểu điền chỗ trống trên chuỗi trường độ âm vị: cho trường độ của các âm vị trong ngữ cảnh, dự đoán trường độ các âm vị bị che. Bài báo thử cả hồi quy (mất mát L1 trên các âm vị bị che) lẫn flow matching; phiên bản flow matching cho trường độ đa dạng hơn. Điểm khác FastSpeech 2: trường độ được dự đoán **có điều kiện trên trường độ của prompt**, nên tốc độ nói của người nói đích được bảo toàn.
 
 ### Hướng dẫn không cần bộ phân loại cho trường vận tốc
 
@@ -405,9 +405,9 @@ Tính đến thời điểm biên soạn (2026), F5-TTS là một trong những 
 
 ### Mô hình sinh che token (MaskGIT)
 
-MaskGCT (Wang và cộng sự, 2024) quay về token rời rạc, nhưng sinh **song song** bằng kỹ thuật che token của MaskGIT (Chang và cộng sự, 2022) thay vì tự hồi quy. Ý tưởng, với một chuỗi token $\mathbf{q} = (q_1, \ldots, q_L)$ và điều kiện $\mathbf{c}$:
+MaskGCT (Wang và cộng sự, 2024) quay về token rời rạc, nhưng sinh **song song** bằng kỹ thuật che token của MaskGIT (Chang và cộng sự, 2022) thay vì tự hồi quy. Ý tưởng, với một chuỗi token $\mathbf{q} = (q_1, \ldots, q_{T'})$ và điều kiện $\mathbf{c}$:
 
-**Huấn luyện**: lấy $r \sim \mathcal{U}(0, 1)$, che ngẫu nhiên $\lceil \gamma(r) L \rceil$ vị trí (thay bằng token `[MASK]`), với $\gamma$ là một **lịch che** giảm dần từ 1 về 0, ví dụ $\gamma(r) = \cos(\pi r / 2)$. Mô hình (Transformer hai chiều) dự đoán token gốc ở các vị trí bị che:
+**Huấn luyện**: lấy $r \sim \mathcal{U}(0, 1)$, che ngẫu nhiên $\lceil \gamma(r) T' \rceil$ vị trí (thay bằng token `[MASK]`), với $\gamma$ là một **lịch che** giảm dần từ 1 về 0, ví dụ $\gamma(r) = \cos(\pi r / 2)$. Mô hình (Transformer hai chiều) dự đoán token gốc ở các vị trí bị che:
 
 $$
 \mathcal{L}_{\text{mask}} = -\,\mathbb{E}_{r, \mathcal{M}} \sum_{i \in \mathcal{M}} \log p_\theta\big(q_i \mid \mathbf{q}_{\setminus \mathcal{M}}, \mathbf{c}\big),
@@ -415,9 +415,9 @@ $$
 
 với $\mathcal{M}$ là tập vị trí bị che, $\mathbf{q}_{\setminus \mathcal{M}}$ là các token còn lại.
 
-**Suy luận** với $K$ vòng lặp: bắt đầu từ chuỗi toàn `[MASK]`. Ở vòng $k$, mô hình dự đoán **mọi** vị trí đang bị che, lấy mẫu một token cho mỗi vị trí kèm độ tự tin (xác suất của token đó); giữ lại các token tự tin nhất và **che lại** $\lfloor \gamma(k/K) L \rfloor$ vị trí kém tự tin nhất cho vòng sau. Sau $K$ vòng, mọi vị trí đã được điền. Lịch cosine điền ít token ở các vòng đầu (khi ngữ cảnh còn nghèo) và nhiều token ở các vòng sau.
+**Suy luận** với $K$ vòng lặp: bắt đầu từ chuỗi toàn `[MASK]`. Ở vòng $k$, mô hình dự đoán **mọi** vị trí đang bị che, lấy mẫu một token cho mỗi vị trí kèm độ tự tin (xác suất của token đó); giữ lại các token tự tin nhất và **che lại** $\lfloor \gamma(k/K) T' \rfloor$ vị trí kém tự tin nhất cho vòng sau. Sau $K$ vòng, mọi vị trí đã được điền. Lịch cosine điền ít token ở các vòng đầu (khi ngữ cảnh còn nghèo) và nhiều token ở các vòng sau.
 
-So với tự hồi quy, số lượt forward là $K$ (thường vài chục) thay vì $L$ (hàng trăm đến hàng nghìn), và mỗi token được dự đoán với ngữ cảnh **hai chiều**. Đoạn mã dưới đây cài vòng giải mã với một "mô hình" giả biết đáp án nhưng có nhiễu.
+So với tự hồi quy, số lượt forward là $K$ (thường vài chục) thay vì $T'$ (hàng trăm đến hàng nghìn), và mỗi token được dự đoán với ngữ cảnh **hai chiều**. Đoạn mã dưới đây cài vòng giải mã với một "mô hình" giả biết đáp án nhưng có nhiễu.
 
 ```python
 import math
@@ -450,17 +450,17 @@ def maskgit_decode(predict_logits, length, n_steps=8, mask_id=-1):
 
 
 torch.manual_seed(0)
-V, L = 50, 40
-target = torch.randint(0, V, (L,))
+V, N_TOK = 50, 40
+target = torch.randint(0, V, (N_TOK,))
 def dummy_model(tokens):                                     # "mô hình" biết đáp án, hơi nhiễu
-    logits = torch.randn(L, V)
-    logits[torch.arange(L), target] += 4.0
+    logits = torch.randn(N_TOK, V)
+    logits[torch.arange(N_TOK), target] += 4.0
     return logits
 
-out = maskgit_decode(dummy_model, L, n_steps=8)
+out = maskgit_decode(dummy_model, N_TOK, n_steps=8)
 assert (out >= 0).all()                                      # không còn token bị che
 print("số token còn che sau mỗi bước:",
-      [math.floor(cosine_schedule((k + 1) / 8) * L) for k in range(8)])
+      [math.floor(cosine_schedule((k + 1) / 8) * N_TOK) for k in range(8)])
 print("tỉ lệ đúng:", (out == target).float().mean().item())
 ```
 

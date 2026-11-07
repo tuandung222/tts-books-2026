@@ -496,10 +496,10 @@ Trong lần chạy của người biên soạn, entropy chéo giảm từ khoả
 
 ### Vì sao chuỗi dài dễ hỏng: một phép tính đơn giản
 
-Giả sử ở mỗi bước, xác suất mô hình sinh ra một token "hỏng" (gây lỗi không tự sửa được, như nhảy cóc qua một từ) là $\varepsilon$ nhỏ và độc lập giữa các bước. Xác suất một chuỗi $L$ token không có lỗi nào là
+Giả sử ở mỗi bước, xác suất mô hình sinh ra một token "hỏng" (gây lỗi không tự sửa được, như nhảy cóc qua một từ) là $\varepsilon$ nhỏ và độc lập giữa các bước. Xác suất một chuỗi $S$ token không có lỗi nào là
 
 $$
-(1 - \varepsilon)^L = \exp\big(L \log(1-\varepsilon)\big) \approx e^{-\varepsilon L} \quad (\varepsilon \ll 1).
+(1 - \varepsilon)^S = \exp\big(S \log(1-\varepsilon)\big) \approx e^{-\varepsilon S} \quad (\varepsilon \ll 1).
 $$
 
 Với $\varepsilon = 10^{-4}$: chuỗi 750 token (10 giây ở 75 Hz, chỉ tầng 1) có xác suất sạch lỗi khoảng $e^{-0{,}075} \approx 0{,}93$; chuỗi 6000 token (làm phẳng 8 tầng) chỉ còn khoảng $e^{-0{,}6} \approx 0{,}55$; còn nếu dùng token 12,5 Hz (125 token cho 10 giây), con số là khoảng $0{,}99$. Mô hình độc lập này đơn giản hóa quá mức (lỗi thực tế tương quan, và exposure bias khiến $\varepsilon$ tăng sau lỗi đầu tiên), nhưng nó giải thích vì sao **giảm số token mỗi giây** cải thiện độ ổn định chứ không chỉ tốc độ, và vì sao đọc văn bản dài nên chia theo câu.
@@ -566,10 +566,10 @@ Hai biện pháp tổng quát hiệu quả nhất trong thực tế đều đổ
     ??? tip "Gợi ý"
         Mô hình tích tốt nhất là tích các phân phối biên; chênh lệch entropy chéo tối thiểu đúng bằng $H(q_1) + H(q_2) - H(q_1, q_2) = I(q_1; q_2)$. Ví dụ $q_2 = q_1$ với $q_1$ đều trên $\{0, 1\}$: $I = 1$ bit mỗi khung bị "mất".
 
-4. **[Nâng cao]** Dùng mô hình lỗi độc lập ở Mục 32.9, tìm độ dài chuỗi tối đa $L$ để xác suất không lỗi còn ít nhất 0,9 khi $\varepsilon = 5 \times 10^{-5}$. Từ đó, với token 75 Hz (chỉ tầng 1) và token 25 Hz, độ dài câu tối đa (giây) là bao nhiêu? Nêu hai lý do khiến mô hình độc lập này lạc quan hơn thực tế.
+4. **[Nâng cao]** Dùng mô hình lỗi độc lập ở Mục 32.9, tìm độ dài chuỗi tối đa $S$ để xác suất không lỗi còn ít nhất 0,9 khi $\varepsilon = 5 \times 10^{-5}$. Từ đó, với token 75 Hz (chỉ tầng 1) và token 25 Hz, độ dài câu tối đa (giây) là bao nhiêu? Nêu hai lý do khiến mô hình độc lập này lạc quan hơn thực tế.
 
     ??? success "Lời giải"
-        $e^{-\varepsilon L} \ge 0{,}9 \Rightarrow L \le -\ln 0{,}9 / \varepsilon \approx 0{,}1054 / (5 \times 10^{-5}) \approx 2107$ token, tức khoảng 28 giây ở 75 Hz và khoảng 84 giây ở 25 Hz. Mô hình lạc quan vì (i) exposure bias: sau lỗi đầu tiên, ngữ cảnh lệch khỏi phân phối huấn luyện nên xác suất lỗi tăng; (ii) $\varepsilon$ không đều — tăng ở câu dài vượt độ dài huấn luyện, từ hiếm, tên riêng.
+        $e^{-\varepsilon S} \ge 0{,}9 \Rightarrow S \le -\ln 0{,}9 / \varepsilon \approx 0{,}1054 / (5 \times 10^{-5}) \approx 2107$ token, tức khoảng 28 giây ở 75 Hz và khoảng 84 giây ở 25 Hz. Mô hình lạc quan vì (i) exposure bias: sau lỗi đầu tiên, ngữ cảnh lệch khỏi phân phối huấn luyện nên xác suất lỗi tăng; (ii) $\varepsilon$ không đều — tăng ở câu dài vượt độ dài huấn luyện, từ hiếm, tên riêng.
 
 5. **[Nâng cao]** Thiết kế một quy trình xếp hạng lại cho TTS tiếng Việt sinh sách nói: chọn số ứng viên, các bộ chấm điểm (CER sau chuẩn hóa văn bản, tỉ lệ lỗi thanh, độ tương đồng người nói, dự đoán MOS), cách kết hợp điểm, và tiêu chí kích hoạt sinh lại. Ước lượng chi phí tính toán so với sinh một lần.
 
