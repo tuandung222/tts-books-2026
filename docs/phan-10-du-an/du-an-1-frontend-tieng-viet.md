@@ -64,12 +64,12 @@ Quy ước đánh số thanh điệu dùng trong toàn bộ gói (và toàn bộ
 
 | Số | Thanh | Dấu | Token | Ví dụ |
 |---|---|---|---|---|
-| 1 | ngang | (không dấu) | `T1` | ma |
-| 2 | huyền | ` | `T2` | mà |
-| 3 | sắc | ´ | `T3` | má |
-| 4 | hỏi | ̉ | `T4` | mả |
-| 5 | ngã | ˜ | `T5` | mã |
-| 6 | nặng | . | `T6` | mạ |
+| 1 | ngang | không dấu | `T1` | ma |
+| 2 | huyền | dấu huyền | `T2` | mà |
+| 3 | sắc | dấu sắc | `T3` | má |
+| 4 | hỏi | dấu hỏi | `T4` | mả |
+| 5 | ngã | dấu ngã | `T5` | mã |
+| 6 | nặng | dấu nặng | `T6` | mạ |
 
 !!! warning "Đánh số thanh không có chuẩn chung"
     Thứ tự "ngang, huyền, sắc, hỏi, ngã, nặng" là thứ tự quen thuộc trong sách giáo khoa và nhiều công cụ xử lý tiếng Việt, nhưng không phải công cụ nào cũng dùng. Một số bộ dữ liệu hoặc phần mềm đánh số theo thứ tự khác, hoặc tách sắc/nặng ở âm tiết khép (-p, -t, -c, -ch) thành hai "thanh" riêng (thành tám thanh). Khi ghép dữ liệu từ nhiều nguồn, hãy luôn kiểm tra quy ước đánh số trước khi trộn.
