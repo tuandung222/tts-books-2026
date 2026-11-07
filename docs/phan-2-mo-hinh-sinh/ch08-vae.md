@@ -462,7 +462,7 @@ flowchart LR
         Q --> Z1["z"]
         Z1 --> DEC1["Decoder p(Y∣z, x)"]
         T1["Văn bản x"] --> P1["Prior p(z∣x)"]
-        P1 -. "KL" .- Q
+        Q -.->|KL| P1
     end
     subgraph SL["Suy luận"]
         T2["Văn bản x"] --> P2["Prior p(z∣x)"]
@@ -637,3 +637,102 @@ Với khởi tạo ngẫu nhiên, trong lần chạy của người biên soạn
 ### 8.10.5. Prior trên token và mối nối với TTS hiện đại
 
 Sau khi huấn luyện VQ-VAE, người ta huấn luyện **một mô hình tự hồi quy riêng** (PixelCNN cho ảnh, WaveNet hoặc Transformer cho âm thanh) làm prior trên chuỗi chỉ số mã; sinh mẫu bằng cách lấy mẫu token từ prior rồi giải mã. Công thức hai giai đoạn "học một bộ mã hóa rời rạc, rồi học một mô hình ngôn ngữ trên token" chính là khung sườn của TTS dựa trên codec language model ([Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md)). Ngay trong bài báo gốc, các tác giả đã thử VQ-VAE trên tiếng nói và báo cáo rằng các mã học được không giám sát có liên hệ chặt với âm vị, và có thể đổi giọng bằng cách thay điều kiện người nói của decoder. Các codec hiện đại thay một sổ mã bằng nhiều tầng lượng tử hóa dư (RVQ) hoặc lượng tử hóa vô hướng hữu hạn (FSQ); xem [Chương 31](../phan-8-mo-hinh-lon/ch31-audio-codec-speech-token.md).
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Lệch thang đo giữa tái tạo và KL.** Lỗi phổ biến nhất: lấy *trung bình* sai số tái tạo theo mọi phần tử (`F.mse_loss` mặc định chia cho $B \cdot T \cdot F$) nhưng *cộng* KL theo các chiều ẩn. Khi đó $\beta$ hiệu dụng bị nhân lên hàng nghìn lần và mô hình sụp hậu nghiệm ngay. Hãy viết rõ: tái tạo cộng theo chiều dữ liệu, KL cộng theo chiều ẩn, cả hai cùng lấy trung bình theo batch; hoặc nếu chuẩn hóa thì chuẩn hóa nhất quán và ghi lại.
+- **Log-phương sai bùng nổ.** Kẹp $\log\sigma^2$, khởi tạo lớp cuối của encoder với trọng số nhỏ, và tính KL bằng fp32 khi dùng mixed precision ($e^{\log\sigma^2}$ dễ tràn số trong fp16).
+- **Không theo dõi KL theo từng chiều.** Chỉ nhìn tổng loss sẽ không thấy sụp hậu nghiệm. Ghi lại KL mỗi chiều, số chiều hoạt động, và thỉnh thoảng làm "phép thử hoán đổi": đổi $\mathbf{z}$ giữa hai câu và nghe xem đầu ra có đổi không.
+- **Nhầm giữa tái tạo và sinh.** Khi đánh giá tái tạo, dùng trung bình hậu nghiệm $\boldsymbol{\mu}$; khi sinh mẫu, rút $\mathbf{z}$ từ prior. Mẫu từ prior kém hơn nhiều so với tái tạo là dấu hiệu của "lỗ" trong prior: kiểm tra xem hậu nghiệm gộp có trung bình gần 0 và phương sai gần 1 theo từng chiều không. Nhân $\mathbf{z}$ từ prior với một "nhiệt độ" nhỏ hơn 1 thường cho mẫu sạch hơn, đổi lại kém đa dạng hơn.
+- **Lịch annealing không khớp với lịch học.** Nếu tốc độ học còn đang warmup khi $\beta$ đã lên 1, encoder chưa kịp học gì. Đặt độ dài annealing đủ dài so với warmup, và ghi lại cả hai.
+- **Rò rỉ nội dung qua bộ mã hóa tham chiếu.** Luôn kiểm tra với tham chiếu là một câu *khác* câu cần đọc.
+- **VQ: sổ mã chết.** Theo dõi perplexity theo thời gian. Perplexity thấp và không tăng là dấu hiệu sụp sổ mã: thử khởi tạo từ dữ liệu, khởi động lại mã chết bằng véc-tơ encoder ngẫu nhiên, giảm chiều mã, hoặc chuẩn hóa $\ell_2$ trước khi tính khoảng cách. Tính khoảng cách bằng fp32.
+- **VQ: quên `.detach()` ở đúng chỗ.** Loss sổ mã phải dừng gradient về encoder, loss cam kết phải dừng gradient về sổ mã, và đầu ra straight-through phải là `z_e + (z_q - z_e).detach()`, không phải `z_q`. Viết test kiểm tra gradient như trong mã ở mục 8.10.
+
+## Tóm tắt
+
+- Mô hình biến ẩn $p_\theta(\mathbf{x}) = \int p_\theta(\mathbf{x} \mid \mathbf{z}) p(\mathbf{z})\, d\mathbf{z}$ là một hỗn hợp vô hạn các phân phối đơn giản, phù hợp tự nhiên với bài toán một–nhiều; cái giá là hàm hợp lý và hậu nghiệm không tính được.
+- $\log p_\theta(\mathbf{x}) = \mathcal{L}_{\text{ELBO}} + D_{\mathrm{KL}}(q_\phi(\mathbf{z} \mid \mathbf{x}) \Vert p_\theta(\mathbf{z} \mid \mathbf{x}))$: tối ưu ELBO vừa học bộ sinh (gần đúng MLE) vừa học suy diễn; ELBO = tái tạo − KL tới prior.
+- Mẹo tái tham số hóa $\mathbf{z} = \boldsymbol{\mu} + \boldsymbol{\sigma} \odot \boldsymbol{\epsilon}$ cho gradient phương sai thấp hơn nhiều so với ước lượng hàm score.
+- KL giữa hai Gauss có dạng đóng; với prior chuẩn, $\tfrac12\sum_j(\mu_j^2 + \sigma_j^2 - 1 - \log\sigma_j^2)$, bằng 0 khi chiều đó không mang thông tin.
+- Decoder Gauss vẫn hồi quy trung bình khi biết $\mathbf{z}$, nên mẫu VAE dễ bị mờ; $\sigma_x$ và $\beta$ là cùng một núm vặn cân bằng tái tạo và KL.
+- Sụp hậu nghiệm xảy ra khi decoder không cần $\mathbf{z}$ hoặc khi KL thắng thế lúc đầu huấn luyện; chữa bằng KL annealing, free bits, làm yếu decoder, nút cổ chai hợp lý.
+- Tốc độ $\mathcal{R} = I_q(\mathbf{x}; \mathbf{z}) + D_{\mathrm{KL}}(q_\phi(\mathbf{z}) \Vert p(\mathbf{z}))$: ELBO phạt chính thông tin mà ta muốn $\mathbf{z}$ mang, và hậu nghiệm gộp lệch prior tạo ra "lỗ" khi lấy mẫu.
+- CVAE với encoder hậu nghiệm nhìn âm thanh thật và prior nhìn văn bản là khung lý thuyết của VITS và các bộ mã hóa tham chiếu cho ngôn điệu.
+- VQ-VAE dùng sổ mã, straight-through và loss cam kết (hoặc EMA) để học token rời rạc; huấn luyện thêm một mô hình tự hồi quy trên token là tiền thân của codec language model.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Từ đẳng thức $\log p_\theta(\mathbf{x}) = \mathcal{L}_{\text{ELBO}} + D_{\mathrm{KL}}(q \Vert p_\theta(\mathbf{z} \mid \mathbf{x}))$, chứng minh rằng nếu họ biến phân đủ rộng để chứa hậu nghiệm thật, thì cực đại ELBO theo $q$ (với $\theta$ cố định) cho đúng $q^\ast = p_\theta(\mathbf{z} \mid \mathbf{x})$, và khi đó ELBO bằng $\log p_\theta(\mathbf{x})$. Liên hệ với bước E của thuật toán EM.
+
+??? success "Lời giải"
+    Với $\theta$ cố định, $\log p_\theta(\mathbf{x})$ là hằng số, nên cực đại ELBO tương đương cực tiểu KL. KL không âm và bằng 0 khi và chỉ khi $q = p_\theta(\mathbf{z} \mid \mathbf{x})$; nếu nghiệm này nằm trong họ thì nó là cực đại, và ELBO khi đó bằng $\log p_\theta(\mathbf{x})$. Bước E của EM chính là đặt $q$ bằng hậu nghiệm thật (tính được trong các mô hình như hỗn hợp Gauss), làm cận dưới chặt; bước M cực đại cận dưới theo $\theta$. VAE thay bước E chính xác bằng một bước gradient trên mạng encoder.
+
+**Bài 2 [Cơ bản].** Tính $D_{\mathrm{KL}}\big(\mathcal{N}(1, 0.5^2) \,\Vert\, \mathcal{N}(0, 1)\big)$ bằng tay, rồi kiểm tra bằng hàm `kl_std_normal` ở mục 8.4.3.
+
+??? success "Lời giải"
+    $\tfrac12(\mu^2 + \sigma^2 - 1 - \log\sigma^2) = \tfrac12(1 + 0.25 - 1 - \ln 0.25) = \tfrac12(0.25 + 1.3863) \approx 0.818$ nat. Với mã: `kl_std_normal(torch.tensor([1.0]), torch.log(torch.tensor([0.25])))`.
+
+**Bài 3 [Cơ bản].** Chứng minh $u - 1 - \log u \ge 0$ với mọi $u > 0$, dấu bằng khi và chỉ khi $u = 1$. Suy ra mỗi số hạng trong công thức KL tới prior chuẩn đều không âm.
+
+??? success "Lời giải"
+    Đặt $h(u) = u - 1 - \log u$. Ta có $h'(u) = 1 - 1/u$, âm khi $u < 1$, dương khi $u > 1$, nên $h$ đạt cực tiểu duy nhất tại $u = 1$ với $h(1) = 0$. Áp dụng với $u = \sigma_j^2$, cộng thêm $\mu_j^2 \ge 0$.
+
+**Bài 4 [Nâng cao].** Giả sử decoder đủ mạnh để $p_\theta(\mathbf{x} \mid \mathbf{z}) = p_\theta(\mathbf{x})$ không phụ thuộc $\mathbf{z}$ (ví dụ một decoder tự hồi quy bỏ qua $\mathbf{z}$). (a) Chứng minh ELBO đạt cực đại tại $q_\phi(\mathbf{z} \mid \mathbf{x}) = p(\mathbf{z})$. (b) Dùng phân rã $\mathcal{R} = I_q(\mathbf{x}; \mathbf{z}) + D_{\mathrm{KL}}(q_\phi(\mathbf{z}) \Vert p(\mathbf{z}))$ để giải thích vì sao ELBO "không có động cơ" để dùng $\mathbf{z}$ trong trường hợp này. (c) Đề xuất hai cách thay đổi kiến trúc hoặc hàm mục tiêu để buộc mô hình dùng $\mathbf{z}$.
+
+??? success "Lời giải"
+    (a) ELBO $= \mathbb{E}_q[\log p_\theta(\mathbf{x})] - D_{\mathrm{KL}}(q \Vert p) = \log p_\theta(\mathbf{x}) - D_{\mathrm{KL}}(q \Vert p)$, cực đại khi KL bằng 0, tức $q = p$. (b) Khi decoder không dùng $\mathbf{z}$, số hạng tái tạo không phụ thuộc $q$; mọi thông tin tương hỗ $I_q(\mathbf{x}; \mathbf{z}) > 0$ chỉ làm tăng $\mathcal{R}$ mà không giảm méo. (c) Làm yếu decoder (dropout đầu vào, giảm ngữ cảnh tự hồi quy, hệ số rút gọn lớn); dùng free bits hoặc δ-VAE để KL không thể về 0; thêm mục tiêu phụ buộc $\mathbf{z}$ dự đoán được một thuộc tính (ví dụ F0 trung bình câu).
+
+**Bài 5 [Nâng cao].** Trong VQ-VAE không dùng EMA, xét loss sổ mã $\sum_i \lVert \operatorname{sg}[\mathbf{z}_{e,i}] - \mathbf{e}_{k_i} \rVert^2$ trên một minibatch. (a) Tính gradient theo $\mathbf{e}_k$. (b) Chứng minh một bước gradient descent với tốc độ học $\eta = 1/(2 n_k)$ (trong đó $n_k$ là số véc-tơ gán cho mã $k$) đưa $\mathbf{e}_k$ về đúng trung bình của các véc-tơ đó, tức một bước cập nhật tâm của k-means. (c) Giải thích vì sao cập nhật EMA ở mục 8.10.4 là phiên bản "trơn" theo thời gian của bước này.
+
+??? success "Lời giải"
+    (a) $\nabla_{\mathbf{e}_k} = 2\sum_{i: k_i = k} (\mathbf{e}_k - \mathbf{z}_{e,i}) = 2 n_k (\mathbf{e}_k - \bar{\mathbf{z}}_k)$ với $\bar{\mathbf{z}}_k$ là trung bình các véc-tơ gán cho mã $k$. (b) $\mathbf{e}_k - \eta \cdot 2 n_k(\mathbf{e}_k - \bar{\mathbf{z}}_k) = \bar{\mathbf{z}}_k$ khi $\eta = 1/(2n_k)$. (c) EMA duy trì tổng và số đếm trượt, $\mathbf{e}_k = \mathbf{m}_k / N_k$ là trung bình có trọng số giảm dần theo thời gian của mọi véc-tơ từng được gán, nên vừa giống bước k-means vừa ít nhiễu hơn khi minibatch nhỏ.
+
+**Bài 6 [Nâng cao].** Xét decoder Gauss với phương sai vô hướng học được $\sigma_x^2$ trên dữ liệu $D$ chiều, và giả sử decoder trung bình $g_\theta$ cố định. (a) Chứng minh $\sigma_x^2$ tối ưu bằng sai số bình phương trung bình trên mỗi chiều, $\text{MSE} = \mathbb{E}\lVert \mathbf{x} - g_\theta(\mathbf{z}) \rVert^2 / D$. (b) Thay ngược lại và chứng minh số hạng tái tạo trở thành $\tfrac{D}{2}\log \text{MSE}$ cộng hằng số. (c) Thảo luận: điều này tự động cân bằng tái tạo và KL ra sao, và vì sao cần kẹp dưới $\sigma_x$?
+
+??? tip "Gợi ý"
+    Số hạng tái tạo kỳ vọng là $\tfrac{D}{2}\log(2\pi\sigma_x^2) + D \cdot \text{MSE} / (2\sigma_x^2)$; đạo hàm theo $\sigma_x^2$. Ý tưởng này được phân tích kỹ trong nghiên cứu về "decoder được hiệu chỉnh" (Rybkin và cộng sự, 2021). Khi MSE rất nhỏ, $\log\text{MSE} \to -\infty$ và loss có thể giảm vô hạn bằng cách học thuộc dữ liệu.
+
+**Bài 7 [Lập trình].** Chạy lại thí nghiệm ở mục 8.5 với $\beta \in \{0.25, 1, 4\}$ (giữ annealing, chỉ đổi giá trị cuối). Ghi lại tốc độ $\mathcal{R}$ (tổng KL), méo (sai số tái tạo) và số chiều hoạt động; vẽ ba điểm trên mặt phẳng $(\mathcal{R}, \mathcal{D})$. Sau đó đặt `free_bits=0.5` với $\beta = 1$ và quan sát chiều ẩn từng "không hoạt động".
+
+??? tip "Gợi ý"
+    Bạn nên thấy $\mathcal{R}$ giảm và méo tăng khi $\beta$ tăng. Với free bits, người biên soạn quan sát thấy chiều ẩn trước đó có KL $\approx 0$ giờ có KL xấp xỉ đúng ngưỡng $\lambda = 0.5$ và bắt đầu mang thông tin: khoản "miễn phí" được tiêu hết. Đây vừa là tác dụng mong muốn (chống sụp), vừa là rủi ro (mã hóa những thứ không cần thiết).
+
+**Bài 8 [Lập trình].** Biến VAE ở mục 8.5 thành một CVAE: decoder nhận thêm độ to `loud` làm điều kiện (nối vào $\mathbf{z}$), encoder giữ nguyên. Huấn luyện lại và tính tương quan giữa các chiều ẩn hoạt động với độ to và vị trí formant. Giải thích kết quả bằng lập luận ở mục 8.8.2.
+
+??? tip "Gợi ý"
+    Sửa lớp đầu tiên của decoder thành `nn.Linear(d_z + 1, hidden)`, truyền `torch.cat([z, c], -1)` vào decoder, với `c = loud[:, None]`. Khi người biên soạn thử, các chiều ẩn hoạt động gần như không còn tương quan với độ to ($\lvert\rho\rvert < 0.05$), số chiều hoạt động giảm, và một chiều tương quan rất mạnh với vị trí formant: biến ẩn chỉ giữ lại phần thông tin mà điều kiện chưa cung cấp.
+
+**Bài 9 [Lập trình].** Ghép lớp `VectorQuantizer` vào giữa encoder và decoder của một autoencoder nhỏ trên dữ liệu ở mục 8.5 (coi mỗi khung là một chuỗi độ dài 1). So sánh sai số tái tạo và perplexity với $V = 8, 32, 128$ mã, có và không có EMA. Với $V$ lớn, có bao nhiêu mã chết? Thử thêm cơ chế khởi động lại mã chết: sau mỗi 100 bước, gán lại những mã có `ema_count` nhỏ hơn một ngưỡng bằng các véc-tơ encoder ngẫu nhiên trong batch.
+
+## Tài liệu tham khảo
+
+1. Kingma, D. P., Welling, M. (2014). *Auto-Encoding Variational Bayes*. ICLR.
+2. Rezende, D. J., Mohamed, S., Wierstra, D. (2014). *Stochastic Backpropagation and Approximate Inference in Deep Generative Models*. ICML.
+3. Kingma, D. P., Welling, M. (2019). *An Introduction to Variational Autoencoders*. Foundations and Trends in Machine Learning.
+4. Blei, D. M., Kucukelbir, A., McAuliffe, J. D. (2017). *Variational Inference: A Review for Statisticians*. Journal of the American Statistical Association.
+5. Dempster, A. P., Laird, N. M., Rubin, D. B. (1977). *Maximum Likelihood from Incomplete Data via the EM Algorithm*. Journal of the Royal Statistical Society, Series B.
+6. Williams, R. J. (1992). *Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning*. Machine Learning.
+7. Cremer, C., Li, X., Duvenaud, D. (2018). *Inference Suboptimality in Variational Autoencoders*. ICML.
+8. Burda, Y., Grosse, R., Salakhutdinov, R. (2016). *Importance Weighted Autoencoders*. ICLR.
+9. Locatello, F. và cộng sự (2019). *Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations*. ICML.
+10. Bowman, S. R. và cộng sự (2016). *Generating Sentences from a Continuous Space*. CoNLL.
+11. Chen, X. và cộng sự (2017). *Variational Lossy Autoencoder*. ICLR.
+12. He, J., Spokoyny, D., Neubig, G., Berg-Kirkpatrick, T. (2019). *Lagging Inference Networks and Posterior Collapse in Variational Autoencoders*. ICLR.
+13. Fu, H. và cộng sự (2019). *Cyclical Annealing Schedule: A Simple Approach to Mitigating KL Vanishing*. NAACL.
+14. Kingma, D. P. và cộng sự (2016). *Improved Variational Inference with Inverse Autoregressive Flow*. NeurIPS.
+15. Razavi, A., van den Oord, A., Poole, B., Vinyals, O. (2019). *Preventing Posterior Collapse with δ-VAEs*. ICLR.
+16. Higgins, I. và cộng sự (2017). *β-VAE: Learning Basic Visual Concepts with a Constrained Variational Framework*. ICLR.
+17. Alemi, A. A. và cộng sự (2018). *Fixing a Broken ELBO*. ICML.
+18. Hoffman, M. D., Johnson, M. J. (2016). *ELBO Surgery: Yet Another Way to Carve Up the Variational Evidence Lower Bound*. NIPS Workshop on Advances in Approximate Bayesian Inference.
+19. Rybkin, O., Daniilidis, K., Levine, S. (2021). *Simple and Effective VAE Training with Calibrated Decoders*. ICML.
+20. Sohn, K., Lee, H., Yan, X. (2015). *Learning Structured Output Representation using Deep Conditional Generative Models*. NeurIPS.
+21. Sønderby, C. K. và cộng sự (2016). *Ladder Variational Autoencoders*. NeurIPS.
+22. Vahdat, A., Kautz, J. (2020). *NVAE: A Deep Hierarchical Variational Autoencoder*. NeurIPS.
+23. Child, R. (2021). *Very Deep VAEs Generalize Autoregressive Models and Can Outperform Them on Images*. ICLR.
+24. van den Oord, A., Vinyals, O., Kavukcuoglu, K. (2017). *Neural Discrete Representation Learning*. NeurIPS.
+25. Bengio, Y., Léonard, N., Courville, A. (2013). *Estimating or Propagating Gradients Through Stochastic Neurons for Conditional Computation*. arXiv.
+26. Razavi, A., van den Oord, A., Vinyals, O. (2019). *Generating Diverse High-Fidelity Images with VQ-VAE-2*. NeurIPS.
+27. Kim, J., Kong, J., Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML.
+28. Zhang, Y.-J., Pan, S., He, L., Ling, Z.-H. (2019). *Learning Latent Representations for Style Control and Transfer in End-to-End Speech Synthesis*. ICASSP.
+29. Hsu, W.-N. và cộng sự (2019). *Hierarchical Generative Modeling for Controllable Speech Synthesis*. ICLR.
