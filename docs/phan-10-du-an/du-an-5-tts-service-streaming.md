@@ -586,3 +586,291 @@ while True:
 Tác vụ `run` gửi `start`, lặp qua `engine.stream(...)` để gửi `chunk` và các khung nhị phân, rồi gửi `end`. Vì cả `run` lẫn vòng lặp chính đều có thể ghi vào socket (ví dụ một thông điệp `error` "đang bận" chen giữa lúc đang stream), mọi lệnh gửi đi qua một `asyncio.Lock`. Lock này bảo đảm thông điệp `chunk` và các khung nhị phân của nó không bị thông điệp khác xen vào giữa.
 
 **Ngắt lời (*barge-in*)** là tính năng quyết định trải nghiệm hội thoại: người dùng nói chen, trợ lý phải im **ngay**. `active.cancel()` ném `CancelledError` vào `run` ở điểm `await` gần nhất. Lỗi lan vào `engine.stream`, khối `finally` hủy `producer`, và đoạn đang sinh trong thread pool chạy nốt rồi bị bỏ. Phía client còn một việc nữa: xóa bộ đệm phát của chính nó. Âm thanh đã nhận nhưng chưa phát vẫn nằm đó. Kiểm thử `test_websocket_cancel_then_reuse_connection` dùng `simulated_rtf=0.3` để các đoạn sinh chậm. Nó gửi `cancel` sau đoạn đầu, khẳng định còn nhiều đoạn chưa được gửi, rồi dùng lại chính kết nối đó cho yêu cầu mới.
+
+## 8. Chạy thử và kiểm thử
+
+Mọi lệnh dưới đây chạy từ thư mục `code/` của kho. Chúng đã được chạy thử trong môi trường biên soạn, trừ lệnh dùng `ffplay`.
+
+```bash
+pip install -r tts_service/requirements.txt pytest
+python -m pytest tests/test_tts_service.py -q          # khoảng 25 bài, vài giây, không cần mô hình
+
+# Máy chủ với bộ tổng hợp giả, RTF giả lập 0.1
+python -m tts_service --port 8000 --simulated-rtf 0.1
+
+# Ở một cửa sổ khác:
+curl -s localhost:8000/health
+curl -s -X POST localhost:8000/v1/tts -H 'content-type: application/json' \
+     -d '{"text": "Xin chào Việt Nam."}' -o xin_chao.wav
+python -m tts_service.client --url ws://localhost:8000/v1/tts/ws \
+     --text "Xin chào các bạn. Đây là dịch vụ tổng hợp tiếng nói tiếng Việt." --out out.wav
+python -m tts_service.client --url http://localhost:8000 --text "Xin chào." --out out2.wav
+# Nghe trực tiếp luồng HTTP (cần ffmpeg; header WAV mang sẵn định dạng):
+curl -sN -X POST localhost:8000/v1/tts/stream -H 'content-type: application/json' \
+     -d '{"text": "Một hai ba. Bốn năm sáu."}' | ffplay -nodisp -autoexit -
+```
+
+Với câu thử dài khoảng 4 giây âm thanh, một lần chạy trên máy biên soạn cho dòng kết quả kiểu `TTFB=124 ms  tổng=0,43 s  âm thanh=4,17 s  RTF(client)=0,102`. Ở đây TTFB gần bằng $\rho\, a_1 = 0{,}1 \times 1{,}2$ giây (đoạn đầu "Xin chào các bạn." dài khoảng 1,2 giây), đúng như công thức ở Mục 1.1.
+
+Bộ kiểm thử được tổ chức theo tầng, từ thuần túy tới tích hợp:
+
+| Nhóm | Bài kiểm thử tiêu biểu | Khẳng định |
+|---|---|---|
+| Âm thanh | `test_pcm_roundtrip_and_clipping`, `test_wav_header_and_file_are_valid` | PCM khứ hồi đúng tới sai số lượng tử; clip thay vì tràn số; NaN thành im lặng; header WAV đọc được bằng `wave` |
+| Văn bản | `test_chunk_text_limits_and_preserves_words`, `test_incremental_chunker_*`, `test_frontend_fallback_*` | Đoạn dưới trần; không mất/đảo từ; "3." chờ khoảng trắng; dự phòng khi thiếu `vn_frontend` |
+| Synthesizer | `test_tone_synthesizer_is_deterministic_and_follows_tones`, `test_onnx_adapter_*` | Tất định; F0 theo thanh; tốc độ nói; đầu vào ONNX đúng kiểu, đúng thứ tự |
+| HTTP | `test_http_stream_equals_full`, `test_http_validation_errors`, `test_metrics_endpoint_counts_requests` | Streaming và trọn tệp cho cùng byte; mã 413/422; metrics đếm đúng |
+| WebSocket | `test_websocket_stream_protocol_and_stats`, `test_websocket_cancel_then_reuse_connection`, `test_websocket_incremental_text_like_llm`, `test_websocket_errors_keep_connection_alive` | Thứ tự thông điệp; tổng số mẫu khớp; $0 \le$ TTFB $\le$ thời gian phục vụ; ngắt lời; văn bản đến dần; lỗi không làm rớt kết nối |
+| Bộ máy | `test_engine_respects_max_concurrency` | Không bao giờ quá `max_concurrency` lời gọi mô hình song song |
+| Tích hợp | `test_async_clients_and_load_test` | Chạy uvicorn thật trong một luồng; client WebSocket và HTTP nhận cùng âm thanh; thử tải không lỗi |
+
+Kiểm thử HTTP và WebSocket dùng `TestClient` của FastAPI, chạy ứng dụng trong cùng tiến trình mà không mở cổng mạng. Bài tích hợp cuối cùng mới khởi động uvicorn thật, vì client `websockets`/`httpx` cần một cổng thật.
+
+## 9. Thử tải và ước lượng dung lượng
+
+### 9.1. Vòng kín và vòng mở
+
+`loadtest.py` có hai chế độ, và sự khác biệt giữa chúng quan trọng hơn vẻ ngoài:
+
+- **Vòng kín** (`--concurrency c`): $c$ client ảo, mỗi client gửi yêu cầu mới ngay khi yêu cầu cũ xong. Khi máy chủ chậm đi, client tự động gửi ít đi. Vì vậy vòng kín *không bao giờ* đẩy máy chủ vào trạng thái quá tải thật sự, và có xu hướng làm đẹp số liệu độ trễ. Hiện tượng này được gọi là *coordinated omission*, thuật ngữ do Gil Tene phổ biến.
+- **Vòng mở** (`--rate λ`): yêu cầu đến theo quá trình Poisson với tốc độ $\lambda$ yêu cầu/giây (khoảng cách giữa hai lần đến tuân theo phân phối mũ), bất kể máy chủ đã trả lời hay chưa. Người dùng thật cư xử như vậy: họ không chờ người khác xong mới bấm nút. Đây là chế độ nên dùng để kiểm tra cam kết độ trễ (SLO).
+
+### 9.2. Một thí nghiệm nhỏ
+
+Ta chạy máy chủ với `ToneSynthesizer(simulated_rtf=0.1)` và `max_concurrency=1`, rồi thử tải vòng kín với số client tăng dần (mỗi client 8 yêu cầu, dùng các câu mẫu trong `loadtest.py`). Một lần chạy trên máy biên soạn cho kết quả:
+
+| Số client $c$ | TTFB p50 (ms) | TTFB p95 (ms) | RTF client trung bình | Giây âm thanh / giây đồng hồ |
+|---|---|---|---|---|
+| 1 | 259 | 279 | 0,10 | 9,7 |
+| 2 | 476 | 531 | 0,19 | 9,96 |
+| 4 | 937 | 1 002 | 0,38 | 9,97 |
+| 8 | 1 896 | 1 960 | 0,76 | 9,98 |
+
+Số tuyệt đối sẽ khác trên máy của bạn, nhưng ba xu hướng thì không, và cả ba đều khớp lý thuyết ở Mục 1.2:
+
+1. **Thông lượng bão hòa ở $1/\rho$.** Cột cuối dừng ở khoảng 10 giây âm thanh mỗi giây, đúng bằng $1/\rho = 1/0{,}1$. Thêm client không làm máy chủ sinh nhanh hơn; chỉ có thêm bộ sinh (thêm GPU, batching) mới làm được.
+2. **RTF mà mỗi client cảm nhận xấp xỉ $c\rho$.** Với 8 client, con số này là 0,76, vẫn nhỏ hơn 1 nên âm thanh vẫn phát liên tục. Khoảng từ 10 client trở lên, RTF cảm nhận vượt 1 và người nghe bắt đầu bị đứng hình.
+3. **TTFB tăng tuyến tính theo $c$.** Lý do là thread pool phục vụ theo thứ tự đến (FIFO). Đoạn *đầu tiên* của một yêu cầu mới phải xếp hàng sau các đoạn *thứ năm, thứ sáu* của những yêu cầu đang chạy, dù người nghe của các yêu cầu kia đã có sẵn nhiều giây âm thanh trong bộ đệm. Một bộ lập lịch ưu tiên đoạn đầu (hoặc ưu tiên luồng có ít âm thanh đệm nhất) giảm TTFB đáng kể mà không đổi thông lượng. Đây là Bài tập 6.
+
+### 9.3. Định luật Little và kế hoạch dung lượng
+
+**Định luật Little** (Little, 1961) phát biểu rằng với một hệ thống ổn định,
+
+$$
+L = \lambda W,
+$$
+
+trong đó $L$ là số yêu cầu trung bình đang ở trong hệ thống, $\lambda$ là tốc độ đến, và $W$ là thời gian trung bình một yêu cầu ở trong hệ thống. Định luật không giả định gì về phân phối, nên dùng được ngay để kiểm tra chéo số liệu. Trong thí nghiệm vòng kín, $L = c$, nên $W = c/\lambda$.
+
+Để lập kế hoạch, gọi $\bar{d}$ là thời lượng âm thanh trung bình mỗi yêu cầu và $n$ là số bộ sinh song song không batch. Mỗi yêu cầu chiếm bộ sinh trong $\rho \bar{d}$ giây, nên **mức sử dụng** là
+
+$$
+u = \frac{\lambda\, \rho\, \bar{d}}{n},
+$$
+
+và hệ thống chỉ ổn định khi $u < 1$, tức $\lambda < n / (\rho \bar{d})$. Nhưng chạy sát $u = 1$ là sai lầm. Lý thuyết hàng đợi cho thấy thời gian chờ tăng vọt khi $u \to 1$. Với mô hình đơn giản nhất (M/M/1: đến theo Poisson, thời gian phục vụ phân phối mũ, một bộ phục vụ), thời gian chờ trung bình trong hàng là
+
+$$
+W_q = \frac{u}{1-u} \cdot \frac{1}{\mu},
+$$
+
+với $1/\mu$ là thời gian phục vụ trung bình. Ví dụ: $\rho = 0{,}1$, $\bar{d} = 5$ giây, nên $1/\mu = 0{,}5$ giây. Ở $u = 0{,}5$, $W_q = 0{,}5$ giây; ở $u = 0{,}8$, $W_q = 2$ giây; ở $u = 0{,}95$, $W_q = 9{,}5$ giây. Đó là lý do các hệ thống có cam kết độ trễ thường được định cỡ để chạy ở mức sử dụng khoảng 50–70% vào giờ cao điểm. Đây là con số kinh nghiệm, cần hiệu chỉnh bằng thử tải vòng mở với lưu lượng giống thật. Streaming theo đoạn giúp phần nào: điều người dùng cảm nhận là thời gian chờ *đoạn đầu*, không phải cả yêu cầu. Tuy vậy, hàng đợi vẫn là hàng đợi.
+
+!!! tip "Đo phân vị, đừng chỉ đo trung bình"
+    Một dịch vụ có TTFB trung bình 200 ms nhưng p99 là 3 giây sẽ khiến cứ 100 câu trả lời thì có một câu người dùng tưởng hệ thống treo. Với trợ lý ảo, mỗi phiên hội thoại có hàng chục lượt, nên gần như phiên nào cũng gặp ít nhất một lần chậm. Dean và Barroso (2013) phân tích kỹ hiện tượng "đuôi dài" này. Hãy đặt SLO theo p95/p99, và luôn báo cáo kèm số client, chế độ vòng kín/mở, độ dài văn bản.
+
+## 10. Triển khai
+
+### 10.1. Tiến trình, luồng và bộ nhớ mô hình
+
+Câu hỏi đầu tiên khi triển khai là: bao nhiêu tiến trình? Với dịch vụ web thông thường, người ta chạy `uvicorn --workers N` để tận dụng nhiều lõi CPU. Với dịch vụ mô hình, **mỗi worker nạp một bản mô hình riêng**. Bốn worker trên một GPU nghĩa là bốn bản trọng số và bốn vùng bộ nhớ đệm CUDA, rồi cả bốn tranh nhau cùng một GPU. Quy tắc an toàn:
+
+- **Một tiến trình cho mỗi GPU** (hoặc mỗi container), giới hạn đồng thời bên trong bằng `max_concurrency`.
+- **Mở rộng theo chiều ngang** bằng cách chạy thêm container sau một bộ cân bằng tải.
+- Trên CPU, có thể chạy vài tiến trình nhỏ nếu mô hình nhẹ (VITS ONNX vài chục MB). Khi đó hãy đặt số luồng nội bộ của mỗi tiến trình sao cho tổng không vượt số lõi.
+
+### 10.2. Docker
+
+`code/tts_service/Dockerfile`, build từ thư mục `code/`:
+
+```dockerfile
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    OMP_NUM_THREADS=2
+
+WORKDIR /app
+COPY tts_service/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Mã nguồn: dịch vụ + front-end tiếng Việt (Dự án 1). Mô hình nên được gắn vào qua volume
+# hoặc tải lúc khởi động, không nên "nướng" vào ảnh.
+COPY tts_service/ /app/tts_service/
+COPY vn_frontend/ /app/vn_frontend/
+
+RUN useradd --create-home --uid 10001 tts
+USER tts
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+
+CMD ["uvicorn", "tts_service.server:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", \
+     "--workers", "1", "--timeout-graceful-shutdown", "30"]
+```
+
+```bash
+cd code
+docker build -f tts_service/Dockerfile -t tts-service .
+docker run --rm -p 8000:8000 -e TTS_SIMULATED_RTF=0.05 tts-service
+# Mô hình ONNX từ Dự án 3, gắn vào qua volume:
+docker run --rm -p 8000:8000 -v $(pwd)/models:/models:ro \
+    -e TTS_SYNTHESIZER=onnx -e TTS_ONNX_MODEL=/models/vits_vi.onnx tts-service
+```
+
+(Dockerfile này chưa được build thử trong môi trường biên soạn vì không có Docker daemon; nội dung chỉ dùng các lệnh chuẩn, nhưng bạn hãy kiểm tra lại. Muốn dùng adapter ONNX thì thêm `onnxruntime` vào `requirements.txt`.)
+
+Một số lựa chọn trong Dockerfile có lý do riêng. `create_app` là một *factory* đọc cấu hình từ biến môi trường (`TTS_SYNTHESIZER`, `TTS_MAX_CONCURRENCY`, `TTS_FIRST_CHUNK_CHARS`...), nên một ảnh dùng được cho nhiều cấu hình. Container chạy bằng người dùng không phải root. `--timeout-graceful-shutdown` cho các yêu cầu đang dở thời gian hoàn tất khi container bị dừng. Với GPU, hãy đổi ảnh nền sang một ảnh CUDA chính thức, dùng gói ONNX Runtime/PyTorch bản GPU tương ứng, và chạy với `--gpus all`. Phiên bản CUDA phải khớp giữa ảnh, driver và thư viện; hãy tra bảng tương thích của thư viện bạn dùng tại thời điểm triển khai.
+
+### 10.3. Proxy ngược và cân bằng tải
+
+Đa số triển khai đặt nginx hoặc một bộ cân bằng tải trước dịch vụ. Hai cấu hình dễ quên nhất (phác thảo, chưa chạy thử):
+
+```nginx
+location /v1/tts/ws {
+    proxy_pass http://tts_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;     # nâng cấp lên WebSocket
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 3600s;                   # kết nối hội thoại sống lâu
+}
+location /v1/ {
+    proxy_pass http://tts_backend;
+    proxy_http_version 1.1;
+    proxy_buffering off;                        # nếu không, streaming HTTP bị gom lại
+}
+```
+
+WebSocket được cân bằng tải **theo kết nối**, không theo yêu cầu. Một kết nối hội thoại có thể sống hàng chục phút và gửi nhiều yêu cầu, nên phân bố tải giữa các bản sao có thể lệch dù số kết nối đều nhau. Khi lệch nhiều, có thể giới hạn số kết nối mỗi bản sao, hoặc cho client kết nối lại định kỳ.
+
+### 10.4. Kubernetes và tự động co giãn
+
+- **Readiness**: dùng `/health`. Vì `warmup` chạy trong `lifespan` trước khi uvicorn nhận yêu cầu, `/health` trả lời được nghĩa là mô hình đã nạp xong. Thời gian khởi động có thể lên tới hàng chục giây với mô hình lớn, nên hãy cấu hình `startupProbe` đủ rộng.
+- **Co giãn theo tín hiệu đúng.** Dịch vụ dùng GPU có CPU thấp ngay cả khi quá tải, nên co giãn theo CPU vô nghĩa. Hãy co giãn theo `tts_active_streams` mỗi pod, hoặc theo p95 của `tts_queue_wait_seconds`, thông qua bộ chuyển đổi metric tùy biến.
+- **Dừng êm (*graceful shutdown*).** Khi nhận SIGTERM, pod phải ngừng nhận kết nối mới và cho các luồng đang phát hoàn tất. `terminationGracePeriodSeconds` cần lớn hơn thời gian phát dài nhất mà bạn chấp nhận.
+
+### 10.5. Bảo mật và an toàn
+
+- **Xác thực và giới hạn tốc độ.** Mã mẫu không có xác thực. Trong thực tế, hãy kiểm tra token ở header (HTTP) hoặc ở bước bắt tay WebSocket, và giới hạn số yêu cầu, số ký tự mỗi phút cho từng khóa. Dùng TLS (`https`, `wss`).
+- **Quyền riêng tư.** Văn bản người dùng gửi có thể chứa dữ liệu cá nhân (tên, số điện thoại, địa chỉ). Log của ta cố ý chỉ ghi số liệu (độ dài, TTFB, RTF), **không ghi văn bản**. Nếu cần lưu văn bản để gỡ lỗi, hãy có chính sách lưu trữ và sự đồng ý phù hợp với quy định về bảo vệ dữ liệu cá nhân (ở Việt Nam là Nghị định 13/2023/NĐ-CP và các văn bản sau đó; xem [Chương 40](../phan-9-thuc-tien/ch40-dao-duc-an-toan.md), và hỏi ý kiến pháp lý vì quy định thay đổi theo thời gian).
+- **Giọng nói của người thật.** Nếu dịch vụ phục vụ giọng nhân bản (Dự án 4), chỉ cho phép các giọng có hồ sơ đồng ý, và cân nhắc nhúng thủy vân (*watermark*) vào âm thanh đầu ra ([Chương 40](../phan-9-thuc-tien/ch40-dao-duc-an-toan.md)).
+
+## 11. Giám sát
+
+Theo tinh thần "bốn tín hiệu vàng" (*four golden signals*) của SRE (Beyer và cộng sự, 2016), gồm độ trễ, lưu lượng, lỗi và độ bão hòa, dịch vụ xuất các metric sau tại `/metrics`:
+
+| Metric | Loại | Ý nghĩa | Gợi ý cảnh báo (ví dụ, cần hiệu chỉnh) |
+|---|---|---|---|
+| `tts_ttfb_seconds` | histogram | TTFB phía máy chủ | p95 vượt SLO (ví dụ 1 s) trong 5 phút |
+| `tts_rtf` | histogram | RTF tính toán mỗi yêu cầu | p95 tăng đột ngột: GPU bị chia sẻ, bị hạ xung, hoặc mô hình chạy nhầm trên CPU |
+| `tts_queue_wait_seconds` | histogram | Thời gian chờ mô hình | p95 tăng dần: cần thêm bản sao |
+| `tts_requests_total{endpoint,status}` | counter | Số yêu cầu theo kết quả | Tỷ lệ `error` vượt 1% |
+| `tts_active_streams` | gauge | Số luồng đang phục vụ (độ bão hòa) | Gần ngưỡng $1/\rho$ mỗi bộ sinh |
+| `tts_audio_seconds_total`, `tts_compute_seconds_total` | counter | Tổng âm thanh đã sinh, tổng thời gian tính | Tỷ số của chúng là RTF trung bình; dùng để tính chi phí |
+
+Registry trong `metrics.py` được viết tay (khoảng 100 dòng) để không thêm phụ thuộc và để bạn thấy định dạng văn bản của Prometheus đơn giản thế nào. Trong sản phẩm, hãy dùng thư viện `prometheus_client`. Cấu hình thu thập và một luật cảnh báo mẫu (phác thảo, chưa chạy thử):
+
+```yaml
+scrape_configs:
+  - job_name: tts
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["tts-service:8000"]
+
+# Luật cảnh báo (tệp rules riêng)
+groups:
+  - name: tts
+    rules:
+      - alert: TTSHighTTFB
+        expr: histogram_quantile(0.95, sum(rate(tts_ttfb_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+```
+
+Bên cạnh metric, dịch vụ còn ghi **một dòng log JSON** cho mỗi yêu cầu (`request_id`, kiểu endpoint, trạng thái, TTFB, RTF, thời gian chờ, số đoạn). Header `X-Request-ID` trả về cho client để hai phía tra cứu chéo khi có khiếu nại.
+
+Metric hạ tầng chỉ cho biết dịch vụ *chạy*. Chúng không cho biết dịch vụ *nói đúng*. Một bản cập nhật front-end có thể khiến mọi số điện thoại bị đọc sai mà không metric nào đổi màu. Hãy thêm **giám sát chất lượng**:
+
+- **Câu thử định kỳ (*canary*).** Mỗi vài phút, tổng hợp một bộ câu cố định (có số, ngày tháng, chữ viết tắt, đủ sáu thanh), chạy ASR tiếng Việt và tính CER so với văn bản chuẩn hóa. Cảnh báo khi CER tăng ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)).
+- **Kiểm tra tín hiệu rẻ** cho mọi đầu ra: tỷ lệ mẫu bị clip, đoạn im lặng bất thường dài, NaN đã bị thay bằng im lặng, thời lượng âm thanh so với số ký tự (quá ngắn thường là mô hình bỏ chữ, quá dài thường là mô hình lặp).
+- **Lấy mẫu để nghe**: định kỳ, một người nghe vài chục mẫu ngẫu nhiên (đã ẩn danh). Không metric tự động nào thay thế được tai người.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Gọi mô hình thẳng trong `async def`.** Mọi kết nối đứng hình trong lúc suy luận. Triệu chứng điển hình: TTFB của *mọi* người dùng tăng cùng lúc, health check thỉnh thoảng quá hạn. Luôn chạy mô hình trong thread pool (hoặc tiến trình riêng).
+- **Dùng `uvicorn --workers 4` với mô hình GPU.** Bốn bản mô hình, bốn lần bộ nhớ, rồi hết bộ nhớ GPU khi tải lên. Một worker mỗi GPU, giới hạn đồng thời bên trong.
+- **Streaming "không chảy" sau proxy.** Thường do bộ đệm của nginx, CDN, hoặc middleware nén gzip gom phản hồi. Kiểm tra bằng `curl -N` đi thẳng vào dịch vụ rồi đi qua proxy và so TTFB.
+- **Tiếng rè hoặc giọng "sóc chuột".** Sai byte order (`audio/L16` là big-endian), hoặc client phát sai tần số lấy mẫu. Luôn gửi `sample_rate` tường minh, và kiểm tra rằng `sample_rate` khai báo trong `Synthesizer` đúng bằng tần số mô hình được huấn luyện.
+- **Tiếng "tách" giữa các đoạn.** Thiếu fade ở biên đoạn, hoặc cắt đoạn giữa âm thanh liên tục mà không ghép chồng.
+- **Đo TTFB sai.** Tính cả 44 byte header WAV là "byte đầu tiên". Đo ở máy chủ rồi báo cáo như độ trễ người dùng (thiếu mạng, thiếu bộ đệm phát phía client). Hoặc dùng thử tải vòng kín để tuyên bố SLO.
+- **Ngắt lời không dừng được việc sinh.** Quên `aclosing`, hoặc nuốt `CancelledError` ở đâu đó. Kiểm tra bằng một bài kiểm thử như `test_websocket_cancel_then_reuse_connection` với bộ sinh chậm giả lập.
+- **Yêu cầu đầu tiên sau khởi động rất chậm.** Thiếu `warmup`. Với GPU, lần chạy đầu có thể chậm hơn nhiều lần, và kích thước đầu vào mới (văn bản dài hơn) cũng có thể kích hoạt cấp phát mới. Có thể làm nóng với vài độ dài khác nhau.
+- **Front-end lúc phục vụ khác lúc huấn luyện** (phiên bản `vn_frontend`, dạng Unicode, quy tắc đọc số). Mô hình không lỗi, chỉ đọc sai một cách "tự tin". Hãy ghim phiên bản và chạy câu thử canary.
+- **Quá tải luồng CPU.** `max_concurrency × OMP_NUM_THREADS` vượt số lõi làm mọi yêu cầu chậm đi nhiều lần. Đặt `OMP_NUM_THREADS` tường minh trong container.
+- **Văn bản cực dài.** Không giới hạn độ dài thì một yêu cầu "đọc cả cuốn sách" chiếm mô hình hàng giờ. Đặt `max_text_chars`, và với sách nói thì dùng hàng đợi xử lý theo lô riêng.
+
+## Tóm tắt
+
+- Streaming theo đoạn biến TTFB từ "thời gian sinh cả văn bản" thành "thời gian sinh đoạn đầu" và dùng được với mọi mô hình TTS.
+- Với một bộ sinh có RTF $\rho$, âm thanh phát liên tục khi $a_k \le a_1 + \frac{1-\rho}{\rho} A_{k-1}$. Nếu độ dài đoạn tăng theo cấp số nhân với hệ số $g$, điều kiện tương đương với $g \le 1/\rho$. Đoạn đầu ngắn, các đoạn sau dài dần.
+- Kiến trúc tách ba tầng: giao thức (HTTP, WebSocket), bộ máy streaming (pipeline, hàng đợi có giới hạn, thread pool) và `Synthesizer` cắm được (giả lập tất định, ONNX VITS, PyTorch, F5-TTS).
+- Thread pool riêng với số luồng bằng giới hạn đồng thời giữ được giới hạn ngay cả khi yêu cầu bị hủy. Hàng đợi có giới hạn tạo áp lực ngược. `aclosing` bảo đảm hủy dây chuyền.
+- WebSocket hơn HTTP chunked ở chỗ báo được lỗi giữa chừng, ngắt lời được và nhận được văn bản đến dần từ LLM.
+- Khi không batch, thông lượng bão hòa ở $n/\rho$ giây âm thanh mỗi giây. RTF cảm nhận tăng xấp xỉ $c\rho$ theo số luồng. Định luật Little và lý thuyết hàng đợi giải thích vì sao nên chạy ở mức sử dụng vừa phải.
+- Triển khai: một tiến trình mỗi GPU, `warmup` trước khi báo sẵn sàng, tắt bộ đệm ở proxy, co giãn theo metric hàng đợi chứ không theo CPU.
+- Giám sát cả hạ tầng (TTFB, RTF, lỗi, độ bão hòa) lẫn chất lượng (câu thử canary với ASR, kiểm tra tín hiệu, nghe mẫu).
+
+## Bài tập
+
+1. **[Cơ bản]** Một mô hình có $\rho = 0{,}25$. Đoạn đầu dài 1,5 giây âm thanh, mạng mất 40 ms, front-end mất 5 ms, không có hàng đợi. Tính TTFB phía client. Nếu dịch vụ trả trọn tệp cho một văn bản 20 giây âm thanh, TTFB là bao nhiêu?
+
+    ??? success "Lời giải"
+        Streaming: $0{,}04 + 0{,}005 + 0{,}25 \times 1{,}5 = 0{,}42$ giây. Trọn tệp: $0{,}04 + 0{,}005 + 0{,}25 \times 20 \approx 5{,}05$ giây (chưa kể thời gian truyền tệp).
+
+2. **[Cơ bản]** Giải thích vì sao endpoint `/v1/tts/stream` phải kiểm tra độ dài văn bản và chia đoạn *trước* khi trả `StreamingResponse`. Điều gì xảy ra nếu một ngoại lệ xảy ra ở đoạn thứ ba?
+
+    ??? tip "Gợi ý"
+        Mã trạng thái HTTP và header được gửi cùng với byte đầu tiên của thân phản hồi. Sau thời điểm đó, ngoại lệ chỉ có thể làm đóng kết nối. So sánh với thông điệp `error` của WebSocket.
+
+3. **[Nâng cao]** Mở rộng chứng minh ở Mục 1.2 cho trường hợp mỗi lần gọi mô hình tốn thêm một chi phí cố định $c_0$ giây, tức $g_j = c_0 + \rho a_j$. Với độ dài đoạn bằng nhau $a_j = a$, tìm điều kiện để phát liên tục. Từ đó giải thích vì sao không nên chia văn bản thành các đoạn quá ngắn.
+
+    ??? success "Lời giải"
+        Đoạn $k$ sinh xong tại $G_k = k c_0 + \rho k a$ và được cần tại $P_k = c_0 + \rho a + (k-1)a$. Điều kiện $G_k \le P_k$ tương đương $(k-1)(c_0 + \rho a) \le (k-1) a$, tức $c_0 \le (1-\rho)\,a$, hay $a \ge c_0/(1-\rho)$. Đoạn quá ngắn thì chi phí cố định (khởi chạy kernel, chép dữ liệu, front-end) chiếm phần lớn, nên RTF hiệu dụng $\rho + c_0/a$ vượt 1. Ngoài ra, đoạn ngắn còn cho mô hình ít ngữ cảnh, khiến ngôn điệu kém tự nhiên.
+
+4. **[Nâng cao]** Dịch vụ có 2 GPU, mỗi GPU một bộ sinh với $\rho = 0{,}08$. Yêu cầu trung bình dài 6 giây âm thanh. (a) Tốc độ đến tối đa (yêu cầu/giây) mà hệ thống còn ổn định là bao nhiêu? (b) Nếu muốn giữ mức sử dụng không quá 60%, hệ thống phục vụ được bao nhiêu yêu cầu mỗi giờ? (c) Dùng định luật Little ước lượng số yêu cầu đang ở trong hệ thống khi $\lambda = 2$ yêu cầu/giây và thời gian phục vụ trung bình (gồm chờ) là 0,9 giây.
+
+    ??? success "Lời giải"
+        (a) $\lambda_{\max} = n/(\rho \bar d) = 2/(0{,}08 \times 6) \approx 4{,}17$ yêu cầu/giây. (b) $0{,}6 \times 4{,}17 = 2{,}5$ yêu cầu/giây, tức khoảng 9 000 yêu cầu/giờ. (c) $L = \lambda W = 2 \times 0{,}9 = 1{,}8$ yêu cầu.
+
+5. **[Lập trình]** Viết một client trình duyệt (HTML + JavaScript) kết nối `/v1/tts/ws`, đổi các khung PCM 16-bit thành `Float32Array` và phát liên tục bằng Web Audio API (`AudioContext`, lên lịch `AudioBufferSourceNode` nối tiếp nhau). Hiển thị văn bản của đoạn đang phát (từ thông điệp `chunk`), và thêm nút "Ngắt lời" gửi `cancel` và xóa bộ đệm phát.
+
+6. **[Lập trình]** Thay thread pool FIFO bằng một bộ lập lịch ưu tiên: đoạn đầu của mỗi yêu cầu được ưu tiên cao nhất; các đoạn sau ưu tiên theo "lượng âm thanh còn trong bộ đệm của client" (ước lượng bằng thời lượng đã gửi trừ thời gian đã trôi qua kể từ đoạn đầu). Lặp lại thí nghiệm ở Mục 9.2 và so sánh TTFB p50/p95 cùng thông lượng.
+
+    ??? tip "Gợi ý"
+        Dùng một `asyncio.PriorityQueue` các công việc chờ, cộng với $n$ "worker" coroutine, mỗi worker lấy công việc có ưu tiên cao nhất rồi chạy nó bằng `run_in_executor`. Thông lượng gần như không đổi (vẫn bị chặn bởi $n/\rho$), nhưng TTFB p50 phải giảm rõ rệt.
+
+7. **[Lập trình]** Thêm tùy chọn `encoding: "opus"` cho WebSocket: nén mỗi đoạn bằng Opus (qua một thư viện Python bọc `libopus`, hoặc gọi `ffmpeg`) trước khi gửi. Đo băng thông và TTFB so với PCM. Thảo luận: tại sao Opus phù hợp cho thoại hơn MP3 trong bối cảnh độ trễ thấp?
+
+8. **[Lập trình]** Cắm mô hình VITS ONNX của [Dự án 3](du-an-3-vits-tieng-viet.md) vào dịch vụ (`TTS_SYNTHESIZER=onnx`). Đo $\rho$ thực tế trên CPU của bạn bằng `/metrics`, rồi chọn `first_max_chars` và hệ số tăng $g$ theo Mục 1.2. Viết kiểm thử canary: tổng hợp 20 câu có số và chữ viết tắt, chạy ASR, tính CER.
+
+## Tài liệu tham khảo
+
+1. Fette, I. và Melnikov, A. (2011). *The WebSocket Protocol*. RFC 6455, IETF.
+2. Fielding, R., Nottingham, M. và Reschke, J. (2022). *HTTP/1.1*. RFC 9112, IETF. (Mục về mã hóa truyền *chunked*.)
+3. Schulzrinne, H. và Casner, S. (2003). *RTP Profile for Audio and Video Conferences with Minimal Control*. RFC 3551, IETF. (Định nghĩa định dạng L16 theo thứ tự byte mạng.)
+4. Valin, J.-M., Vos, K. và Terriberry, T. (2012). *Definition of the Opus Audio Codec*. RFC 6716, IETF.
+5. Little, J. D. C. (1961). *A Proof for the Queuing Formula: L = λW*. Operations Research, 9(3).
+6. Dean, J. và Barroso, L. A. (2013). *The Tail at Scale*. Communications of the ACM, 56(2).
+7. Beyer, B., Jones, C., Petoff, J. và Murphy, N. R. (chủ biên) (2016). *Site Reliability Engineering: How Google Runs Production Systems*. O'Reilly Media.
+8. Kim, J., Kong, J. và Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML 2021. (Mô hình VITS dùng trong adapter ONNX.)
+9. Tài liệu FastAPI (WebSockets, `StreamingResponse`, lifespan), Starlette, Uvicorn, ONNX Runtime và Prometheus (định dạng văn bản xuất metric). Tra cứu phiên bản tương ứng với môi trường của bạn; mã trong dự án đã chạy với FastAPI 0.16x, Starlette 1.x, Uvicorn 0.5x, websockets 17 (tính đến thời điểm biên soạn, 2026).
