@@ -234,7 +234,7 @@ trong đó $n_k$ là số véc-tơ của batch hiện tại gán cho mã $k$. T�
 DAC kế thừa hai thủ thuật từ ViT-VQGAN (Yu và cộng sự, 2022):
 
 1. **Mã phân rã** (*factorized codes*): chiếu $\mathbf{z} \in \mathbb{R}^{C}$ xuống một không gian rất thấp chiều $\mathbb{R}^{c}$ (theo bài báo DAC, $c = 8$) để tra cứu, rồi chiếu ngược lên $\mathbb{R}^{C}$. Trong không gian thấp chiều, khoảng cách Euclid có ý nghĩa hơn và các từ mã "chen chúc" ít hơn.
-2. **Chuẩn hóa $\ell_2$**: chuẩn hóa cả véc-tơ truy vấn lẫn từ mã về độ dài 1, nên khoảng cách Euclid tương đương **độ tương tự cosine**: $\lVert \mathbf{a} - \mathbf{b} \rVert^2 = 2 - 2\cos(\mathbf{a}, \mathbf{b})$ khi $\lVert \mathbf{a} \rVert = \lVert \mathbf{b} \rVert = 1$. Không còn tình trạng một vài từ mã có chuẩn nhỏ "thắng" mọi cuộc so khoảng cách; các mã chỉ cạnh tranh về hướng.
+2. **Chuẩn hóa $\ell_2$**: chuẩn hóa cả véc-tơ truy vấn lẫn từ mã về độ dài 1, nên khoảng cách Euclid tương đương **độ tương tự cosine**: $\lVert \mathbf{a} - \mathbf{b} \rVert^2 = 2 - 2\cos(\mathbf{a}, \mathbf{b})$ khi $\lVert \mathbf{a} \rVert = \lVert \mathbf{b} \rVert = 1$. Không còn tình trạng vài từ mã nằm gần tâm phân phối (chuẩn nhỏ) "thắng" phần lớn các lần so khoảng cách; các mã chỉ cạnh tranh về hướng.
 
 Theo báo cáo gốc, hai thủ thuật này giúp DAC sử dụng sổ mã đầy đủ hơn hẳn mà không cần EMA.
 
