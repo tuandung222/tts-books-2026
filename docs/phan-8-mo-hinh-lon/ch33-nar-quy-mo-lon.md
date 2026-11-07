@@ -81,7 +81,7 @@ $$
 \mathcal{L}_{\text{CFM-mask}}(\theta) = \mathbb{E}_{t, \mathbf{Y}_0, \mathbf{Y}, \mathbf{m}} \Big[ \big\lVert \mathbf{m} \odot \big( \mathbf{v}_\theta(\mathbf{Y}_t, t, \mathbf{a}, \mathbf{Y}_{\text{ctx}}) - \mathbf{u}_t \big) \big\rVert_2^2 \Big],
 $$
 
-thường chuẩn hóa bằng số phần tử bị che. Vì sao bỏ các khung ngữ cảnh khỏi mất mát? Trên một khung ngữ cảnh, mô hình được **cho biết** $\mathbf{Y}_1$ (qua $\mathbf{Y}_{\text{ctx}}$) và thấy $\mathbf{Y}_t$, nên suy ra được $\mathbf{Y}_0 = (\mathbf{Y}_t - t\mathbf{Y}_1) / (1 - (1-\sigma_{\min})t)$ và do đó $\mathbf{u}_t$ một cách tất định — một nhiệm vụ "chép bài" vô ích, lại không được dùng khi suy luận (ta ghi đè các khung đó bằng giá trị thật). Theo báo cáo gốc, tính mất mát chỉ trên khung bị che cho kết quả tốt hơn.
+thường chuẩn hóa bằng số phần tử bị che. Vì sao bỏ các khung ngữ cảnh khỏi mất mát? Trên một khung ngữ cảnh, mô hình được **cho biết** $\mathbf{Y}_1$ (qua $\mathbf{Y}_{\text{ctx}}$) và thấy $\mathbf{Y}_t$, nên suy ra được $\mathbf{Y}_0 = (\mathbf{Y}_t - t\mathbf{Y}_1) / (1 - (1-\sigma_{\min})t)$ và do đó $\mathbf{u}_t$ một cách tất định — một nhiệm vụ "chép bài" vô ích, lại không được dùng khi suy luận (ta ghi đè các khung đó bằng giá trị thật). Vì vậy Voicebox, và các mô hình kế thừa nó, chỉ tính mất mát trên vùng bị che.
 
 **Chiến lược che.** Khi huấn luyện, Voicebox che một **đoạn liên tục** chiếm phần lớn câu (theo bài báo, khoảng 70–100% số khung), để mô hình vừa học sinh gần như từ đầu, vừa học nối tiếp từ một ngữ cảnh ngắn. Với một xác suất nhỏ, toàn bộ điều kiện ($\mathbf{a}$ và $\mathbf{Y}_{\text{ctx}}$) bị bỏ để phục vụ CFG.
 

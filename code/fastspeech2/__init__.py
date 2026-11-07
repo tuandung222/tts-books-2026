@@ -9,6 +9,13 @@ from .config import AudioConfig, Config, ModelConfig, TrainConfig
 from .hifigan import Generator, load_generator, merge_weight_norm
 from .loss import FastSpeech2Loss
 from .model import (
-    FastSpeech2, FFTBlock, LengthRegulatorError if False else FFTBlock, VarianceAdaptor, VariancePredictor,
-    average_by_duration, length_regulate, make_pad_mask,
+    FastSpeech2, FFTBlock, VarianceAdaptor, VariancePredictor, average_by_duration, length_regulate,
+    make_pad_mask,
 )
+
+__all__ = [
+    "AlignmentEncoder", "beta_binomial_prior", "binarize_alignment", "forward_sum_loss", "maximum_path",
+    "AudioConfig", "Config", "ModelConfig", "TrainConfig", "Generator", "load_generator",
+    "merge_weight_norm", "FastSpeech2Loss", "FastSpeech2", "FFTBlock", "VarianceAdaptor",
+    "VariancePredictor", "average_by_duration", "length_regulate", "make_pad_mask",
+]
