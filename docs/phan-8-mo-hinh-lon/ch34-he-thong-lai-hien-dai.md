@@ -90,7 +90,7 @@ Công thức nói rằng: để sinh mel, trước hết sinh một chuỗi toke
 Tổng trên mọi chuỗi $\mathbf{q}$ là không thể tính, nhưng ta không cần tính nó. Lý do là token không phải biến ẩn cần suy diễn: nó được tạo **tất định** bởi một bộ token hóa $E$ đã huấn luyện sẵn, $\mathbf{q} = E(\mathbf{Y})$. Từ mỗi cặp (văn bản, âm thanh) trong tập huấn luyện ta có bộ ba $(\mathbf{x}, \mathbf{q}, \mathbf{Y})$ và huấn luyện hai tầng **tách rời** bằng hợp lý cực đại:
 
 - Tầng 1 (LM) cực tiểu entropy chéo $-\log p_{\theta_1}(\mathbf{q} \mid \mathbf{x}, \mathbf{c})$.
-- Tầng 2 (bộ giải mã) cực tiểu hàm mất mát flow matching có điều kiện, một cận thay thế cho $-\log p_{\theta_2}(\mathbf{Y} \mid \mathbf{q}, \mathbf{c})$.
+- Tầng 2 (bộ giải mã) cực tiểu hàm mất mát flow matching có điều kiện, một mục tiêu thay thế (*surrogate*) cho việc cực đại $\log p_{\theta_2}(\mathbf{Y} \mid \mathbf{q}, \mathbf{c})$: nó không phải cận của log-likelihood, nhưng cực tiểu của nó cho trường vận tốc sinh đúng phân phối có điều kiện ([Chương 12](../phan-2-mo-hinh-sinh/ch12-flow-matching.md)).
 
 Khi suy luận, ta lấy mẫu tuần tự (*ancestral sampling*): $\hat{\mathbf{q}} \sim p_{\theta_1}(\cdot \mid \mathbf{x}, \mathbf{c})$ rồi $\hat{\mathbf{Y}} \sim p_{\theta_2}(\cdot \mid \hat{\mathbf{q}}, \mathbf{c})$, cuối cùng vocoder biến $\hat{\mathbf{Y}}$ thành dạng sóng.
 
@@ -205,7 +205,7 @@ Một hệ quả quan trọng: **độ dài câu được LM quyết định**, 
 
 ### Khởi tạo từ một LLM văn bản đã huấn luyện
 
-CosyVoice phiên bản đầu dùng một Transformer huấn luyện từ đầu, có bộ mã hóa văn bản riêng. CosyVoice 2 đi theo xu hướng chung của giai đoạn này: **khởi tạo LM từ một LLM văn bản đã huấn luyện sẵn** (theo báo cáo gốc là Qwen2.5-0.5B). Cách làm cụ thể gồm:
+CosyVoice phiên bản đầu dùng một Transformer huấn luyện từ đầu, có bộ mã hóa văn bản riêng. CosyVoice 2 đi theo xu hướng chung của giai đoạn này: **khởi tạo LM từ một LLM văn bản đã huấn luyện sẵn** (theo báo cáo gốc là Qwen2.5-0.5B). Cách làm điển hình gồm:
 
 1. Giữ nguyên tokenizer BPE của LLM cho phần văn bản, nên đầu vào là văn bản thô, không cần G2P.
 2. Mở rộng bảng embedding với $V$ token tiếng nói mới cùng vài token đặc biệt; các dòng mới được khởi tạo ngẫu nhiên.
@@ -270,7 +270,7 @@ Một câu hỏi tự nhiên: nếu đã có token, tại sao không huấn luy�
 
 Ngược lại, nếu token được thiết kế để **cùng nhau** mang đủ thông tin (ví dụ token cục bộ cộng token toàn cục mô tả người nói như BiCodec của Spark-TTS), thì bộ giải mã tất định kiểu codec là đủ. Hai lựa chọn này là hai điểm khác nhau trong không gian thiết kế, ta sẽ gặp lại ở Mục 34.7.
 
-Đầu ra mel cuối cùng được đưa vào một vocoder họ HiFi-GAN ([Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)). Theo báo cáo gốc, CosyVoice dùng một vocoder kết hợp nguồn kích thích kiểu NSF với đầu ra iSTFT (HiFTNet). Hãy nhớ hợp đồng tương thích cấu hình mel giữa bộ giải mã và vocoder ([Chương 26](../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh.md)): tần số lấy mẫu, bước nhảy, số kênh mel, cách lấy log phải khớp tuyệt đối.
+Đầu ra mel cuối cùng được đưa vào một vocoder họ HiFi-GAN ([Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)). Bản cài đặt mã nguồn mở của CosyVoice dùng một vocoder kết hợp nguồn kích thích kiểu NSF với đầu ra iSTFT (HiFTNet). Hãy nhớ hợp đồng tương thích cấu hình mel giữa bộ giải mã và vocoder ([Chương 26](../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh.md)): tần số lấy mẫu, bước nhảy, số kênh mel, cách lấy log phải khớp tuyệt đối.
 
 ## 34.6 Streaming: flow matching nhận biết chunk
 
@@ -399,7 +399,7 @@ Mục này điểm qua một số hệ thống tiêu biểu. Mục tiêu không 
 
 **Seed-TTS** (Anastassiou và cộng sự, 2024) là một họ mô hình của ByteDance. Theo báo cáo, hệ thống gồm bốn khối: bộ token hóa tiếng nói, LM token tự hồi quy, mô hình khuếch tán sinh biểu diễn âm học liên tục từ token, và vocoder âm học. Về khung kiến trúc, đây vẫn là "LM + bộ giải mã sinh liên tục", chỉ khác ở chỗ bộ giải mã là khuếch tán thay vì flow matching. Báo cáo đáng chú ý ở mấy điểm:
 
-- **Một biến thể hoàn toàn không tự hồi quy** (Seed-TTS$_{\text{DiT}}$) dùng một Transformer khuếch tán sinh thẳng biểu diễn âm học từ văn bản, không qua token, chỉ cần tổng thời lượng. Đây là bằng chứng rằng hai trường phái ở Mục 34.1 có thể đạt chất lượng tương đương khi đủ dữ liệu.
+- **Một biến thể hoàn toàn không tự hồi quy** (Seed-TTS$_{\text{DiT}}$) dùng một Transformer khuếch tán sinh thẳng biểu diễn âm học từ văn bản, không qua token, chỉ cần tổng thời lượng. Theo báo cáo, biến thể này đạt kết quả tương đương biến thể dùng LM trên các thước đo khách quan, gợi ý rằng với đủ dữ liệu, khoảng cách chất lượng giữa hai trường phái ở Mục 34.1 có thể rất nhỏ; khác biệt còn lại nằm ở streaming và khả năng kiểm soát độ dài.
 - **Fine-tune theo người nói** (*speaker fine-tuning*): tinh chỉnh mô hình gốc trên dữ liệu của một giọng cụ thể để tăng độ giống và độ ổn định so với zero-shot thuần.
 - **Hậu huấn luyện bằng học tăng cường**: báo cáo so sánh các phương pháp dùng mô hình phần thưởng ngoài (như PPO, REINFORCE) với DPO, dùng các tín hiệu như WER, độ giống giọng và bộ phân loại cảm xúc (Mục 34.8).
 - **Bộ đánh giá Seed-TTS-eval**: gồm tập tiếng Anh lấy từ Common Voice, tập tiếng Trung lấy từ DiDiSpeech và một tập câu khó (lặp từ, câu líu lưỡi); đo WER bằng mô hình ASR (Whisper-large-v3 cho tiếng Anh, Paraformer cho tiếng Trung) và độ giống giọng bằng embedding từ một mô hình WavLM tinh chỉnh cho xác minh người nói. Bộ này về sau được nhiều công trình dùng làm chuẩn so sánh ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)).
@@ -416,7 +416,7 @@ Seed-TTS không công bố mã nguồn và trọng số; các con số trong bá
 
 ### MiniMax-Speech
 
-**MiniMax-Speech** (MiniMax, 2025) nhấn mạnh vào một **bộ mã hóa người nói học được** (*learnable speaker encoder*) huấn luyện chung với LM tự hồi quy, thay vì dùng embedding cố định từ mô hình xác minh người nói. Bộ mã hóa này chỉ nhận âm thanh tham chiếu, không cần bản ghi văn bản của nó, nên mô hình nhân bản giọng được ngay cả khi không có transcript, điều mà các hệ thống dựa trên prompt văn bản + prompt token (như CosyVoice) không làm được trực tiếp. Theo báo cáo, phía sau LM là một mô hình flow matching sinh biến ẩn liên tục của một bộ tự mã hóa biến phân kết hợp flow (gọi là Flow-VAE) thay vì sinh mel. Hệ thống là sản phẩm thương mại; báo cáo không đi kèm trọng số mở.
+**MiniMax-Speech** (MiniMax, 2025) nhấn mạnh vào một **bộ mã hóa người nói học được** (*learnable speaker encoder*) huấn luyện chung với LM tự hồi quy, thay vì dùng embedding cố định từ mô hình xác minh người nói. Bộ mã hóa này chỉ nhận âm thanh tham chiếu, không cần bản ghi văn bản của nó, nên mô hình nhân bản giọng được ngay cả khi không có transcript, trong khi các hệ thống học trong ngữ cảnh kiểu VALL-E hay CosyVoice thường cần cả bản ghi văn bản của âm thanh mẫu để đạt chất lượng tốt nhất. Theo báo cáo, phía sau LM là một mô hình flow matching sinh biến ẩn liên tục của một bộ tự mã hóa biến phân kết hợp flow (gọi là Flow-VAE) thay vì sinh mel. Hệ thống là sản phẩm thương mại; báo cáo không đi kèm trọng số mở.
 
 ### IndexTTS
 
@@ -666,7 +666,7 @@ assert a != b and unicodedata.normalize("NFC", b) == a
 
 # Bảng chữ cái tiếng Việt: 12 nguyên âm x 6 thanh = 72 dạng chữ thường, tất cả có dạng dựng sẵn
 vowels = "aăâeêioôơuưy"
-marks = ["", "̀", "́", "̉", "̃", "̣"]  # huyền, sắc, hỏi, ngã, nặng
+marks = ["", "\u0300", "\u0301", "\u0309", "\u0303", "\u0323"]  # huyền, sắc, hỏi, ngã, nặng
 letters = {unicodedata.normalize("NFC", v + m) for v in vowels for m in marks}
 assert len(letters) == 72 and all(len(ch) == 1 for ch in letters)
 print("".join(sorted(letters))[:24], "...")
@@ -731,7 +731,7 @@ Kết quả tái tổng hợp là **giới hạn trên** của toàn hệ thốn
 ??? tip "Gợi ý"
     Nghĩ về "ranh giới sạch": tầng nào nên chịu trách nhiệm về âm sắc? Nếu bộ giải mã không có thông tin người nói (ngoài prompt mel), còn token lại được ép mang ít thông tin người nói, thì âm sắc sẽ lấy từ đâu?
 
-**Bài 3 [Nâng cao].** (a) Chứng minh rằng với mặt nạ chunk $A^{(M)}$, nếu $M$ chia hết $M'$ thì mọi cặp $(i, j)$ được phép bởi $A^{(M)}$ cũng được phép bởi $A^{(M')}$. (b) Từ đó giải thích vì sao chế độ chunk-$2M$ có chất lượng không kém chunk-$M$ (về mặt thông tin khả dụng) nhưng có độ trễ lớn hơn.
+**Bài 3 [Nâng cao].** (a) Chứng minh rằng với mặt nạ chunk $A^{(M)}$, nếu $M'$ là bội của $M$ thì mọi cặp $(i, j)$ được phép bởi $A^{(M)}$ cũng được phép bởi $A^{(M')}$. (b) Từ đó giải thích vì sao chế độ chunk-$2M$ có chất lượng không kém chunk-$M$ (về mặt thông tin khả dụng) nhưng có độ trễ lớn hơn.
 
 ??? tip "Gợi ý"
     Nếu $M' = kM$ thì $\lfloor i/M' \rfloor = \lfloor \lfloor i/M \rfloor / k \rfloor$. Hàm $a \mapsto \lfloor a/k \rfloor$ không giảm.
