@@ -508,7 +508,7 @@ Tính đến thời điểm biên soạn (2026), cộng đồng đã đề xuấ
 
 Các nguyên lý ở trên áp dụng cho mọi ngôn ngữ, nhưng tiếng Việt có những điểm cần chú ý riêng ở từng khối.
 
-**Nhận dạng tiếng nói.** Các lựa chọn phổ biến là Whisper (Radford và cộng sự, 2023) và các bản tinh chỉnh cho tiếng Việt như PhoWhisper (Le và cộng sự, 2024). Cần kiểm tra độ bền với phương ngữ (Bắc, Trung, Nam), với trộn mã Việt–Anh, và với âm thanh điện thoại 8 kHz nếu hệ thống chạy qua tổng đài. ASR thường xuất số dưới dạng chữ số ("15 triệu"), nên LLM phía sau cần quen với cả hai dạng.
+**Nhận dạng tiếng nói.** Các lựa chọn phổ biến là Whisper (Radford và cộng sự, 2023) và các bản tinh chỉnh cho tiếng Việt như PhoWhisper (Le và cộng sự, 2024). Cần kiểm tra độ bền với phương ngữ (Bắc, Trung, Nam), với trộn mã Việt–Anh, và với âm thanh điện thoại 8 kHz nếu hệ thống chạy qua tổng đài. Nhiều mô hình ASR xuất số dưới dạng chữ số ("15 triệu") thay vì chữ ("mười lăm triệu"), nên LLM phía sau cần quen với cả hai dạng, và khâu chuẩn hóa văn bản trước TTS phải xử lý lại các chữ số này.
 
 **Mô hình ngôn ngữ.** Yêu cầu LLM trả lời bằng **văn nói**: câu ngắn, không định dạng, xưng hô nhất quán với vai của trợ lý ("em" với "anh/chị", hay "tôi" với "bạn"), dùng tiểu từ lịch sự ("dạ", "ạ") phù hợp ngữ cảnh. Sự không nhất quán giữa giọng đọc (ví dụ giọng nữ trẻ) và cách xưng hô (ví dụ "tôi") nghe rất lạ tai với người Việt.
 

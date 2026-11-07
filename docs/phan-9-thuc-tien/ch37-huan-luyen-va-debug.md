@@ -188,7 +188,7 @@ Loss ban đầu khoảng 0,81, khớp với $\sqrt{2/\pi}$ ở trên. Thử bỏ
 
 ### 37.4.2 Ma trận căn chỉnh và các chỉ số chẩn đoán
 
-Với các mô hình học căn chỉnh (Tacotron 2, VITS với MAS, mô hình học căn chỉnh không giám sát), hình vẽ ma trận căn chỉnh $\mathbf{A} \in [0,1]^{N \times T}$ là công cụ chẩn đoán số một: căn chỉnh tốt là một dải chéo đơn điệu, sắc nét. Để theo dõi tự động trên nhiều mẫu, ta cần các chỉ số. Với $\mathbf{A}$ có mỗi cột (khung) tổng bằng 1:
+Với các mô hình học căn chỉnh (Tacotron 2, VITS với MAS, mô hình học căn chỉnh không giám sát như của Badlani và cộng sự, 2022), hình vẽ ma trận căn chỉnh $\mathbf{A} \in [0,1]^{N \times T}$ là công cụ chẩn đoán số một: căn chỉnh tốt là một dải chéo đơn điệu, sắc nét. Để theo dõi tự động trên nhiều mẫu, ta cần các chỉ số. Với $\mathbf{A}$ có mỗi cột (khung) tổng bằng 1:
 
 - **Độ chéo** (*diagonality*): tỉ lệ khối lượng attention nằm trong dải $\lvert n/N - t/T \rvert \le b$ quanh đường chéo "tốc độ đều".
 - **Độ tập trung** (*focus rate*, dùng trong FastSpeech để chọn đầu attention tốt nhất (Ren và cộng sự, 2019)):
@@ -260,7 +260,7 @@ Hãy để ý: trường hợp "bỏ chữ" vẫn có độ chéo 0,98 vì dải
 - Chọn ngưỡng clipping hợp lý: đặt ngưỡng quanh phân vị cao của chuẩn gradient lúc huấn luyện ổn định; nếu gần như mọi bước đều bị clip, ngưỡng quá thấp hoặc tốc độ học quá cao.
 - Phát hiện module "chết" (gradient bằng 0, ví dụ do ReLU chết hoặc nhánh không được dùng) hoặc module chiếm áp đảo.
 
-Khi NaN xuất hiện, câu hỏi là **ở đâu trước tiên**. `torch.autograd.set_detect_anomaly(True)` giúp tìm phép toán gây NaN trong lượt lan truyền ngược nhưng làm chậm đáng kể. Một cách rẻ hơn là gắn forward hook kiểm tra đầu ra của từng module và báo ngay module đầu tiên sinh giá trị không hữu hạn. Mã dưới đây cài đặt hook đó, hàm đo chuẩn gradient theo module, và vòng huấn luyện "bỏ qua bước không hữu hạn" (tương tự cách `GradScaler` bỏ qua bước khi phát hiện tràn số).
+Khi NaN xuất hiện, câu hỏi là **ở đâu trước tiên**. `torch.autograd.set_detect_anomaly(True)` giúp tìm phép toán gây NaN trong lượt lan truyền ngược nhưng làm chậm đáng kể. Một cách rẻ hơn là gắn forward hook kiểm tra đầu ra của từng module và báo ngay module đầu tiên sinh giá trị không hữu hạn. Mã dưới đây cài đặt hook đó, hàm đo chuẩn gradient theo module, và vòng huấn luyện "bỏ qua bước không hữu hạn" (tương tự cách `GradScaler` trong huấn luyện độ chính xác hỗn hợp bỏ qua bước khi phát hiện tràn số — Micikevicius và cộng sự, 2018).
 
 ```python
 import math
@@ -354,7 +354,7 @@ Bảng dưới đây là phần tra cứu của chương. Các dòng được nh
 
 | Triệu chứng | Nguyên nhân thường gặp | Kiểm tra và khắc phục |
 |---|---|---|
-| Attention (Tacotron) không thành đường chéo sau nhiều nghìn bước | Câu quá dài lúc đầu; tốc độ học không phù hợp; hệ số rút gọn $r$ quá nhỏ; dữ liệu ít; mel chuẩn hóa sai | Bắt đầu với câu ngắn (học theo chương trình); thêm guided attention loss ([Chương 21](../phan-5-mo-hinh-am-hoc/ch21-alignment.md)); tăng $r$ lên 2–3; khởi tạo từ mô hình đã hội tụ trên dữ liệu khác |
+| Attention (Tacotron) không thành đường chéo sau nhiều nghìn bước | Câu quá dài lúc đầu; tốc độ học không phù hợp; hệ số rút gọn $r$ quá nhỏ; dữ liệu ít; mel chuẩn hóa sai | Bắt đầu với câu ngắn (học theo chương trình); thêm guided attention loss (Tachibana và cộng sự, 2018; [Chương 21](../phan-5-mo-hinh-am-hoc/ch21-alignment.md)); tăng $r$ lên 2–3; khởi tạo từ mô hình đã hội tụ trên dữ liệu khác |
 | Căn chỉnh đã hình thành rồi lại sụp đổ | Tốc độ học quá cao, không giảm dần; batch có câu cực dài; tràn số fp16 trong attention | Giảm tốc độ học, bật clipping, lọc ngoại lai về độ dài, tính softmax attention trong fp32; quay lại checkpoint trước khi sụp |
 | Bỏ chữ, lặp chữ lúc suy luận nhưng teacher forcing thì tốt | Sai lệch phơi nhiễm (*exposure bias*); attention không bảo đảm đơn điệu | Giữ dropout của pre-net lúc suy luận như Tacotron 2 ([Chương 20](../phan-5-mo-hinh-am-hoc/ch20-tacotron.md)); dùng attention đơn điệu/DCA; hoặc chuyển sang kiến trúc dùng trường độ ([Chương 22](../phan-5-mo-hinh-am-hoc/ch22-fastspeech.md)) |
 | Không dừng được, lẩm bẩm ở cuối câu | Mất cân bằng lớp của stop token; im lặng cuối câu không nhất quán | Đặt `pos_weight` cho loss stop token; cắt im lặng nhất quán; giới hạn số bước giải mã theo độ dài văn bản |
@@ -630,19 +630,19 @@ Một bảng theo dõi thí nghiệm tối thiểu gồm: mã thí nghiệm, com
 
 ## Tài liệu tham khảo
 
-1. Goyal, P. và cộng sự (2017). *Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour*. arXiv preprint.
-2. Hu, E. J. và cộng sự (2022). *LoRA: Low-Rank Adaptation of Large Language Models*. ICLR.
-3. Karpathy, A. (2019). *A Recipe for Training Neural Networks*. Bài viết blog.
-4. Kim, J., Kong, J. và Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML.
-5. Kirkpatrick, J. và cộng sự (2017). *Overcoming Catastrophic Forgetting in Neural Networks*. PNAS.
-6. Kong, J., Kim, J. và Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS.
-7. Li, X., Grandvalet, Y. và Davoine, F. (2018). *Explicit Inductive Bias for Transfer Learning with Convolutional Networks*. ICML.
-8. McCloskey, M. và Cohen, N. J. (1989). *Catastrophic Interference in Connectionist Networks: The Sequential Learning Problem*. Psychology of Learning and Motivation.
-9. Micikevicius, P. và cộng sự (2018). *Mixed Precision Training*. ICLR.
-10. Polyak, B. T. và Juditsky, A. B. (1992). *Acceleration of Stochastic Approximation by Averaging*. SIAM Journal on Control and Optimization.
-11. Ren, Y. và cộng sự (2019). *FastSpeech: Fast, Robust and Controllable Text to Speech*. NeurIPS.
-12. Ren, Y. và cộng sự (2021). *FastSpeech 2: Fast and High-Quality End-to-End Text to Speech*. ICLR.
-13. Shen, J. và cộng sự (2018). *Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions*. ICASSP.
-14. Tachibana, H., Uenoyama, K. và Aihara, S. (2018). *Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention*. ICASSP.
-15. Badlani, R. và cộng sự (2022). *One TTS Alignment to Rule Them All*. ICASSP.
+1. Badlani, R. và cộng sự (2022). *One TTS Alignment to Rule Them All*. ICASSP.
+2. Goyal, P. và cộng sự (2017). *Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour*. arXiv preprint.
+3. Hu, E. J. và cộng sự (2022). *LoRA: Low-Rank Adaptation of Large Language Models*. ICLR.
+4. Karpathy, A. (2019). *A Recipe for Training Neural Networks*. Bài viết blog.
+5. Kim, J., Kong, J. và Son, J. (2021). *Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech*. ICML.
+6. Kirkpatrick, J. và cộng sự (2017). *Overcoming Catastrophic Forgetting in Neural Networks*. PNAS.
+7. Kong, J., Kim, J. và Bae, J. (2020). *HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis*. NeurIPS.
+8. Li, X., Grandvalet, Y. và Davoine, F. (2018). *Explicit Inductive Bias for Transfer Learning with Convolutional Networks*. ICML.
+9. McCloskey, M. và Cohen, N. J. (1989). *Catastrophic Interference in Connectionist Networks: The Sequential Learning Problem*. Psychology of Learning and Motivation.
+10. Micikevicius, P. và cộng sự (2018). *Mixed Precision Training*. ICLR.
+11. Polyak, B. T. và Juditsky, A. B. (1992). *Acceleration of Stochastic Approximation by Averaging*. SIAM Journal on Control and Optimization.
+12. Ren, Y. và cộng sự (2019). *FastSpeech: Fast, Robust and Controllable Text to Speech*. NeurIPS.
+13. Ren, Y. và cộng sự (2021). *FastSpeech 2: Fast and High-Quality End-to-End Text to Speech*. ICLR.
+14. Shen, J. và cộng sự (2018). *Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions*. ICASSP.
+15. Tachibana, H., Uenoyama, K. và Aihara, S. (2018). *Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention*. ICASSP.
 16. Vaswani, A. và cộng sự (2017). *Attention Is All You Need*. NeurIPS.
