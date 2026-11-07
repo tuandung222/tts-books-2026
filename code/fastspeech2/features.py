@@ -80,7 +80,7 @@ def extract_f0(wav: np.ndarray, cfg: AudioConfig) -> tuple[np.ndarray, np.ndarra
 
     T = len(wav) // cfg.hop_length
     f0, voiced, _ = librosa.pyin(wav, fmin=cfg.f0_min, fmax=cfg.f0_max, sr=cfg.sample_rate,
-                                 frame_length=4 * cfg.hop_length * 2, hop_length=cfg.hop_length)
+                                 frame_length=2 * cfg.n_fft, hop_length=cfg.hop_length)
     f0 = np.nan_to_num(f0[:T], nan=0.0).astype(np.float32)
     voiced = voiced[:T].astype(bool) & (f0 > 0)
     if len(f0) < T:  # phòng hờ: đệm cho đủ T khung
@@ -108,6 +108,7 @@ class Interval:
 
 
 SILENCE_LABELS = frozenset({"", "sil", "sp", "spn", "<eps>"})
+PAUSE_TOKENS = frozenset({" ", ",", ".", "!", "?", ";", ":", "…"})
 
 
 def read_textgrid(path_or_text: str, tier: str = "phones") -> list[Interval]:
@@ -126,7 +127,8 @@ def read_textgrid(path_or_text: str, tier: str = "phones") -> list[Interval]:
 
 
 def durations_from_intervals(tokens: list[str], intervals: list[Interval], cfg: AudioConfig,
-                             phone_set: set[str]) -> tuple[list[int], int, int]:
+                             phone_set: set[str], pause_tokens: frozenset[str] = PAUSE_TOKENS,
+                             ) -> tuple[list[int], int, int]:
     """Gán số khung cho từng token của G2P dựa trên các đoạn âm vị của MFA.
 
     * token âm vị nhận đúng đoạn MFA tương ứng (nhãn phải khớp, nếu không báo lỗi);
@@ -158,7 +160,8 @@ def durations_from_intervals(tokens: list[str], intervals: list[Interval], cfg: 
                 raise ValueError(f"lệch nhãn ở token {j}: G2P={tok!r}, MFA={got!r}")
             durations[j] = lengths[k]
             last_phone, k = j, k + 1
-        elif k < len(ivs) and ivs[k].label in SILENCE_LABELS and last_phone is not None:
+        elif (tok in pause_tokens and k < len(ivs) and ivs[k].label in SILENCE_LABELS
+              and last_phone is not None):
             durations[j] = lengths[k]  # ranh giới/dấu câu ứng với một đoạn lặng
             k += 1
     if k != len(ivs):
@@ -170,15 +173,14 @@ def durations_from_intervals(tokens: list[str], intervals: list[Interval], cfg: 
 
 def fix_total(durations: np.ndarray, n_frames: int) -> np.ndarray:
     """Sửa lệch ±vài khung do làm tròn để tổng trường độ đúng bằng số khung mel."""
-    d = durations.astype(np.int64).copy()
+    d = np.asarray(durations, dtype=np.int64).copy()
     diff = n_frames - int(d.sum())
-    i = len(d) - 1
-    while diff != 0 and i >= 0:
-        if d[i] > 0 or diff > 0:
-            step = diff if diff > 0 else max(diff, -int(d[i]))
-            d[i] += step
-            diff -= step
-        i -= 1
+    for i in np.flatnonzero(d)[::-1]:  # chỉ sửa các token đang có khung, từ cuối câu
+        if diff == 0:
+            break
+        step = diff if diff > 0 else max(diff, -int(d[i]))
+        d[i] += step
+        diff -= step
     if diff != 0:
         raise ValueError("không thể sửa tổng trường độ")
     return d
