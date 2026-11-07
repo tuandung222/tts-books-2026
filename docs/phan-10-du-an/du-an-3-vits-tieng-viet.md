@@ -74,7 +74,7 @@ Gợi ý của chúng tôi:
 Một mô hình VITS một người nói cần dữ liệu **nhất quán** hơn là **nhiều**: cùng một người, cùng micro, cùng phòng, cùng phong cách đọc. Các tiêu chí cụ thể (xem [Chương 36](../phan-9-thuc-tien/ch36-du-lieu-tts.md) để biết cách thu âm và xử lý dữ liệu "in-the-wild"):
 
 - **Âm thanh**: mono, PCM 16-bit, 22 050 Hz (cấu hình chuẩn của VITS). Im lặng hai đầu được cắt còn khoảng 50 ms; không clip; mức to đều giữa các câu.
-- **Độ dài câu**: khoảng 1–12 giây. Câu quá ngắn ("Dạ.") cho ít thông tin căn chỉnh. Câu quá dài làm tốn bộ nhớ, vì bộ mã hóa hậu nghiệm xử lý cả câu dù decoder chỉ học trên đoạn cắt ngẫu nhiên.
+- **Độ dài câu**: khoảng 1–11 giây. Câu quá ngắn ("Dạ.") cho ít thông tin căn chỉnh. Câu quá dài làm tốn bộ nhớ, vì bộ mã hóa hậu nghiệm xử lý cả câu dù decoder chỉ học trên đoạn cắt ngẫu nhiên. Ngoài ra, bộ lấy mẫu theo bucket trong `train.py` của mã gốc (tại thời điểm biên soạn) dùng các mốc từ 32 đến 1000 khung, tức khoảng 0,37–11,6 giây ở 22 050 Hz với hop 256. Câu nằm ngoài khoảng này bị bỏ qua âm thầm.
 - **Văn bản**: khớp **chính xác** với âm thanh, sau chuẩn hóa. "2/9" phải được viết thành đúng cách người đọc đã đọc ("mùng hai tháng chín" hay "hai tháng chín"). Một tỷ lệ nhỏ bản ghi lời sai đủ để mô hình học phát âm sai một cách nhất quán.
 - **Độ phủ**: kịch bản đọc nên phủ đủ các vần và cả sáu thanh, kể cả âm tiết tắc (-p, -t, -c, -ch, chỉ đi với thanh sắc và nặng). Cách chọn câu tham lam theo độ phủ có ở [Chương 36](../phan-9-thuc-tien/ch36-du-lieu-tts.md).
 
@@ -132,7 +132,7 @@ def trim_silence(audio: np.ndarray, sr: int, top_db: float = 40.0,
 
 
 def prepare(manifest: str, out_dir: str, sr: int = 22050, min_s: float = 1.0,
-            max_s: float = 12.0, val_percent: int = 5, multi_speaker: bool = False) -> Counter:
+            max_s: float = 11.0, val_percent: int = 5, multi_speaker: bool = False) -> Counter:
     out = Path(out_dir)
     (out / "wavs").mkdir(parents=True, exist_ok=True)
     lines = {"train": [], "val": []}
