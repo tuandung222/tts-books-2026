@@ -318,6 +318,14 @@ def load_vn_frontend() -> TextFrontend | None:
     )
 ```
 
+Thứ tự xử lý là **tách câu trên văn bản thô, rồi chuẩn hóa từng câu**. `split_sentences` của Dự án 1 được thiết kế cho văn bản thô: nó biết dấu chấm trong "TP." hay "PGS.TS." không kết thúc câu. Còn `normalize_text` giữ nguyên dấu câu và có tính lũy đẳng, nên khi adapter ONNX gọi `text_to_sequence` (hàm này chuẩn hóa lại bên trong qua `g2p`), đoạn văn bản không bị biến đổi lần thứ hai. Ví dụ, với đầu vào "Giá vàng tăng 1.500.000đ/lượng, TP.HCM mưa 3,5mm lúc 14:30. PGS.TS. Nguyễn Văn A phát biểu!", dịch vụ dùng `vn_frontend` (phiên bản lúc biên soạn) cho ra ba đoạn:
+
+```text
+'Giá vàng tăng một triệu năm trăm nghìn đồng một lượng,'
+'thành phố Hồ Chí Minh mưa ba phẩy năm mi li mét lúc mười bốn giờ ba mươi phút.'
+'phó giáo sư tiến sĩ Nguyễn Văn A phát biểu!'
+```
+
 `_with_fallback` bọc từng hàm. Nếu `normalize_text` ném ngoại lệ với một đầu vào lạ (một ký hiệu chưa ai nghĩ tới), lỗi được **ghi log** và yêu cầu vẫn được phục vụ bằng bộ dự phòng. Ở ranh giới dịch vụ, một lỗi front-end không nên làm hỏng cả yêu cầu. Nhưng nó cũng không được im lặng: log là tín hiệu để sửa Dự án 1. Endpoint `/health` báo front-end nào đang được dùng (`"frontend": "vn_frontend"` hoặc `"basic"`), để bạn không vô tình chạy bản dự phòng ở môi trường thật.
 
 !!! warning "Front-end lúc phục vụ phải giống lúc huấn luyện"
