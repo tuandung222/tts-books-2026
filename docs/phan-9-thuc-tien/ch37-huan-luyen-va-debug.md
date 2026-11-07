@@ -108,7 +108,7 @@ Batch trong TTS luôn có padding. Một lỗi rất phổ biến là để vùn
 
 ### 37.3.5 Overfit một batch
 
-Đây là kiểm tra quan trọng nhất. Một mô hình và vòng lặp huấn luyện đúng phải "học thuộc" được một batch duy nhất, đưa loss huấn luyện xuống rất thấp sau vài trăm bước. Nếu không làm được, chắc chắn có lỗi: loss tính sai, mask sai, gradient bị chặn (quên `requires_grad`, `detach` nhầm chỗ), tốc độ học sai bậc, hoặc kiến trúc có "nút cổ chai" vô lý. Ngược lại, overfit được một batch *không* chứng minh mọi thứ đúng, nhưng loại bỏ cả một lớp lỗi lớn.
+Đây là kiểm tra quan trọng nhất. Một mô hình và vòng lặp huấn luyện đúng phải "học thuộc" được một batch duy nhất, đưa loss huấn luyện xuống rất thấp sau vài trăm bước. Nếu không làm được, gần như chắc chắn có lỗi: loss tính sai, mask sai, gradient bị chặn (quên `requires_grad`, `detach` nhầm chỗ), tốc độ học sai bậc, hoặc kiến trúc có "nút cổ chai" vô lý. Ngược lại, overfit được một batch *không* chứng minh mọi thứ đúng, nhưng loại bỏ cả một lớp lỗi lớn.
 
 Mã dưới đây gói hai kiểm tra 37.3.4 và 37.3.5 cho một bộ giải mã đồ chơi kiểu FastSpeech (tích chập có nhân mask trước mỗi lớp).
 

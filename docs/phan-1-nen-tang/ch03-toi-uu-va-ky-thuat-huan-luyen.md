@@ -625,3 +625,238 @@ Một thí nghiệm không tái lập được thì không gỡ lỗi được v
 - **Thuật toán tất định**: `torch.use_deterministic_algorithms(True)` buộc PyTorch dùng cài đặt tất định hoặc báo lỗi nếu không có (một số phép toán cuBLAS còn yêu cầu đặt biến môi trường `CUBLAS_WORKSPACE_CONFIG=:4096:8`). Đặt `torch.backends.cudnn.benchmark = False` để cuDNN không tự chọn thuật toán khác nhau giữa các lần chạy. Cái giá là tốc độ chậm hơn, nên thường chỉ bật khi gỡ lỗi.
 - **Lưu checkpoint đầy đủ**: không chỉ trọng số mô hình mà cả trạng thái của bộ tối ưu (các mô-men của Adam), bộ lập lịch, `GradScaler`, bản EMA, số bước, và lý tưởng là trạng thái của các bộ sinh số ngẫu nhiên. Nạp lại thiếu trạng thái Adam làm các bước đầu sau khi huấn luyện tiếp hành xử như lúc mới khởi tạo (Mục 3.5), thường thấy rõ thành một "cú nhảy" trên đường loss.
 - **Chấp nhận giới hạn.** Kết quả vẫn có thể khác nhau giữa các loại GPU, phiên bản CUDA hay PyTorch. Khi so sánh hai cấu hình, hãy chạy nhiều hạt ngẫu nhiên và báo cáo độ dao động, thay vì kết luận từ một lần chạy ([Chương 37](../phan-9-thuc-tien/ch37-huan-luyen-va-debug.md)).
+
+## 3.15. Ghép tất cả: một vòng lặp huấn luyện hoàn chỉnh
+
+Ta gom mọi kỹ thuật của chương vào một vòng lặp huấn luyện có cấu trúc giống hệt (ở quy mô thu nhỏ) vòng lặp của các dự án TTS ở Phần X. Bài toán đồ chơi: một "decoder" nhỏ ánh xạ chuỗi đặc trưng văn bản *đã căn chỉnh* `(B, T, N_IN)` thành chuỗi "mel" `(B, T, F_MEL)`, với độ dài câu thay đổi và mất mát L1 có mặt nạ. Dữ liệu giả được sinh từ một "giáo viên" cố định cộng nhiễu, để ta biết bài toán có lời giải.
+
+**Phần 1: mô hình, dữ liệu, bộ tối ưu, lịch tốc độ học.**
+
+```python
+import copy
+import math
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# fp16 + GradScaler trên GPU; bf16 (không cần GradScaler) trên CPU
+amp_dtype = torch.float16 if device.type == "cuda" else torch.bfloat16
+B, N_IN, F_MEL, T_MAX = 16, 32, 20, 60
+
+class TinyDecoder(nn.Module):
+    """Mạng đồ chơi: đặc trưng 'văn bản' đã căn chỉnh (B, T, N_IN) -> 'mel' (B, T, F_MEL)."""
+    def __init__(self, c=128):
+        super().__init__()
+        self.inp = nn.Linear(N_IN, c)
+        self.conv = nn.Conv1d(c, c, kernel_size=5, padding=2)
+        self.norm = nn.LayerNorm(c)
+        self.drop = nn.Dropout(0.1)
+        self.out = nn.Linear(c, F_MEL)
+
+    def forward(self, x):                                   # x: (B, T, N_IN)
+        h = self.inp(x)                                     # (B, T, C)
+        h = h + self.conv(h.transpose(1, 2)).transpose(1, 2)  # khối dư; Conv1d cần (B, C, T)
+        h = self.drop(torch.relu(self.norm(h)))
+        return self.out(h)                                  # (B, T, F_MEL)
+
+def make_batch():
+    """Dữ liệu giả có độ dài thay đổi; mục tiêu sinh từ một 'giáo viên' cố định + nhiễu."""
+    lengths = torch.randint(T_MAX // 3, T_MAX + 1, (B,))
+    x = torch.randn(B, T_MAX, N_IN)
+    y = torch.tanh(x @ TEACHER) + 0.05 * torch.randn(B, T_MAX, F_MEL)
+    mask = (torch.arange(T_MAX)[None, :] < lengths[:, None]).unsqueeze(-1)  # (B, T, 1)
+    return x.to(device), y.to(device), mask.to(device)
+
+TEACHER = torch.randn(N_IN, F_MEL) / math.sqrt(N_IN)
+model = TinyDecoder().to(device)
+ema_model = copy.deepcopy(model).eval().requires_grad_(False)   # bản sao trung bình động
+
+# AdamW với hai nhóm tham số: không áp weight decay cho bias và tham số chuẩn hóa
+decay = [p for n, p in model.named_parameters() if p.ndim >= 2]
+no_decay = [p for n, p in model.named_parameters() if p.ndim < 2]
+optimizer = torch.optim.AdamW(
+    [{"params": decay, "weight_decay": 0.01}, {"params": no_decay, "weight_decay": 0.0}],
+    lr=3e-3, betas=(0.9, 0.98), eps=1e-9)
+
+TOTAL_STEPS, WARMUP, ACCUM, CLIP, EMA_DECAY = 300, 30, 2, 1.0, 0.99
+
+def lr_lambda(step):                                        # warmup tuyến tính + cosine
+    if step < WARMUP:
+        return (step + 1) / WARMUP
+    progress = (step - WARMUP) / max(1, TOTAL_STEPS - WARMUP)
+    return 0.5 * (1.0 + math.cos(math.pi * min(1.0, progress)))
+
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+scaler = torch.amp.GradScaler(device.type, enabled=(amp_dtype == torch.float16))
+```
+
+**Phần 2: vòng lặp.** Chạy tiếp trong cùng phiên. Thứ tự các lệnh trong mỗi bước cập nhật là điều quan trọng nhất cần ghi nhớ: *xóa gradient → (forward trong autocast → loss fp32 → backward có scale) × số batch con → unscale → cắt gradient → bước tối ưu → cập nhật scaler → bước lập lịch → cập nhật EMA*.
+
+```python
+def masked_l1(pred, target, mask):
+    """L1 trung bình trên các phần tử HỢP LỆ (bỏ khung đệm)."""
+    err = (pred.float() - target).abs() * mask
+    return err.sum() / (mask.sum() * target.shape[-1])
+
+@torch.no_grad()
+def update_ema(ema, online, decay):
+    for p_ema, p in zip(ema.parameters(), online.parameters()):
+        p_ema.lerp_(p, 1.0 - decay)                         # p_ema = decay*p_ema + (1-decay)*p
+    for b_ema, b in zip(ema.buffers(), online.buffers()):
+        b_ema.copy_(b)                                      # buffer (nếu có) sao chép thẳng
+
+@torch.no_grad()
+def evaluate(net, n_batches=4):
+    net.eval()
+    g = torch.Generator().manual_seed(123)                  # tập kiểm định cố định
+    total = 0.0
+    for _ in range(n_batches):
+        x = torch.randn(B, T_MAX, N_IN, generator=g).to(device)
+        y = torch.tanh(x @ TEACHER.to(device))
+        total += masked_l1(net(x), y, torch.ones_like(y[..., :1])).item()
+    return total / n_batches
+
+model.train()
+for step in range(TOTAL_STEPS):
+    optimizer.zero_grad(set_to_none=True)
+    for _ in range(ACCUM):                                  # tích lũy gradient qua ACCUM batch con
+        x, y, mask = make_batch()
+        with torch.autocast(device_type=device.type, dtype=amp_dtype):
+            pred = model(x)
+        loss = masked_l1(pred, y, mask) / ACCUM             # loss tính bằng fp32
+        scaler.scale(loss).backward()
+    scaler.unscale_(optimizer)                              # PHẢI unscale trước khi cắt gradient
+    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), CLIP)
+    scaler.step(optimizer)                                  # tự bỏ qua bước nếu gradient có inf/NaN
+    scaler.update()
+    scheduler.step()
+    update_ema(ema_model, model, min(EMA_DECAY, (1 + step) / (10 + step)))  # EMA có khởi động
+    if step % 100 == 99:
+        print(f"step {step + 1}: loss {loss.item() * ACCUM:.4f}  grad_norm {grad_norm:.3f}  "
+              f"lr {scheduler.get_last_lr()[0]:.2e}")
+
+val_online, val_ema = evaluate(model), evaluate(ema_model)
+print(f"L1 kiểm định - mô hình thường: {val_online:.4f} | mô hình EMA: {val_ema:.4f}")
+checkpoint = {"model": model.state_dict(), "ema": ema_model.state_dict(),
+              "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(),
+              "scaler": scaler.state_dict(), "step": TOTAL_STEPS}
+torch.save(checkpoint, "checkpoint.pt")                    # đủ để huấn luyện tiếp chính xác
+```
+
+Chạy trên CPU (bf16, không cần `GradScaler`), toàn bộ vòng lặp mất vài giây. Trong một lần chạy, loss huấn luyện giảm từ khoảng 0,16 ở bước 100 xuống khoảng 0,15 ở bước 300, tốc độ học đi theo đúng hình dạng warmup + cosine (đạt đỉnh $3 \times 10^{-3}$ ở bước 30, về 0 ở bước 300), và L1 kiểm định của mô hình thường và mô hình EMA lần lượt khoảng 0,118 và 0,118. Chuẩn gradient (khoảng 0,06–0,1) luôn dưới ngưỡng 1,0, nên phép cắt chỉ đóng vai trò lưới an toàn. Trên GPU, cùng đoạn mã tự chuyển sang fp16 với `GradScaler` (nhánh này chưa được chạy trong môi trường biên soạn, nhưng chỉ dùng các API chuẩn của `torch.amp`).
+
+Hai quan sát đáng giá từ thí nghiệm nhỏ này:
+
+- **EMA không phải lúc nào cũng thắng.** Ở đây lịch cosine đã đưa tốc độ học về 0, bản thân quá trình đó đã "lắng" tham số, nên EMA và mô hình thường gần như bằng nhau. EMA phát huy tác dụng rõ nhất khi huấn luyện dài với gradient nhiễu và tốc độ học còn đáng kể, như với mô hình khuếch tán.
+- **Khởi động hệ số EMA là quan trọng.** Nếu bỏ phần `min(EMA_DECAY, (1 + step) / (10 + step))` và dùng thẳng $\beta = 0{,}99$, trong một lần chạy của chúng tôi L1 kiểm định của bản EMA là khoảng 0,125 so với 0,118 của mô hình thường, vì bản EMA vẫn còn mang khoảng 5% "dấu vết" của trọng số khởi tạo ngẫu nhiên (Mục 3.13).
+
+Một vòng lặp TTS thật sẽ có thêm các thành phần mà [Chương 6](ch06-pytorch-cho-tieng-noi.md) trình bày: `DataLoader` với hàm gom batch có đệm và mặt nạ, lấy mẫu theo nhóm độ dài, ghi nhật ký lên TensorBoard (loss, chuẩn gradient, tốc độ học, hình mel và mẫu âm thanh), lưu và nạp checkpoint định kỳ, cùng huấn luyện phân tán.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Gọi `scheduler.step()` sai chỗ hoặc sai tần suất.** Lịch theo *bước* phải được gọi sau mỗi `optimizer.step()`; lịch theo *epoch* chỉ gọi một lần mỗi epoch. Nhầm hai thứ này làm warmup kéo dài hàng nghìn lần hoặc tốc độ học về 0 sau vài epoch. PyTorch cảnh báo nếu `scheduler.step()` được gọi trước `optimizer.step()`.
+- **Cắt gradient trước khi unscale.** Với `GradScaler`, gradient đang bị nhân với $S \approx 65\,536$; cắt ở ngưỡng 1,0 lúc này làm mọi bước cập nhật bé đi hàng nghìn lần. Luôn gọi `scaler.unscale_(optimizer)` trước `clip_grad_norm_`.
+- **Dùng `Adam(weight_decay=...)` khi định dùng AdamW**, hoặc áp weight decay cho bias và tham số chuẩn hóa (Mục 3.6).
+- **Huấn luyện tiếp mà không nạp trạng thái bộ tối ưu, bộ lập lịch, scaler.** Hệ quả: warmup chạy lại từ đầu, các mô-men Adam bị đặt lại về 0, loss vọt lên. Hãy lưu và nạp *toàn bộ* như trong vòng lặp ở Mục 3.15.
+- **Tốc độ học quá lớn, không warmup, với Transformer.** Triệu chứng điển hình: loss giảm nhanh vài trăm bước rồi thành `NaN`, hoặc attention không bao giờ hội tụ. Thử giảm tốc độ học đỉnh, kéo dài warmup, kiểm tra vị trí LayerNorm.
+- **`NaN` khi dùng fp16.** Kiểm tra theo thứ tự: log của số 0 trong mel, phép chia cho chuẩn hoặc độ dài bằng 0, softmax với mặt nạ toàn `-inf` (một hàng bị che hoàn toàn), giá trị kích hoạt vượt 65 504. Chuyển phần nghi vấn sang fp32, hoặc thử bf16 nếu phần cứng hỗ trợ.
+- **BatchNorm với batch nhỏ hoặc chuỗi có đệm**, và **quên `model.eval()`** khi đánh giá (dropout và BatchNorm hành xử sai). Ngược lại, nhớ gọi lại `model.train()` sau khi đánh giá giữa chừng.
+- **So sánh loss giữa các cấu hình có quy ước khác nhau.** Loss trung bình trên khung và trung bình trên câu, có hay không có mặt nạ, batch động hay batch cố định cho các con số không so sánh được trực tiếp. Ghi rõ quy ước trong nhật ký thí nghiệm.
+- **Quên dùng (hoặc quên lưu) trọng số EMA khi suy luận**, hoặc đánh giá bản EMA ngay từ đầu mà không khởi động hệ số.
+- **Huấn luyện thuần fp16 (không autocast) với $\epsilon = 10^{-8}$.** Giá trị này nằm dưới ngưỡng biểu diễn của fp16, nên mẫu số của Adam có thể bằng 0. Với autocast, trạng thái của bộ tối ưu vẫn ở fp32 nên không gặp vấn đề này.
+
+## Tóm tắt
+
+- Trên hàm bậc hai, GD hội tụ khi và chỉ khi $\eta < 2/\lambda_{\max}$, và số bước tỷ lệ với số điều kiện $\kappa$; momentum (heavy ball, Nesterov) giảm con số này xuống cỡ $\sqrt{\kappa}$.
+- SGD dùng gradient minibatch, một ước lượng không chệch có phương sai giảm theo $1/B$; nhiễu của nó giúp thoát điểm yên ngựa nhưng tạo "sàn" buộc ta giảm tốc độ học về cuối.
+- Adam chuẩn hóa bước đi theo từng tham số bằng $\hat{\mathbf{m}}/\sqrt{\hat{\mathbf{v}}}$; hiệu chỉnh độ chệch bù cho việc khởi tạo các mô-men bằng 0 (không có nó, bước đầu lớn hơn khoảng 3 lần). Tốc độ học của Adam gần với "độ thay đổi tối đa mỗi bước" của từng tham số.
+- AdamW tách weight decay khỏi gradient thích nghi; không áp weight decay cho bias và tham số chuẩn hóa. Các mô hình có thành phần GAN thường dùng $\beta_1 = 0{,}8$, $\beta_2 = 0{,}99$.
+- Warmup + cosine là lịch mặc định phổ biến; lịch Noam đạt đỉnh $(d_{\text{model}}W)^{-0.5}$ rồi giảm theo $1/\sqrt{k}$. Cắt gradient theo chuẩn là lưới an toàn, và chuẩn gradient là tín hiệu chẩn đoán quý giá.
+- BatchNorm phụ thuộc batch và bị khung đệm làm sai lệch; LayerNorm/RMSNorm là mặc định cho mô hình chuỗi; InstanceNorm xóa thông tin toàn cục của câu (hữu ích cho tách người nói); GroupNorm cho batch nhỏ. Weight normalization và spectral normalization (chia cho $\sigma_{\max}$) là trụ cột của vocoder GAN.
+- Dropout, weight decay và dừng sớm là các công cụ điều chuẩn chính; tăng cường dữ liệu cho mục tiêu TTS phải rất thận trọng, đặc biệt với thanh điệu tiếng Việt.
+- Độ chính xác hỗn hợp: fp16 cần loss scaling động, bf16 có dải rộng nhưng kém chính xác; luôn tính đặc trưng âm thanh, log và hàm mất mát ở fp32. Tích lũy gradient với chuỗi độ dài thay đổi phải chuẩn hóa theo tổng số phần tử hợp lệ. EMA cần khởi động hệ số và phải được lưu cùng checkpoint.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Hessian của một hàm bậc hai có trị riêng nhỏ nhất 0,5 và lớn nhất 200. (a) Tốc độ học lớn nhất để GD hội tụ là bao nhiêu? (b) Với tốc độ học tối ưu, hệ số co mỗi bước là bao nhiêu và cần khoảng bao nhiêu bước để giảm sai số đi $10^{6}$ lần? (c) Lặp lại câu (b) cho heavy ball với tham số tối ưu.
+
+??? success "Lời giải"
+    (a) $\eta < 2/200 = 0{,}01$. (b) $\kappa = 400$, $\eta^\star = 2/200{,}5 \approx 0{,}00998$, $\rho = 399/401 \approx 0{,}995$; số bước $\approx \ln(10^{6})/(-\ln 0{,}995) \approx 13{,}8/0{,}005 \approx 2\,760$. (c) $\rho = (\sqrt{400} - 1)/(\sqrt{400} + 1) = 19/21 \approx 0{,}905$; số bước $\approx 13{,}8/0{,}100 \approx 138$, nhanh hơn khoảng 20 lần (đúng bằng $\sqrt{\kappa}$).
+
+**Bài 2 [Cơ bản].** Với lịch Noam, $d_{\text{model}} = 256$ và $W = 4\,000$: tốc độ học đỉnh là bao nhiêu? Tốc độ học ở bước 16 000 bằng bao nhiêu phần trăm đỉnh? Nếu tăng $d_{\text{model}}$ lên 1 024 mà giữ nguyên $W$, đỉnh thay đổi thế nào?
+
+??? success "Lời giải"
+    Đỉnh $= (256 \times 4\,000)^{-0.5} \approx 9{,}9 \times 10^{-4}$. Sau warmup, $\eta_k = d^{-0.5}k^{-0.5}$, nên $\eta_{16000}/\eta_{\text{peak}} = \sqrt{4\,000/16\,000} = 0{,}5$, tức 50% (khoảng $4{,}9 \times 10^{-4}$). Với $d_{\text{model}} = 1\,024$, đỉnh giảm $\sqrt{4} = 2$ lần, còn khoảng $4{,}9 \times 10^{-4}$.
+
+**Bài 3 [Cơ bản].** Chứng minh rằng với SGD (không momentum), điều chuẩn L2 với hệ số $\lambda$ tương đương weight decay. Sau đó xét Adam với một tham số duy nhất, $\epsilon = 0$, và giả sử gradient của hàm mất mát luôn bằng hằng số $c \ne 0$ (sau khi đã ổn định, bỏ qua hiệu chỉnh độ chệch). So sánh độ lớn của "lực kéo về 0" trong hai cách cài đặt.
+
+??? tip "Gợi ý"
+    Với L2 trong Adam, gradient tổng là $c + \lambda\theta$; khi $\lambda\theta \ll c$, bước đi xấp xỉ $\eta\,\operatorname{sign}(c + \lambda\theta)$, và phần đóng góp của $\lambda\theta$ vào bước đi xấp xỉ $\eta\lambda\theta/\lvert c \rvert$: nó bị chia cho độ lớn gradient. Với AdamW, lực kéo luôn là $\eta\lambda\theta$, không phụ thuộc $c$.
+
+**Bài 4 [Nâng cao].** (a) Lặp lại phép suy ra hiệu chỉnh độ chệch cho $\mathbf{v}_t$ của Adam. (b) Chứng minh rằng nếu bỏ hiệu chỉnh, bước đầu tiên có độ lớn $\eta(1 - \beta_1)/\sqrt{1 - \beta_2}$ (bỏ qua $\epsilon$). Tính giá trị này cho $(\beta_1, \beta_2) = (0{,}9;\, 0{,}999)$ và $(0{,}8;\, 0{,}99)$. (c) Với $t$ lớn bao nhiêu thì $1 - \beta_2^t > 0{,}99$ khi $\beta_2 = 0{,}999$?
+
+??? success "Lời giải"
+    (a) $\mathbf{v}_t = (1 - \beta_2)\sum_{i}\beta_2^{t-i}\mathbf{g}_i^2$, nên $\mathbb{E}[\mathbf{v}_t] = (1 - \beta_2^t)\,\mathbb{E}[\mathbf{g}^2]$ dưới giả định ổn định. (b) $\mathbf{m}_1 = (1 - \beta_1)g$, $\mathbf{v}_1 = (1 - \beta_2)g^2$, tỷ số là $(1 - \beta_1)/\sqrt{1 - \beta_2}$ nhân dấu của $g$. Với $(0{,}9;\, 0{,}999)$: $0{,}1/0{,}0316 \approx 3{,}16$; với $(0{,}8;\, 0{,}99)$: $0{,}2/0{,}1 = 2$. (c) Cần $0{,}999^t < 0{,}01$, tức $t > \ln 100/(-\ln 0{,}999) \approx 4\,603$ bước.
+
+**Bài 5 [Nâng cao].** Với EMA hệ số $\beta$ (bắt đầu từ $\theta^{\text{EMA}}_0 = \theta_0$), (a) viết $\theta^{\text{EMA}}_k$ dưới dạng tổng có trọng số của $\theta_0, \ldots, \theta_k$ và kiểm tra tổng các trọng số bằng 1; (b) tính "độ trễ trung bình" $\sum_j j\,w_j$ khi $k \to \infty$; (c) với $\beta = 0{,}999$, sau bao nhiêu bước thì trọng số của $\theta_0$ giảm xuống dưới 1%?
+
+??? success "Lời giải"
+    (a) $\theta^{\text{EMA}}_k = \beta^k\theta_0 + \sum_{j=0}^{k-1}(1 - \beta)\beta^{j}\theta_{k-j}$; tổng trọng số là $\beta^k + (1 - \beta)\frac{1 - \beta^k}{1 - \beta} = 1$. (b) $\sum_{j \ge 0} j(1 - \beta)\beta^j = \beta/(1 - \beta)$, khoảng 999 bước với $\beta = 0{,}999$: bản EMA phản ánh mô hình của khoảng một nghìn bước trước. (c) $0{,}999^k < 0{,}01 \Rightarrow k > 4\,603$.
+
+**Bài 6 [Nâng cao].** Với inverted dropout tỷ lệ $p$, chứng minh $\mathbb{E}[\tilde{h}] = h$ và tính $\operatorname{Var}(\tilde{h})$. Giải thích vì sao, ngay cả khi kỳ vọng được bảo toàn, việc **giữ dropout bật khi suy luận** (như pre-net của Tacotron 2) làm đầu ra của mô hình thay đổi giữa các lần chạy, và vì sao điều này có thể là mong muốn.
+
+??? tip "Gợi ý"
+    $\tilde{h} = mh/(1 - p)$ với $m \sim \operatorname{Bernoulli}(1 - p)$: $\mathbb{E}[\tilde{h}] = h$, $\mathbb{E}[\tilde{h}^2] = h^2/(1 - p)$, nên $\operatorname{Var}(\tilde{h}) = h^2 p/(1 - p)$, bằng $h^2$ khi $p = 0{,}5$. Phương sai này là một nguồn ngẫu nhiên "rẻ" giúp tạo biến thiên ngôn điệu giữa các lần tổng hợp.
+
+**Bài 7 [Lập trình].** Viết lớp `MaskedBatchNorm1d` cho tensor `(B, C, T)` kèm mặt nạ `(B, 1, T)`: khi huấn luyện, tính trung bình và phương sai **chỉ trên khung hợp lệ**, cập nhật thống kê chạy, và khi suy luận dùng thống kê chạy. Kiểm tra rằng kết quả trên các khung hợp lệ trùng với `nn.BatchNorm1d` áp lên tensor ghép tất cả các khung hợp lệ lại (không đệm).
+
+??? tip "Gợi ý"
+    `n = mask.sum()`; `mean = (x * mask).sum(dim=(0, 2)) / n`; `var = (((x - mean[None, :, None]) * mask) ** 2).sum(dim=(0, 2)) / n`. Để so sánh, tạo `x_valid = x.transpose(1, 2)[mask.squeeze(1)]` hình dạng `(n, C)` rồi áp `nn.BatchNorm1d(C)` lên nó (BatchNorm1d chấp nhận đầu vào 2 chiều `(N, C)`). Chú ý PyTorch cập nhật trung bình chạy của phương sai bằng ước lượng **không chệch** (chia cho $n - 1$).
+
+**Bài 8 [Lập trình].** Dùng vòng lặp ở Mục 3.15 làm khung thí nghiệm. (a) Đặt tốc độ học đỉnh $10^{-2}$ và so sánh có warmup (30 bước) với không warmup (`WARMUP = 0`, nhớ sửa hàm `lr_lambda` cho trường hợp này). (b) Thay AdamW bằng `torch.optim.Adam(..., weight_decay=0.01)` và so sánh độ lớn trọng số cuối cùng (chuẩn Frobenius của từng ma trận) giữa hai bộ tối ưu. (c) Ghi lại chuẩn gradient ở mỗi bước và vẽ (hoặc in) phân phối của nó; đề xuất một ngưỡng cắt hợp lý dựa trên phân vị 99%.
+
+??? tip "Gợi ý"
+    Với bài toán đồ chơi này, khác biệt có thể nhỏ; hãy chạy vài hạt ngẫu nhiên và nhìn cả đường loss những bước đầu, không chỉ kết quả cuối. Ở câu (b), weight decay kiểu L2 trong Adam bị chia cho $\sqrt{\hat{v}}$, nên với các tham số có gradient lớn, lực kéo về 0 yếu hơn hẳn so với AdamW.
+
+## Tài liệu tham khảo
+
+1. Robbins, H., Monro, S. (1951). *A stochastic approximation method*. Annals of Mathematical Statistics.
+2. Polyak, B. T. (1964). *Some methods of speeding up the convergence of iteration methods*. USSR Computational Mathematics and Mathematical Physics.
+3. Nesterov, Y. (1983). *A method for solving the convex programming problem with convergence rate O(1/k²)*. Soviet Mathematics Doklady.
+4. Polyak, B. T., Juditsky, A. B. (1992). *Acceleration of stochastic approximation by averaging*. SIAM Journal on Control and Optimization.
+5. Sutskever, I., Martens, J., Dahl, G., Hinton, G. (2013). *On the importance of initialization and momentum in deep learning*. ICML.
+6. Duchi, J., Hazan, E., Singer, Y. (2011). *Adaptive subgradient methods for online learning and stochastic optimization*. Journal of Machine Learning Research.
+7. Tieleman, T., Hinton, G. (2012). *Lecture 6.5 – RMSProp: Divide the gradient by a running average of its recent magnitude*. COURSERA: Neural Networks for Machine Learning.
+8. Kingma, D. P., Ba, J. (2015). *Adam: A method for stochastic optimization*. ICLR.
+9. Loshchilov, I., Hutter, F. (2019). *Decoupled weight decay regularization*. ICLR.
+10. Loshchilov, I., Hutter, F. (2017). *SGDR: Stochastic gradient descent with warm restarts*. ICLR.
+11. Liu, L. và cộng sự (2020). *On the variance of the adaptive learning rate and beyond*. ICLR.
+12. Vaswani, A. và cộng sự (2017). *Attention is all you need*. NeurIPS.
+13. Xiong, R. và cộng sự (2020). *On layer normalization in the Transformer architecture*. ICML.
+14. Goyal, P. và cộng sự (2017). *Accurate, large minibatch SGD: Training ImageNet in 1 hour*. arXiv:1706.02677.
+15. Pascanu, R., Mikolov, T., Bengio, Y. (2013). *On the difficulty of training recurrent neural networks*. ICML.
+16. Dauphin, Y. N. và cộng sự (2014). *Identifying and attacking the saddle point problem in high-dimensional non-convex optimization*. NeurIPS.
+17. Keskar, N. S. và cộng sự (2017). *On large-batch training for deep learning: Generalization gap and sharp minima*. ICLR.
+18. Dinh, L., Pascanu, R., Bengio, S., Bengio, Y. (2017). *Sharp minima can generalize for deep nets*. ICML.
+19. Li, H. và cộng sự (2018). *Visualizing the loss landscape of neural nets*. NeurIPS.
+20. Ioffe, S., Szegedy, C. (2015). *Batch normalization: Accelerating deep network training by reducing internal covariate shift*. ICML.
+21. Santurkar, S., Tsipras, D., Ilyas, A., Madry, A. (2018). *How does batch normalization help optimization?* NeurIPS.
+22. Ba, J. L., Kiros, J. R., Hinton, G. E. (2016). *Layer normalization*. arXiv:1607.06450.
+23. Zhang, B., Sennrich, R. (2019). *Root mean square layer normalization*. NeurIPS.
+24. Ulyanov, D., Vedaldi, A., Lempitsky, V. (2016). *Instance normalization: The missing ingredient for fast stylization*. arXiv:1607.08022.
+25. Wu, Y., He, K. (2018). *Group normalization*. ECCV.
+26. Huang, X., Belongie, S. (2017). *Arbitrary style transfer in real-time with adaptive instance normalization*. ICCV.
+27. Chou, J.-c., Yeh, C.-c., Lee, H.-y. (2019). *One-shot voice conversion by separating speaker and content representations with instance normalization*. Interspeech.
+28. Salimans, T., Kingma, D. P. (2016). *Weight normalization: A simple reparameterization to accelerate training of deep neural networks*. NeurIPS.
+29. Miyato, T., Kataoka, T., Koyama, M., Yoshida, Y. (2018). *Spectral normalization for generative adversarial networks*. ICLR.
+30. Srivastava, N. và cộng sự (2014). *Dropout: A simple way to prevent neural networks from overfitting*. Journal of Machine Learning Research.
+31. Krueger, D. và cộng sự (2017). *Zoneout: Regularizing RNNs by randomly preserving hidden activations*. ICLR.
+32. Park, D. S. và cộng sự (2019). *SpecAugment: A simple data augmentation method for automatic speech recognition*. Interspeech.
+33. Szegedy, C. và cộng sự (2016). *Rethinking the Inception architecture for computer vision*. CVPR.
+34. Micikevicius, P. và cộng sự (2018). *Mixed precision training*. ICLR.
+35. Ho, J., Jain, A., Abbeel, P. (2020). *Denoising diffusion probabilistic models*. NeurIPS.
+36. Shen, J. và cộng sự (2018). *Natural TTS synthesis by conditioning WaveNet on mel spectrogram predictions*. ICASSP.
+37. Ren, Y. và cộng sự (2021). *FastSpeech 2: Fast and high-quality end-to-end text to speech*. ICLR.
+38. Kong, J., Kim, J., Bae, J. (2020). *HiFi-GAN: Generative adversarial networks for efficient and high fidelity speech synthesis*. NeurIPS.
+39. Kim, J., Kong, J., Son, J. (2021). *Conditional variational autoencoder with adversarial learning for end-to-end text-to-speech*. ICML.
