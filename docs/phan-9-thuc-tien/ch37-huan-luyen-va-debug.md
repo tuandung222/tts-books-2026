@@ -452,7 +452,7 @@ $$
 \mathcal{L}_{\text{ngây thơ}} = \frac{1}{M} \sum_{m=1}^{M} \frac{1}{n_m} \sum_{k=1}^{n_m} \ell_{m,k} = \sum_{m=1}^{M} \sum_{k=1}^{n_m} \frac{1}{M n_m}\, \ell_{m,k}.
 $$
 
-So sánh hệ số: mỗi phần tử trong micro-batch $m$ nhận trọng số $1/(M n_m)$ thay vì $1/\sum_j n_j$. Hai cách chỉ trùng nhau khi mọi $n_m$ bằng nhau. Khi micro-batch chứa câu ngắn ($n_m$ nhỏ), từng khung của nó bị đếm *quá nặng*. Cách đúng: cộng tổng lỗi (không chia) trong từng micro-batch, và chia cho tổng số phần tử hợp lệ của cả bước tích lũy (cần biết trước, hoặc đếm trong một lượt duyệt nhanh). Với DDP, mẫu số phải là tổng trên *mọi* GPU (dùng `all_reduce`).
+So sánh hệ số: mỗi phần tử trong micro-batch $m$ nhận trọng số $1/(M n_m)$ thay vì $1/\sum_j n_j$. Hai cách chỉ trùng nhau khi mọi $n_m$ bằng nhau. Khi micro-batch chứa câu ngắn ($n_m$ nhỏ), từng khung của nó bị đếm *quá nặng*. Cách đúng: cộng tổng lỗi (không chia) trong từng micro-batch, và chia cho tổng số phần tử hợp lệ của cả bước tích lũy (cần biết trước, hoặc đếm trong một lượt duyệt nhanh). Với DDP còn một chi tiết: DDP lấy *trung bình* gradient giữa $W$ GPU, nên mỗi GPU nên dùng mẫu số là tổng số phần tử hợp lệ trên mọi GPU (lấy bằng `all_reduce`) rồi nhân loss với $W$ để bù phép chia đó.
 
 ```python
 import copy
