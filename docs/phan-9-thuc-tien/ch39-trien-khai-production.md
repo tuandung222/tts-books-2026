@@ -238,3 +238,120 @@ SNR là thước đo số học, không phải thước đo cảm nhận. Với 
 - **Các tham số nhỏ đặc biệt** như tham số của hàm kích hoạt Snake trong BigVGAN, các lớp chuẩn hóa, hay embedding người nói nên giữ ở số thực.
 - **Bộ giải ODE cộng dồn sai số** qua nhiều bước; lượng tử hóa trường vận tốc có thể ảnh hưởng nhiều hơn một lần gọi mạng đơn lẻ.
 - **Kiểm tra lại toàn bộ bộ đánh giá** sau lượng tử hóa: CER bằng ASR, độ giống giọng, và với tiếng Việt, bộ câu kiểm tra thanh điệu ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)). Cuối cùng là một bài nghe so sánh AB với phiên bản gốc.
+
+## 39.4 Các kỹ thuật tăng tốc khác
+
+### Giảm số bước sinh
+
+Với các mô hình dùng khuếch tán hoặc flow matching, chi phí tỉ lệ thuận với **số lần đánh giá mạng** (NFE): giảm từ 32 xuống 8 bước Euler là tăng tốc khoảng 4 lần cho khâu đó, không cần đụng tới phần cứng. Hướng dẫn không cần bộ phân loại (CFG) nhân đôi NFE mỗi bước (một lần có điều kiện, một lần không), nên cách cài CFG hiệu quả là gộp hai lần gọi vào cùng một batch. Khi muốn giảm sâu hơn (một đến vài bước), cần các kỹ thuật chưng cất bước như consistency model hay flow matching ít bước ([Chương 11](../phan-2-mo-hinh-sinh/ch11-diffusion.md), [Chương 12](../phan-2-mo-hinh-sinh/ch12-flow-matching.md)). Luôn vẽ đường cong chất lượng (CER, SIM, MOS dự đoán) theo số bước trên tập kiểm định trước khi chọn.
+
+### Chưng cất và mô hình nhỏ hơn
+
+**Chưng cất kiến thức** (*knowledge distillation*; Hinton và cộng sự, 2015) huấn luyện một mô hình "học trò" nhỏ bắt chước đầu ra của mô hình "thầy" lớn. Trong TTS, dạng phổ biến nhất là dùng mô hình lớn để **tạo dữ liệu**: sinh hàng nghìn giờ âm thanh chất lượng cao cho một giọng cố định, rồi huấn luyện một mô hình nhỏ (VITS, Matcha-TTS) trên dữ liệu đó. Với vocoder, các biến thể nhỏ như HiFi-GAN V2/V3 hay các vocoder dự đoán phổ rồi dùng iSTFT như Vocos (Siuzdak, 2024) có tỉ lệ chất lượng trên chi phí rất tốt ([Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)).
+
+### Cắt tỉa
+
+**Cắt tỉa** (*pruning*) loại bỏ trọng số hoặc cả kênh ít quan trọng (Han và cộng sự, 2016). Cần phân biệt: cắt tỉa **không cấu trúc** (đặt các trọng số riêng lẻ về 0) giảm kích thước khi nén nhưng hầu như không tăng tốc trên phần cứng thông thường, trừ khi có nhân tính toán thưa chuyên dụng (như WaveRNN đã làm với ma trận thưa theo khối; Kalchbrenner và cộng sự, 2018). Cắt tỉa **có cấu trúc** (bỏ cả kênh, cả đầu attention, cả lớp) cho mô hình nhỏ hơn thực sự và tăng tốc trực tiếp, nhưng thường cần fine-tune lại để phục hồi chất lượng.
+
+### Biên dịch: torch.compile và CUDA graphs
+
+`torch.compile` chụp các đoạn đồ thị từ mã PyTorch và sinh nhân tính toán tối ưu (gộp các phép toán theo từng phần tử, giảm đọc ghi bộ nhớ). Vài điều cần biết khi dùng cho TTS:
+
+- **Lần gọi đầu rất chậm** vì phải biên dịch; phải khởi động trước khi phục vụ.
+- **Kích thước động**: mỗi độ dài đầu vào mới có thể gây biên dịch lại. Đánh dấu trục động (`dynamic=True` hoặc `torch._dynamo.mark_dynamic`) hoặc gom độ dài vào một số "thùng" (*bucket*) cố định.
+- **Các chế độ**: `"default"`, `"reduce-overhead"` (dùng CUDA graphs để giảm chi phí khởi chạy nhân trên GPU) và `"max-autotune"` (dò cấu hình nhân lâu hơn để chạy nhanh hơn).
+
+```python
+import time
+
+compiled = torch.compile(model, dynamic=True)   # đánh dấu trục thời gian là động
+with torch.inference_mode():
+    t0 = time.perf_counter()
+    y = compiled(torch.ones(1, 80, 120))        # lần gọi đầu: biên dịch (chậm)
+    print(f"lần đầu (gồm biên dịch): {time.perf_counter() - t0:.1f} s")
+    for t in (64, 200, 500):                    # các độ dài khác: không biên dịch lại
+        mel_t = torch.randn(1, 80, t)
+        assert torch.allclose(compiled(mel_t), model(mel_t), atol=1e-4)
+    assert torch.allclose(y, model(torch.ones(1, 80, 120)), atol=1e-4)
+```
+
+Đoạn mã trên (dùng lại `model` của Mục 39.2) đã được chạy trên CPU. Với vocoder đồ chơi nhỏ này trên CPU, chúng tôi không thấy `torch.compile` nhanh hơn chế độ eager một cách đáng kể; lợi ích thường rõ hơn trên GPU và với mô hình có nhiều phép toán theo từng phần tử. Một lần nữa: hãy đo.
+
+**CUDA graphs** ghi lại một chuỗi lệnh khởi chạy nhân GPU và phát lại chúng bằng một lệnh duy nhất, loại bỏ chi phí của CPU khi khởi chạy từng nhân. Kỹ thuật này đặc biệt hữu ích cho bước giải mã tự hồi quy của LM (mỗi bước gồm rất nhiều nhân nhỏ) nhưng đòi hỏi **kích thước tĩnh và địa chỉ bộ nhớ cố định**: KV cache phải được cấp phát trước với độ dài tối đa, và các độ dài khác nhau phải được gom vào các thùng, mỗi thùng một đồ thị.
+
+### Tối ưu đường ống
+
+Ngoài bản thân mô hình, nhiều cải thiện đến từ cách nối các khâu: chạy frontend (chuẩn hóa văn bản, G2P) trên CPU song song với mô hình trên GPU; tránh sao chép qua lại giữa CPU và GPU; gom các yêu cầu vocoder của nhiều luồng vào một batch; và tính sẵn những gì có thể tính sẵn (embedding người nói, token của prompt; xem Mục 39.6).
+
+## 39.5 Đo hiệu năng đúng cách
+
+Một con số RTF không kèm điều kiện đo gần như vô nghĩa. Danh sách kiểm tra khi đo:
+
+1. **Khởi động** (*warm-up*): bỏ vài lần chạy đầu (cấp phát bộ nhớ, biên dịch, nạp bộ nhớ đệm).
+2. **Đồng bộ GPU**: các lệnh GPU chạy bất đồng bộ; phải gọi `torch.cuda.synchronize()` trước khi bấm giờ kết thúc, nếu không bạn chỉ đo thời gian *gửi* lệnh.
+3. **Chế độ suy luận**: `model.eval()` và `torch.inference_mode()`.
+4. **Số luồng CPU**: cố định `torch.set_num_threads` và số luồng của ONNX Runtime; ghi lại trong báo cáo.
+5. **Phân phối độ dài đầu vào**: đo trên phân phối câu thực tế, không chỉ một câu; RTF của câu ngắn thường tệ hơn vì chi phí cố định.
+6. **Báo cáo phân vị**: p50 và p95 (hoặc p99), không chỉ trung bình. Người dùng nhớ những lần chậm.
+7. **Tải đồng thời**: một yêu cầu đơn lẻ trên máy rảnh khác xa 50 yêu cầu đồng thời; đo cả hai.
+8. **Ghi lại môi trường**: phần cứng, phiên bản thư viện, kiểu dữ liệu, kích thước batch.
+
+Hàm sau cài các nguyên tắc 1, 6 và quy đổi ra RTF; nó được dùng để so sánh PyTorch với ONNX Runtime trên vocoder đồ chơi (tiếp nối khối mã ở Mục 39.2).
+
+```python
+import time
+
+def benchmark_rtf(run_fn, audio_seconds, n_warmup=3, n_runs=20):
+    """Đo thời gian chạy run_fn() và quy ra RTF = thời gian xử lý / thời lượng audio.
+    Với GPU: gọi torch.cuda.synchronize() bên trong run_fn trước khi trả về."""
+    times = []
+    for i in range(n_warmup + n_runs):
+        t0 = time.perf_counter()
+        run_fn()
+        dt = time.perf_counter() - t0
+        if i >= n_warmup:                      # bỏ các lần khởi động (warm-up)
+            times.append(dt)
+    times.sort()
+    pct = lambda p: times[min(len(times) - 1, int(round(p * (len(times) - 1))))]
+    return {"p50_ms": 1e3 * pct(0.50), "p95_ms": 1e3 * pct(0.95),
+            "rtf_p50": pct(0.50) / audio_seconds}
+
+sr, n_frames = 16_000, 500                     # 500 khung * hop 64 = 2 giây audio
+x = torch.randn(1, 80, n_frames)
+audio_sec = n_frames * model.hop / sr
+
+def run_torch():
+    with torch.inference_mode():
+        model(x)
+
+def run_ort():
+    sess.run(["wav"], {"mel": x.numpy()})
+
+for name, fn in [("PyTorch eager", run_torch), ("ONNX Runtime", run_ort)]:
+    r = benchmark_rtf(fn, audio_sec)
+    print(f"{name:14s} p50={r['p50_ms']:6.1f} ms  p95={r['p95_ms']:6.1f} ms  "
+          f"RTF={r['rtf_p50']:.3f}")
+```
+
+Trong các lần chạy của chúng tôi (CPU, 2 luồng), ONNX Runtime nhanh hơn PyTorch eager khoảng 1,5–2 lần trên mô hình này, với RTF cỡ phần nghìn. Đừng tổng quát hóa con số này: tỉ lệ phụ thuộc mô hình, phần cứng và phiên bản thư viện.
+
+### Ví dụ: lượng tử hóa không tự động nhanh hơn
+
+Đoạn mã sau (tiếp nối các khối mã ở trên) dùng công cụ lượng tử hóa động của ONNX Runtime trên vocoder đồ chơi rồi đo lại.
+
+```python
+from onnxruntime.quantization import QuantType, quantize_dynamic
+
+# Lượng tử hóa động: trọng số int8 lưu sẵn, activation lượng tử hóa lúc chạy
+quantize_dynamic("tiny_vocoder.onnx", "tiny_vocoder_int8.onnx", weight_type=QuantType.QInt8)
+sess8 = ort.InferenceSession("tiny_vocoder_int8.onnx", opts, providers=["CPUExecutionProvider"])
+
+feed = {"mel": x.numpy()}                         # x, audio_sec: từ khối mã đo RTF ở trên
+a, b = sess.run(["wav"], feed)[0], sess8.run(["wav"], feed)[0]
+print(f"SNR fp32 so với int8: {10 * np.log10((a**2).sum() / ((a - b)**2).sum()):.1f} dB")
+for name, s in [("ORT fp32", sess), ("ORT int8 động", sess8)]:
+    r = benchmark_rtf(lambda: s.run(["wav"], feed), audio_sec)
+    print(f"{name:14s} p50={r['p50_ms']:6.1f} ms  RTF={r['rtf_p50']:.3f}")
+```
+
+Trên máy của chúng tôi, SNR giữa hai phiên bản khoảng 44 dB (chấp nhận được), nhưng phiên bản int8 **chậm hơn khoảng hai lần** phiên bản fp32, nhất quán qua nhiều lần chạy. Nhìn vào đồ thị sau lượng tử hóa sẽ thấy lý do: các lớp `Conv` được thay bằng `ConvInteger` cộng các phép lượng tử hóa activation chạy liên tục, trong khi nhân tích chập số nguyên trên CPU này không đủ nhanh để bù lại, và lớp `ConvTranspose` vẫn ở fp32. Bài học: **lượng tử hóa động được thiết kế cho mô hình nặng về nhân ma trận; với mạng tích chập, hãy thử lượng tử hóa tĩnh dạng QDQ với dữ liệu hiệu chỉnh, và luôn đo**. ONNX Runtime cũng khuyến nghị chạy bước tiền xử lý mô hình (`python -m onnxruntime.quantization.preprocess`) trước khi lượng tử hóa.
