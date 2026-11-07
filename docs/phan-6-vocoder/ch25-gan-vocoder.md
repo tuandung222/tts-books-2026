@@ -878,10 +878,10 @@ Trong thực tế, ít ai huấn luyện vocoder từ đầu cho mỗi giọng. 
 
 ## Bài tập
 
-1. **[Cơ bản]** Bạn cần một vocoder HiFi-GAN cho âm thanh 24 kHz với bước nhảy $H = 300$ (12,5 ms). Hãy đề xuất các hệ số nâng mẫu $u_i$ và kích thước nhân $k_{u,i}$ (theo quy tắc $k = 2u$), kiểm tra công thức độ dài đầu ra, và cho biết có thể dùng nguyên các bộ phân biệt MPD, MSD không.
+1. **[Cơ bản]** Bạn cần một vocoder HiFi-GAN cho âm thanh 24 kHz với bước nhảy $H = 300$ (12,5 ms). Hãy đề xuất các hệ số nâng mẫu $u_i$ và kích thước nhân $k_{u,i}$, kiểm tra công thức độ dài đầu ra (lưu ý điều kiện $k - u$ chẵn khi $u$ lẻ), và cho biết có thể dùng nguyên các bộ phân biệt MPD, MSD không.
 
     ??? success "Lời giải"
-        Ví dụ $u = (5, 5, 4, 3)$ với $k_u = (10, 10, 8, 6)$: tích bằng 300 và $k - u$ đều chẵn ($5, 5, 4, 3$ có $k - u = 5, 5, 4, 3$, chú ý $5$ và $3$ là số *lẻ*). Vậy cần chọn khác: với $u$ lẻ, dùng $k = 2u + 1$ sẽ cho $k - u = u + 1$ chẵn; ví dụ $u = (5, 5, 4, 3)$, $k_u = (11, 11, 8, 7)$, padding $(k - u)/2 = (3, 3, 2, 2)$, độ dài ra $(L - 1)u - 2 \cdot \frac{k-u}{2} + k = uL$. MPD và MSD không phụ thuộc $H$ nên dùng nguyên được; chỉ cần độ dài đoạn huấn luyện là bội của 300.
+        Phân tích $300 = 5 \cdot 5 \cdot 4 \cdot 3$. Quy tắc $k = 2u$ cho $k - u = u$, *lẻ* khi $u = 5$ hoặc $u = 3$, nên padding $(k - u)/2$ không nguyên và độ dài ra lệch một mẫu (ví dụ $u = 5, k = 10$ cho $5L + 1$). Với $u$ lẻ, chọn $k = 2u + 1$ để $k - u = u + 1$ chẵn: $u = (5, 5, 4, 3)$, $k_u = (11, 11, 8, 7)$, padding $(3, 3, 2, 2)$. Khi đó $(L - 1)u - 2 \cdot \frac{k - u}{2} + k = uL$ ở mọi tầng. MPD và MSD không phụ thuộc $H$ nên dùng nguyên được; chỉ cần độ dài đoạn huấn luyện là bội của 300.
 
 2. **[Cơ bản]** Với MPD chu kỳ $p = 3$ và một đoạn $L = 10$ mẫu $s[0], \ldots, s[9]$: cần đệm bao nhiêu mẫu, ma trận 2-D có kích thước bao nhiêu, và cột $j = 2$ chứa những mẫu nào?
 
