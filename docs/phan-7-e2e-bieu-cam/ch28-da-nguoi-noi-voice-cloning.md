@@ -161,7 +161,7 @@ $$
 \text{score}(a, b) = \cos\big(e_\psi(a), e_\psi(b)\big) = \frac{e_\psi(a)^\top e_\psi(b)}{\lVert e_\psi(a) \rVert\,\lVert e_\psi(b) \rVert}.
 $$
 
-So với ngưỡng để quyết định "cùng/khác". Bộ mã hóa này được huấn luyện trên dữ liệu **rất nhiều người nói** (hàng nghìn), thường lấy từ nguồn "tự nhiên" như video phỏng vấn, không cần văn bản, có nhiễu và kênh thu đa dạng. Chính sự đa dạng đó làm embedding tổng quát hóa sang người lạ, đúng thứ TTS zero-shot cần.
+Điểm số này được so với một ngưỡng để quyết định "cùng" hay "khác". Bộ mã hóa này được huấn luyện trên dữ liệu **rất nhiều người nói** (hàng nghìn), thường lấy từ nguồn "tự nhiên" như video phỏng vấn, không cần văn bản, có nhiễu và kênh thu đa dạng. Chính sự đa dạng đó làm embedding tổng quát hóa sang người lạ, đúng thứ TTS zero-shot cần.
 
 ### 28.3.2. Các kiến trúc
 
