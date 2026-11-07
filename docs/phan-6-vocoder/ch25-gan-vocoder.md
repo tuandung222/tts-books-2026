@@ -201,7 +201,7 @@ Các khối mã trong mục này **nối tiếp nhau** (khối sau dùng lớp v
 flowchart LR
     M["Mel (B, 80, T)"] --> P["Conv1d k=7 → h_u kênh"]
     P --> U1["LeakyReLU + ConvTranspose1d ×u₁"]
-    U1 --> R1["MRF: trung bình của |k_r| ResBlock"]
+    U1 --> R1["MRF: trung bình các ResBlock song song"]
     R1 --> U2["... lặp lại cho mỗi tầng nâng mẫu ..."]
     U2 --> O["LeakyReLU + Conv1d k=7 → 1 kênh + tanh"]
     O --> W["Dạng sóng (B, 1, T·H)"]
