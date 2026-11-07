@@ -40,7 +40,7 @@ flowchart LR
 ```
 
 - **Nhánh dưới** biến dạng sóng thành log-mel-spectrogram. Nó dùng số phức (Mục 1.6), phép chiếu tuyến tính (Mục 1.2) và phép lấy logarit (một phép đổi biến, Mục 1.4.5). Chi tiết xử lý tín hiệu nằm ở [Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md).
-- **Nhánh trên** là mô hình âm học: một chuỗi phép nhân ma trận xen kẽ hàm phi tuyến (Chương 2, 4, 5).
+- **Nhánh trên** là mô hình âm học: một chuỗi phép nhân ma trận xen kẽ hàm phi tuyến ([Chương 2](ch02-hoc-may-va-mang-no-ron.md), [Chương 4](ch04-cnn-rnn-mo-hinh-chuoi.md), [Chương 5](ch05-transformer.md)).
 - **Hàm mất mát** so sánh dự đoán với mục tiêu. Việc chọn L1, L2 hay entropy chéo không phải ngẫu nhiên: mỗi lựa chọn tương ứng với một giả định xác suất (Mục 1.4.7 và 1.5).
 - **Gradient** của hàm mất mát theo tham số được tính bằng quy tắc dây chuyền cho véc-tơ (Mục 1.3), là nền tảng của lan truyền ngược ([Chương 2](ch02-hoc-may-va-mang-no-ron.md)) và các thuật toán tối ưu ([Chương 3](ch03-toi-uu-va-ky-thuat-huan-luyen.md)).
 
@@ -113,7 +113,7 @@ $$
 
 Hệ quả thực tế rất đáng nhớ: nếu $\mathbf{A}\mathbf{x} = \mathbf{A}\mathbf{x}'$ thì $\mathbf{x} - \mathbf{x}' \in \operatorname{null}(\mathbf{A})$. Khi không gian rỗng khác $\{\mathbf{0}\}$, **vô số đầu vào khác nhau cho cùng một đầu ra**, và không có cách nào khôi phục chính xác đầu vào từ đầu ra.
 
-**Liên hệ với TTS: bộ lọc mel.** Với `n_fft = 1024`, phổ công suất của một khung có $K = 1024/2 + 1 = 513$ bin tần số. Bộ lọc mel gồm $F = 80$ bộ lọc tam giác, mỗi bộ lọc là một hàng của ma trận $\mathbf{M} \in \mathbb{R}^{80 \times 513}$, và khung mel là $\mathbf{m} = \mathbf{M}\mathbf{p}$ với $\mathbf{p}$ là phổ công suất. Vì $\operatorname{rank}(\mathbf{M}) \le 80$, không gian rỗng có ít nhất $513 - 80 = 433$ chiều. Nói cách khác, mel-spectrogram vứt bỏ phần lớn chi tiết tần số (cộng thêm toàn bộ thông tin pha, xem Mục 1.6). Đây là lý do một vocoder ([Phần VI](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md)) không thể là phép "nghịch đảo" đơn thuần: nó phải *sinh* lại các chi tiết bị mất sao cho nghe tự nhiên.
+**Liên hệ với TTS: bộ lọc mel.** Với `n_fft = 1024`, phổ công suất của một khung có $K = 1024/2 + 1 = 513$ bin tần số. Bộ lọc mel gồm $F = 80$ bộ lọc tam giác, mỗi bộ lọc là một hàng của ma trận $\mathbf{M} \in \mathbb{R}^{80 \times 513}$, và khung mel là $\mathbf{m} = \mathbf{M}\mathbf{p}$ với $\mathbf{p}$ là phổ công suất. Vì $\operatorname{rank}(\mathbf{M}) \le 80$, không gian rỗng có ít nhất $513 - 80 = 433$ chiều. Nói cách khác, mel-spectrogram vứt bỏ rất nhiều chi tiết tần số, nhất là cấu trúc tinh ở dải tần cao, nơi mỗi bộ lọc mel gộp hàng chục bin lại (chưa kể toàn bộ thông tin pha, xem Mục 1.6). Đây là lý do một vocoder ([Phần VI](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md)) không thể là phép "nghịch đảo" đơn thuần: nó phải *sinh* lại các chi tiết bị mất sao cho nghe tự nhiên.
 
 ### 1.2.4. Phép chiếu và bình phương tối thiểu
 
