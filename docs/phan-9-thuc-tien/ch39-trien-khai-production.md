@@ -659,7 +659,7 @@ $$
 \Theta = \frac{n}{\rho_{\text{tải}}} \quad \text{(giây âm thanh trên mỗi giây)}.
 $$
 
-Nếu giá thuê một GPU là $P$ (USD/giờ), chi phí cho mỗi giờ âm thanh là $P / \Theta$. Ví dụ với số liệu **giả định**: giá thuê 2 USD/giờ, GPU phục vụ 16 luồng mà mỗi luồng vẫn đạt $\rho_{\text{tải}} = 0.5$, thì $\Theta = 32$ và chi phí khoảng $2/32 \approx 0{,}06$ USD cho mỗi giờ âm thanh, chưa tính CPU, mạng, lưu trữ, thời gian GPU nhàn rỗi và dự phòng. Công thức cho thấy hai đòn bẩy chi phí: tăng số luồng mỗi GPU (gom batch tốt hơn) và giảm RTF (các kỹ thuật ở Mục 39.3–39.4). Trong thực tế, chi phí bị chi phối bởi **tải đỉnh** và mức nhàn rỗi ngoài giờ cao điểm, nên khả năng co giãn quan trọng không kém tốc độ.
+Nếu giá thuê một GPU là $P$ (USD/giờ), chi phí cho mỗi giờ âm thanh là $P / \Theta$. Ví dụ với số liệu **giả định**: giá thuê 2 USD/giờ, GPU phục vụ 16 luồng mà mỗi luồng vẫn đạt $\rho_{\text{tải}} = 0.5$, thì $\Theta = 32$ và chi phí khoảng $2/32 \approx 0.06$ USD cho mỗi giờ âm thanh, chưa tính CPU, mạng, lưu trữ, thời gian GPU nhàn rỗi và dự phòng. Công thức cho thấy hai đòn bẩy chi phí: tăng số luồng mỗi GPU (gom batch tốt hơn) và giảm RTF (các kỹ thuật ở Mục 39.3–39.4). Trong thực tế, chi phí bị chi phối bởi **tải đỉnh** và mức nhàn rỗi ngoài giờ cao điểm, nên khả năng co giãn quan trọng không kém tốc độ.
 
 ### Lập kế hoạch năng lực với định luật Little
 
