@@ -460,3 +460,175 @@ Không phải dự án nào cũng cần một hệ thống vài trăm triệu th
 - **VITS và Piper** ([Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)), **Matcha-TTS** ([Chương 23](../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md)): huấn luyện được trên một GPU với vài chục giờ dữ liệu một người nói, chạy nhanh trên CPU.
 
 Các mô hình nhỏ thua hệ thống lai ở khả năng nhân bản giọng, độ biểu cảm và xử lý ngữ cảnh dài, nhưng thắng ở chi phí, độ trễ, khả năng chạy trên thiết bị và **tính dự đoán được**: chúng ít khi "bịa" ra âm thanh lạ như LM. Với một trợ lý ảo tiếng Việt chỉ cần một giọng cố định, chất lượng ổn định, một mô hình VITS huấn luyện tốt có thể là lựa chọn hợp lý hơn một hệ thống lai cỡ lớn.
+
+## 34.8 Hậu huấn luyện: căn chỉnh TTS theo sở thích
+
+### Vì sao hợp lý cực đại là chưa đủ
+
+LM của hệ thống lai được huấn luyện bằng hợp lý cực đại trên hàng chục nghìn đến hàng triệu giờ dữ liệu thu thập "ngoài thực địa" ([Chương 36](../phan-9-thuc-tien/ch36-du-lieu-tts.md)). Hợp lý cực đại có nghĩa là mô hình học cách **bắt chước phân phối dữ liệu**, kể cả những phần ta không muốn: bản ghi văn bản sai lệch so với âm thanh, tiếng ồn, giọng đọc lí nhí, ngắt nghỉ vụng về. Hơn nữa, các thước đo ta thực sự quan tâm (đọc đúng chữ, giống giọng mẫu, nghe tự nhiên) không trùng với log-likelihood. Một mô hình có log-likelihood tốt hơn chưa chắc đọc ít sai hơn.
+
+LLM văn bản đã gặp đúng vấn đề này và giải quyết bằng **hậu huấn luyện**: sau giai đoạn tiền huấn luyện và tinh chỉnh có giám sát (SFT), mô hình được tối ưu thêm theo một tín hiệu đánh giá chất lượng đầu ra (Ouyang và cộng sự, 2022). Các hệ thống TTS dựa trên LM thừa hưởng trực tiếp bộ công cụ này. Điểm thuận lợi đặc biệt của TTS là nhiều tín hiệu chất lượng có thể **đo tự động**, không cần người gán nhãn.
+
+### Tín hiệu phần thưởng cho TTS
+
+| Tín hiệu | Đo cái gì | Công cụ điển hình | Cách mô hình có thể "lách luật" |
+|---|---|---|---|
+| WER/CER (âm thanh → ASR → so với văn bản) | Đọc đúng, không bỏ, không lặp | Mô hình ASR mạnh | Đọc chậm, rời rạc, cường điệu từng âm để ASR dễ nhận; ngữ điệu đơn điệu |
+| Độ giống giọng (SIM) | Âm sắc khớp prompt | Embedding xác minh người nói ([Chương 28](../phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning.md)) | Sao chép cả tiếng ồn, tiếng vang của prompt |
+| MOS dự đoán | Độ tự nhiên, chất lượng | UTMOS, DNSMOS ([Chương 38](../phan-9-thuc-tien/ch38-danh-gia-tts.md)) | Khai thác điểm mù của bộ dự đoán |
+| Bộ phân loại cảm xúc / phong cách | Đúng cảm xúc yêu cầu | Mô hình phân loại cảm xúc | Cường điệu quá mức |
+| Ràng buộc trường độ | Tốc độ nói hợp lý | Tỉ lệ thời lượng / số âm tiết | Hiếm khi gây vấn đề, nhưng dễ đặt sai ngưỡng |
+
+Cột cuối là hiện tượng **lách phần thưởng** (*reward hacking*): khi tối ưu mạnh một thước đo đại diện, mô hình tìm ra cách tăng thước đo mà không tăng chất lượng thật. Các mô tả trong cột này là những rủi ro điển hình có cơ sở lý luận, không phải kết quả thực nghiệm của một bài báo cụ thể. Biện pháp phòng ngừa chung là kết hợp nhiều tín hiệu, giữ mô hình gần mô hình tham chiếu (ràng buộc KL bên dưới) và **luôn nghe thử** cùng với đánh giá chủ quan định kỳ.
+
+### Từ bài toán tối đa hóa phần thưởng đến DPO
+
+Gọi chính sách (*policy*) $\pi_\theta(\mathbf{q} \mid \mathbf{x})$ là LM cần tối ưu (để gọn, ta gộp prompt $\mathbf{c}$ vào $\mathbf{x}$) và $\pi_{\text{ref}}$ là mô hình SFT đóng băng. Bài toán hậu huấn luyện kinh điển là
+
+$$
+\max_{\pi} \; \mathbb{E}_{\mathbf{x} \sim \mathcal{D},\, \mathbf{q} \sim \pi(\cdot \mid \mathbf{x})}\big[r(\mathbf{x}, \mathbf{q})\big] - \beta\, D_{\mathrm{KL}}\big(\pi(\cdot \mid \mathbf{x}) \,\Vert\, \pi_{\text{ref}}(\cdot \mid \mathbf{x})\big),
+$$
+
+với $r$ là phần thưởng và $\beta > 0$ điều chỉnh mức được phép rời xa mô hình tham chiếu. Số hạng KL là "dây an toàn" chống lách phần thưởng: mô hình chỉ được thay đổi khi lợi ích đủ lớn.
+
+Rafailov và cộng sự (2023) chỉ ra rằng bài toán này có nghiệm dạng đóng và từ đó suy ra một hàm mất mát không cần mô hình phần thưởng tường minh, gọi là **DPO** (*Direct Preference Optimization*). Ta suy ra từng bước.
+
+**Bước 1: nghiệm tối ưu.** Cố định $\mathbf{x}$. Viết lại mục tiêu (bỏ dấu kỳ vọng theo $\mathbf{x}$):
+
+$$
+\mathbb{E}_{\pi}\Big[r(\mathbf{x}, \mathbf{q}) - \beta \log \frac{\pi(\mathbf{q} \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q} \mid \mathbf{x})}\Big]
+= -\beta\, \mathbb{E}_{\pi}\Big[\log \frac{\pi(\mathbf{q} \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q} \mid \mathbf{x}) \exp\big(r(\mathbf{x}, \mathbf{q})/\beta\big)}\Big].
+$$
+
+Định nghĩa phân phối
+
+$$
+\pi^{*}(\mathbf{q} \mid \mathbf{x}) = \frac{1}{Z(\mathbf{x})}\, \pi_{\text{ref}}(\mathbf{q} \mid \mathbf{x}) \exp\Big(\frac{r(\mathbf{x}, \mathbf{q})}{\beta}\Big),
+\qquad
+Z(\mathbf{x}) = \sum_{\mathbf{q}} \pi_{\text{ref}}(\mathbf{q} \mid \mathbf{x}) \exp\Big(\frac{r(\mathbf{x}, \mathbf{q})}{\beta}\Big).
+$$
+
+Thay mẫu số trong logarit bằng $Z(\mathbf{x})\,\pi^{*}(\mathbf{q} \mid \mathbf{x})$, mục tiêu trở thành
+
+$$
+-\beta\, D_{\mathrm{KL}}\big(\pi(\cdot \mid \mathbf{x}) \,\Vert\, \pi^{*}(\cdot \mid \mathbf{x})\big) + \beta \log Z(\mathbf{x}).
+$$
+
+Số hạng thứ hai không phụ thuộc $\pi$, còn KL không âm và bằng 0 khi và chỉ khi hai phân phối trùng nhau. Vậy nghiệm tối ưu là $\pi = \pi^{*}$.
+
+**Bước 2: biểu diễn phần thưởng qua chính sách.** Lấy logarit hai vế định nghĩa $\pi^{*}$ rồi chuyển vế:
+
+$$
+r(\mathbf{x}, \mathbf{q}) = \beta \log \frac{\pi^{*}(\mathbf{q} \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q} \mid \mathbf{x})} + \beta \log Z(\mathbf{x}).
+$$
+
+Phần thưởng được xác định bởi tỉ số giữa chính sách tối ưu và chính sách tham chiếu, cộng một hằng số chỉ phụ thuộc $\mathbf{x}$. Hằng số $Z(\mathbf{x})$ là tổng trên mọi chuỗi token, không tính được, nhưng ta sắp thấy nó tự triệt tiêu.
+
+**Bước 3: mô hình sở thích Bradley–Terry.** Giả sử dữ liệu gồm các cặp $(\mathbf{x}, \mathbf{q}_w, \mathbf{q}_l)$, trong đó $\mathbf{q}_w$ được ưa hơn $\mathbf{q}_l$. Mô hình Bradley–Terry (Bradley và Terry, 1952) giả định
+
+$$
+P(\mathbf{q}_w \succ \mathbf{q}_l \mid \mathbf{x}) = \sigma\big(r(\mathbf{x}, \mathbf{q}_w) - r(\mathbf{x}, \mathbf{q}_l)\big).
+$$
+
+Thay biểu thức của $r$ ở Bước 2 vào, hai số hạng $\beta \log Z(\mathbf{x})$ triệt tiêu nhau:
+
+$$
+P(\mathbf{q}_w \succ \mathbf{q}_l \mid \mathbf{x}) = \sigma\Big(\beta \log \frac{\pi^{*}(\mathbf{q}_w \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q}_w \mid \mathbf{x})} - \beta \log \frac{\pi^{*}(\mathbf{q}_l \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q}_l \mid \mathbf{x})}\Big).
+$$
+
+**Bước 4: hợp lý cực đại trên dữ liệu sở thích.** Thay $\pi^{*}$ bằng mô hình có tham số $\pi_\theta$ và cực đại hóa log-likelihood của các sở thích quan sát được, ta có hàm mất mát DPO:
+
+$$
+\mathcal{L}_{\text{DPO}}(\theta) = -\,\mathbb{E}_{(\mathbf{x}, \mathbf{q}_w, \mathbf{q}_l)}\Big[\log \sigma\Big(\underbrace{\beta \log \frac{\pi_\theta(\mathbf{q}_w \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q}_w \mid \mathbf{x})} - \beta \log \frac{\pi_\theta(\mathbf{q}_l \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q}_l \mid \mathbf{x})}}_{\Delta_\theta}\Big)\Big].
+$$
+
+Đại lượng $\hat{r}_\theta(\mathbf{x}, \mathbf{q}) = \beta \log \frac{\pi_\theta(\mathbf{q} \mid \mathbf{x})}{\pi_{\text{ref}}(\mathbf{q} \mid \mathbf{x})}$ được gọi là **phần thưởng ngầm**, và $\Delta_\theta$ là hiệu phần thưởng ngầm giữa mẫu thắng và mẫu thua. Lấy gradient:
+
+$$
+\nabla_\theta \mathcal{L}_{\text{DPO}} = -\beta\, \mathbb{E}\Big[\sigma(-\Delta_\theta)\,\big(\nabla_\theta \log \pi_\theta(\mathbf{q}_w \mid \mathbf{x}) - \nabla_\theta \log \pi_\theta(\mathbf{q}_l \mid \mathbf{x})\big)\Big].
+$$
+
+Gradient đẩy xác suất mẫu thắng lên, kéo xác suất mẫu thua xuống, với trọng số $\sigma(-\Delta_\theta)$ lớn khi mô hình đang xếp hạng sai. Cặp nào mô hình đã phân biệt tốt thì đóng góp rất ít.
+
+Với LM token tiếng nói, $\log \pi_\theta(\mathbf{q} \mid \mathbf{x}) = \sum_{j} \log \pi_\theta(q_j \mid q_{<j}, \mathbf{x})$ chỉ là tổng log-xác suất từng token, đúng đại lượng ta đã tính khi huấn luyện bằng entropy chéo. Vì thế DPO cài đặt rất gọn: hai lượt truyền thẳng cho mỗi cặp qua mô hình đang học, hai lượt qua mô hình tham chiếu (không cần gradient).
+
+### Tạo dữ liệu sở thích cho TTS
+
+Quy trình điển hình để tạo các cặp $(\mathbf{q}_w, \mathbf{q}_l)$ hoàn toàn tự động:
+
+1. Với mỗi câu văn bản (và prompt) trong một tập đa dạng, lấy mẫu $n$ chuỗi token từ mô hình SFT (ví dụ $n$ từ 4 đến 10, với nhiệt độ đủ cao để có khác biệt).
+2. Giải mã tất cả thành âm thanh qua bộ giải mã và vocoder.
+3. Chấm điểm mỗi mẫu bằng các tín hiệu ở bảng trên, gộp thành một điểm (ví dụ ưu tiên WER rồi đến SIM).
+4. Chọn mẫu tốt nhất làm $\mathbf{q}_w$, mẫu kém nhất làm $\mathbf{q}_l$; **bỏ các cặp có chênh lệch điểm quá nhỏ**, vì chúng chủ yếu là nhiễu của bộ chấm điểm.
+
+Vì các mẫu được sinh ra từ chính mô hình, phân phối dữ liệu sở thích bám sát phân phối của mô hình, điều quan trọng để DPO hoạt động tốt. Có thể lặp lại quy trình nhiều vòng (lấy mẫu lại từ mô hình đã cải thiện). Hướng tiếp cận này đã được khảo sát cho codec LM, ví dụ SpeechAlign (Zhang và cộng sự, 2024).
+
+### Cài đặt DPO cho LM token
+
+Đoạn mã sau cài hàm mất mát DPO và chạy vài bước tối ưu trên một LM token đồ chơi. Các khẳng định (`assert`) kiểm tra hai tính chất suy ra ở trên: khi $\pi_\theta = \pi_{\text{ref}}$ thì $\Delta_\theta = 0$ và $\mathcal{L}_{\text{DPO}} = \log 2$; sau khi tối ưu, hiệu phần thưởng ngầm dương.
+
+```python
+import copy, math
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+def seq_logprob(logits, tokens, mask):
+    """Tổng log-xác suất của chuỗi token tiếng nói.
+    logits: (B, S, V) dự đoán token tại mỗi vị trí; tokens, mask: (B, S)."""
+    logp = F.log_softmax(logits, dim=-1)                          # (B, S, V)
+    tok_logp = logp.gather(-1, tokens.unsqueeze(-1)).squeeze(-1)  # (B, S)
+    return (tok_logp * mask).sum(dim=-1)                          # (B,)
+
+def dpo_loss(pi_w, pi_l, ref_w, ref_l, beta=0.1):
+    """pi_*/ref_*: log p(y|x) dưới chính sách đang học / mô hình tham chiếu, (B,)."""
+    margin = beta * ((pi_w - ref_w) - (pi_l - ref_l))  # hiệu "phần thưởng ngầm"
+    return -F.logsigmoid(margin).mean(), margin.detach()
+
+class TinyTokenLM(nn.Module):
+    """LM token tiếng nói đồ chơi: embedding -> GRU -> logits (bỏ qua điều kiện văn bản)."""
+    def __init__(self, V=32, C=32):
+        super().__init__()
+        self.emb, self.rnn, self.head = nn.Embedding(V, C), nn.GRU(C, C, batch_first=True), nn.Linear(C, V)
+    def forward(self, tokens):                       # tokens: (B, S)
+        h, _ = self.rnn(self.emb(tokens))            # (B, S, C)
+        return self.head(h)                          # (B, S, V)
+
+def logits_for(model, y, bos=0):
+    """Dịch phải một vị trí: logits tại bước s dự đoán y[:, s]."""
+    inp = torch.cat([torch.full_like(y[:, :1], bos), y[:, :-1]], dim=1)
+    return model(inp)
+
+torch.manual_seed(0)
+B, S, V = 8, 20, 32
+policy = TinyTokenLM(V)
+ref = copy.deepcopy(policy).eval().requires_grad_(False)   # mô hình SFT bị đóng băng
+y_w = torch.randint(1, V, (B, S))                          # mẫu "thắng" (vd. WER thấp)
+y_l = torch.randint(1, V, (B, S))                          # mẫu "thua"
+m_w = torch.ones(B, S); m_l = torch.ones(B, S)
+
+opt = torch.optim.Adam(policy.parameters(), lr=1e-2)
+with torch.no_grad():
+    ref_w = seq_logprob(logits_for(ref, y_w), y_w, m_w)
+    ref_l = seq_logprob(logits_for(ref, y_l), y_l, m_l)
+for step in range(30):
+    pi_w = seq_logprob(logits_for(policy, y_w), y_w, m_w)
+    pi_l = seq_logprob(logits_for(policy, y_l), y_l, m_l)
+    loss, margin = dpo_loss(pi_w, pi_l, ref_w, ref_l, beta=0.1)
+    if step == 0:   # policy == ref  =>  margin = 0  =>  loss = log 2
+        assert abs(loss.item() - math.log(2)) < 1e-5
+    opt.zero_grad(); loss.backward(); opt.step()
+    if step % 10 == 0 or step == 29:
+        print(f"step {step:2d}  loss={loss.item():.4f}  margin TB={margin.mean():.3f}")
+assert loss.item() < math.log(2) and margin.mean() > 0
+```
+
+Trong một hệ thống thật, `logits_for` sẽ là lượt truyền thẳng của LM với đầy đủ văn bản và prompt, còn `mask` che đi các vị trí văn bản, prompt và đệm, chỉ giữ token tiếng nói cần đánh giá.
+
+### Các lưu ý khi áp dụng
+
+- **Thiên lệch độ dài.** $\log \pi_\theta(\mathbf{q} \mid \mathbf{x})$ là tổng trên mọi token, nên chuỗi dài có độ lớn log-xác suất lớn hơn. Nếu mẫu thắng thường dài hơn hoặc ngắn hơn mẫu thua một cách hệ thống, DPO có thể học "nói dài hơn" hoặc "nói ngắn hơn" thay vì "nói đúng hơn". Có thể chuẩn hóa theo độ dài (như SimPO; Meng và cộng sự, 2024) hoặc ghép cặp các mẫu có độ dài gần nhau.
+- **Cả hai xác suất cùng giảm.** DPO chỉ ràng buộc *hiệu* của hai log-tỉ số. Trong nhiều thí nghiệm với LLM văn bản, người ta quan sát thấy xác suất của cả mẫu thắng cũng giảm theo thời gian huấn luyện. Hãy theo dõi riêng $\log \pi_\theta(\mathbf{q}_w)$, đừng chỉ nhìn hàm mất mát.
+- **Chọn $\beta$.** $\beta$ nhỏ cho phép rời xa mô hình tham chiếu nhiều hơn (tăng rủi ro lách phần thưởng); $\beta$ lớn thì thay đổi ít. Các giá trị trong khoảng 0,01–0,5 thường được thử; cần dò trên tập kiểm định có nghe thử.
+- **Trực tuyến hay ngoại tuyến.** DPO là phương pháp ngoại tuyến trên một tập cặp cố định. Các phương pháp học tăng cường trực tuyến (PPO; Schulman và cộng sự, 2017, hay GRPO; Shao và cộng sự, 2024) lấy mẫu mới ở mỗi vòng và tối ưu trực tiếp phần thưởng, linh hoạt hơn nhưng tốn kém và khó ổn định hơn. Seed-TTS báo cáo đã thử cả hai hướng. Một số công trình năm 2025 cũng thử GRPO cho TTS; đây là hướng đang phát triển nhanh.
+- **Phần thưởng khả vi.** Thay vì học tăng cường, có thể làm cho bộ chấm điểm (ví dụ một mô hình ASR nhỏ nhận trực tiếp token) khả vi theo đầu ra của LM, thông qua các kỹ thuật như Gumbel-softmax, rồi lan truyền ngược trực tiếp. Theo báo cáo, DiffRO của CosyVoice 3 đi theo hướng này.
