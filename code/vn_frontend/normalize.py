@@ -70,7 +70,7 @@ _ABBR_RE = re.compile(
                for k in sorted(ABBREVIATIONS, key=len, reverse=True))
     + ")"
 )
-_PHONE_RE = re.compile(r"(?<![\w.,+])(\+84|0)(\d{2,4}(?:[ .-]?\d{2,4}){1,3})(?![\w])")
+_PHONE_RE = re.compile(r"(?<![\w.,+])(\+84 ?|0)(\d{2,4}(?:[ .-]?\d{2,4}){1,3})(?![\w])")
 _DATE_DMY_RE = re.compile(r"(?<![\d/.-])(\d{1,2})([/.-])(\d{1,2})\2(\d{4})(?![\d/.-]?\d)")
 _DATE_MY_RE = re.compile(r"(?<![\d/.-])(\d{1,2})/(\d{4})(?![\d/])")
 _DATE_DM_RE = re.compile(r"(?i:\b(ngày|mùng|mồng|hôm|sáng|trưa|chiều|tối|đêm))\s+(\d{1,2})/(\d{1,2})(?![\d/])")
@@ -87,7 +87,7 @@ _ORDINAL_RE = re.compile(r"(?i:\b(thứ|hạng|giải))\s+(\d{1,3})(?![\d.,]?\d)
 _MONTH_RE = re.compile(r"(?i:\b(tháng))\s+(\d{1,2})(?![\d.,]?\d)")
 _ROMAN_CTX_RE = re.compile(
     r"(?i:\b(thế kỷ|thế kỉ|quý|khóa|khoá|kỳ|kì|đại hội|chương|phần|tập|hồi|thứ))"
-    r"\s+([IVXLCDM]+)(?:\s?/\s?(\d{4}))?(?![\w])")
+    r"\s+([IVX]+|[IVXLCDM]{2,})(?:\s?/\s?(\d{4}))?(?![\w])")
 _QUARTER_RE = re.compile(r"(?i:\b(quý))\s+(\d)\s?/\s?(\d{4})(?!\d)")
 _FRACTION_RE = re.compile(r"(?<![\w/.,])(\d+)/(\d+)(?![\w/])")
 _RANGE_RE = re.compile(rf"(?<![\w.,])({NUM})\s?-\s?({NUM})(?![\w])")
@@ -103,7 +103,7 @@ def _spell(token: str) -> str:
 
 
 def _read_phone(m: re.Match[str]) -> str:
-    prefix, rest = m.group(1), m.group(2)
+    prefix, rest = m.group(1).strip(), m.group(2)
     groups = re.split(r"[ .-]", rest)
     n_digits = len(prefix.lstrip("+")) + sum(len(g) for g in groups)
     if not 9 <= n_digits <= 13:
@@ -239,7 +239,8 @@ def normalize_text(text: str, *, tone_style: str = "old",
     text = _RANGE_RE.sub(lambda m: f"{m[1]} đến {m[2]}", text)
     text = _NEG_RE.sub("âm ", text)
 
-    # Tách chữ-số dính nhau rồi đọc mọi số còn lại
+    # Tách chữ-số dính nhau (U23, COVID-19) rồi đọc mọi số còn lại
+    text = re.sub(r"(?<=[^\W\d_])-(?=\d)", " ", text)
     text = _LETTER_DIGIT_RE.sub(" ", text)
     text = _NUM_RE.sub(lambda m: num(m.group(0)), text)
 
@@ -262,6 +263,7 @@ def normalize_text(text: str, *, tone_style: str = "old",
     text = re.sub(r"[#*^|\\<>{}]", " ", text)
     text = re.sub(r"(?<=\w)/(?=\w)", " ", text)  # và/hoặc -> và hoặc
     text = re.sub(r"(?<=\s)-+(?=\s)|(?<=\w)-(?=\s)|(?<=\s)-(?=\w)", " ", text)
+    text = re.sub(r"(?m)^[ ]*-[ ]*", "", text)  # gạch đầu dòng hội thoại
 
     # Dọn khoảng trắng quanh dấu câu
     text = re.sub(r"[ ]{2,}", " ", text)
