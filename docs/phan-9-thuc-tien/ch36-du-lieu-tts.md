@@ -332,3 +332,370 @@ Kết quả cuối cùng là một tệp **manifest** dạng JSONL, mỗi dòng 
 - Người nói và nguồn: `speaker`, `source`, `license`, `dialect`.
 - Chỉ số chất lượng: `dnsmos`, `cer_cross`, `syl_per_sec`, `bandwidth_hz`, `level_db`.
 - Phân tập: `split`, cùng với phiên bản pipeline đã tạo ra dòng này.
+
+## 36.5 Mã minh họa: khung xử lý dữ liệu
+
+Phần này cài đặt các viên gạch nhỏ nhưng thiết yếu của pipeline. Mã chỉ dùng `numpy`/`scipy`, chạy trên CPU với tín hiệu giả, để bạn tập trung vào logic. Khi làm với dữ liệu thật, hãy thay các hàm đơn giản bằng công cụ chuyên dụng (Silero VAD, pyloudnorm cho LUFS…), nhưng giữ nguyên cấu trúc.
+
+### 36.5.1 Cắt im lặng, băng thông hiệu dụng, clipping
+
+Hàm `trim_silence` coi một khung là im lặng nếu năng lượng thấp hơn đỉnh của tệp quá `top_db` dB; đây chính là cách hoạt động của nhiều hàm cắt im lặng phổ biến. Lưu ý tham số `keep_ms`: luôn chừa một đoạn đệm cố định để không xén mất phụ âm cuối yếu (*-t, -c, -p* trong âm tiết tắc của tiếng Việt có năng lượng rất thấp).
+
+```python
+import numpy as np
+
+def frame_rms_db(s, frame=1024, hop=256, eps=1e-10):
+    """RMS theo khung, tính bằng dBFS (0 dBFS = biên độ 1.0)."""
+    n_frames = 1 + max(0, len(s) - frame) // hop
+    idx = np.arange(frame)[None, :] + hop * np.arange(n_frames)[:, None]
+    rms = np.sqrt(np.mean(s[idx] ** 2, axis=1) + eps)          # (n_frames,)
+    return 20 * np.log10(rms + eps)
+
+def trim_silence(s, sr, top_db=40.0, frame=1024, hop=256, keep_ms=100):
+    """Cắt im lặng đầu/cuối: khung nào thấp hơn (đỉnh - top_db) coi là im lặng.
+    Giữ lại keep_ms mili-giây đệm để không xén mất phụ âm cuối/hơi thở nhẹ."""
+    db = frame_rms_db(s, frame, hop)
+    voiced = np.where(db > db.max() - top_db)[0]
+    if len(voiced) == 0:
+        return s[:0]
+    pad = int(sr * keep_ms / 1000)
+    start = max(0, voiced[0] * hop - pad)
+    end = min(len(s), voiced[-1] * hop + frame + pad)
+    return s[start:end]
+
+def estimate_bandwidth(s, sr, n_fft=2048, rel_db=-60.0):
+    """Ước lượng băng thông hiệu dụng: tần số cao nhất mà phổ trung bình
+    còn lớn hơn (đỉnh + rel_db). Dùng để phát hiện âm thanh bị upsample."""
+    win = np.hanning(n_fft)
+    hop = n_fft // 4
+    n_frames = 1 + (len(s) - n_fft) // hop
+    frames = np.stack([s[i * hop:i * hop + n_fft] * win for i in range(n_frames)])
+    psd = np.mean(np.abs(np.fft.rfft(frames, axis=1)) ** 2, axis=0)  # (n_fft//2+1,)
+    psd_db = 10 * np.log10(psd + 1e-20)
+    above = np.where(psd_db > psd_db.max() + rel_db)[0]
+    return above[-1] * sr / n_fft
+
+def clipping_ratio(s, thr=0.999):
+    """Tỉ lệ mẫu chạm ngưỡng ±1 (dấu hiệu bị méo do clipping)."""
+    return float(np.mean(np.abs(s) >= thr))
+
+# --- Kiểm thử trên tín hiệu giả: 0,5 s lặng + 1 s "tiếng nói" + 0,7 s lặng ---
+rng = np.random.default_rng(0)
+sr = 24000
+t = np.arange(sr) / sr
+voice = 0.3 * np.sin(2 * np.pi * 220 * t) * (1 + 0.5 * np.sin(2 * np.pi * 3 * t))
+s = np.concatenate([np.zeros(sr // 2), voice, np.zeros(int(0.7 * sr))])
+s = s + 1e-4 * rng.standard_normal(len(s))          # nền nhiễu khoảng -80 dBFS
+trimmed = trim_silence(s, sr)
+dur = len(trimmed) / sr
+assert 1.0 <= dur <= 1.3, dur                         # còn ~1 s + phần đệm
+print(f"trước: {len(s)/sr:.2f} s, sau khi cắt: {dur:.2f} s")
+
+# Âm thanh "giả 24 kHz": nội dung chỉ tới 4 kHz (như được upsample từ 8 kHz)
+from scipy.signal import butter, sosfiltfilt
+noise = rng.standard_normal(2 * sr)
+narrow = sosfiltfilt(butter(10, 4000, fs=sr, output="sos"), noise)
+print(f"băng thông full-band ≈ {estimate_bandwidth(noise, sr):.0f} Hz, "
+      f"bị lọc ≈ {estimate_bandwidth(narrow, sr):.0f} Hz")
+assert estimate_bandwidth(narrow, sr) < 6000 < estimate_bandwidth(noise, sr)
+assert clipping_ratio(np.clip(3 * voice, -1, 1)) > 0.1
+```
+
+Ở dòng cuối, tín hiệu nhiễu trắng bị lọc thông thấp ở 4 kHz được phát hiện là "băng hẹp" dù nằm trong vỏ 24 kHz. Trong dữ liệu thật, biểu đồ phân phối `bandwidth_hz` thường có nhiều đỉnh rõ rệt (quanh 4, 8, 11, 16 kHz…), ứng với các nguồn ghi âm và codec khác nhau.
+
+### 36.5.2 Chuẩn hóa mức, lọc, ghi manifest và chia tập theo nhóm
+
+Khối mã sau **dùng tiếp các hàm của khối trên**. Hàm `active_level_db` chỉ tính năng lượng trên các khung có tiếng, theo tinh thần "cổng" (*gating*) của chuẩn LUFS — nếu tính trên cả đoạn im lặng, một câu có khoảng lặng dài sẽ bị khuếch đại quá mức. Hàm `assign_split` chia tập bằng hàm băm của **định danh nhóm** (người nói, cuốn sách, video) chứ không phải của từng câu, lý do được phân tích ở Mục 36.6.
+
+```python
+import hashlib, json, unicodedata
+import numpy as np
+
+def active_level_db(s, frame=1024, hop=256, gate_db=-50.0):
+    """Mức năng lượng trung bình (dBFS) chỉ trên các khung 'có tiếng'
+    (cao hơn ngưỡng cổng) — tinh thần giống cổng (gating) của LUFS."""
+    db = frame_rms_db(s, frame, hop)
+    act = db[db > gate_db]
+    if len(act) == 0:
+        return -np.inf
+    return 10 * np.log10(np.mean(10 ** (act / 10)))   # trung bình theo công suất
+
+def normalize_level(s, target_db=-23.0, peak_limit=0.95):
+    """Đưa mức hoạt động về target_db, rồi giới hạn đỉnh để không clipping."""
+    g = 10 ** ((target_db - active_level_db(s)) / 20)
+    out = s * g
+    peak = np.max(np.abs(out))
+    return out * (peak_limit / peak) if peak > peak_limit else out
+
+def assign_split(group_id, val_pct=2, test_pct=2):
+    """Chia tập ổn định theo NHÓM (người nói/cuốn sách/video), không theo câu:
+    cùng một nhóm luôn rơi vào cùng một tập, kể cả khi chạy lại pipeline."""
+    h = int(hashlib.md5(group_id.encode("utf-8")).hexdigest(), 16) % 100
+    return "test" if h < test_pct else ("val" if h < test_pct + val_pct else "train")
+
+def make_record(uid, path, s, sr, text, speaker, source, license_, min_dur=1.0, max_dur=20.0):
+    """Trả về dict cho manifest, hoặc (None, lý do) nếu mẫu bị loại."""
+    dur = len(s) / sr
+    if not (min_dur <= dur <= max_dur):
+        return None, f"độ dài {dur:.1f}s ngoài [{min_dur}, {max_dur}]"
+    if clipping_ratio(s) > 1e-3:
+        return None, "clipping"
+    text = unicodedata.normalize("NFC", text).strip()
+    n_syl = len(text.split())                    # tiếng Việt: âm tiết cách nhau bởi khoảng trắng
+    rate = n_syl / dur
+    if not (1.5 <= rate <= 9.0):                 # ngưỡng thô, cần chỉnh theo dữ liệu thật
+        return None, f"tốc độ nói bất thường {rate:.1f} âm tiết/s"
+    return {"id": uid, "audio": path, "text": text, "speaker": speaker,
+            "duration": round(dur, 3), "sr": sr, "syl_per_sec": round(rate, 2),
+            "level_db": round(active_level_db(s), 1),
+            "bandwidth_hz": round(estimate_bandwidth(s, sr)),
+            "source": source, "license": license_, "split": assign_split(speaker)}, None
+
+# --- Chạy thử với vài mẫu giả ---
+rng = np.random.default_rng(1)
+sr, rows, rejected = 24000, [], []
+texts = ["xin chào các bạn", "hôm nay trời đẹp quá", "một", "tôi đi học"]
+for k, (txt, sec) in enumerate(zip(texts, [1.5, 2.0, 0.4, 25.0])):
+    s = 0.05 * rng.standard_normal(int(sec * sr))
+    s = normalize_level(s, -23.0)
+    rec, why = make_record(f"utt{k:04d}", f"wavs/utt{k:04d}.wav", s, sr, txt,
+                           speaker=f"spk{k % 2}", source="demo", license_="CC-BY-4.0")
+    (rows.append(rec) if rec else rejected.append((f"utt{k:04d}", why)))
+
+with open("manifest.jsonl", "w", encoding="utf-8") as f:
+    for r in rows:
+        f.write(json.dumps(r, ensure_ascii=False) + "\n")
+print(len(rows), "mẫu giữ lại; bị loại:", rejected)
+assert len(rows) == 2 and abs(rows[0]["level_db"] - (-23.0)) < 0.5
+assert assign_split("spk0") == assign_split("spk0")      # tất định
+```
+
+Ngưỡng tốc độ nói 1,5–9 âm tiết/giây trong mã chỉ là một khoảng rất rộng để bắt lỗi thô; với dữ liệu thật, hãy tính phân phối tốc độ nói theo từng người nói rồi loại các điểm ngoại lai theo điểm $z$.
+
+### 36.5.3 Chọn kịch bản tham lam phủ vần và thanh điệu
+
+Khối mã cuối cài đặt thuật toán của Mục 36.2.1. Hàm `split_syllable` là bản rút gọn của bộ phân tích âm tiết ở [Chương 15](../phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md): nó lấy thanh điệu từ dấu tổ hợp sau khi phân rã NFD, tách âm đầu theo khớp dài nhất, và xử lý trường hợp *gi* đứng trước phụ âm (*gì*, *gìn*). Ba họ đơn vị được phủ: vần (`R:`), vần có thanh (`RT:`), cặp thanh liền kề (`TT:`).
+
+```python
+import random, re, unicodedata
+
+TONE_MARKS = {chr(0x300): "huyen", chr(0x301): "sac", chr(0x309): "hoi",   # dấu thanh
+              chr(0x303): "nga", chr(0x323): "nang"}                     # dạng tổ hợp (NFD)
+ONSETS = sorted("ngh ng nh ch gh gi kh ph th tr qu b c d đ g h k l m n p r s t v x".split(),
+                key=len, reverse=True)
+VOWELS = set("aăâeêioôơuưy")
+
+def split_syllable(syl):
+    """Tách âm tiết chữ viết thành (âm đầu, vần không dấu, thanh). Bản rút gọn —
+    bộ phân tích đầy đủ ở Chương 15 xử lý thêm nhiều trường hợp đặc biệt."""
+    nfd = unicodedata.normalize("NFD", syl.lower())
+    tone = next((TONE_MARKS[c] for c in nfd if c in TONE_MARKS), "ngang")
+    base = unicodedata.normalize("NFC", "".join(c for c in nfd if c not in TONE_MARKS))
+    onset = next((o for o in ONSETS if base.startswith(o)), "")
+    rhyme = base[len(onset):]
+    if onset == "gi" and (not rhyme or rhyme[0] not in VOWELS):
+        rhyme = "i" + rhyme                      # "gì" -> vần "i", "gìn" -> vần "in"
+    return onset, rhyme, tone
+
+def units_of(sentence):
+    """Tập đơn vị cần phủ: vần, vần+thanh, và cặp thanh của hai âm tiết liền kề."""
+    syls = re.findall(r"\w+", unicodedata.normalize("NFC", sentence.lower()))
+    parts = [split_syllable(s) for s in syls]
+    u = {f"R:{r}" for _, r, _ in parts} | {f"RT:{r}_{t}" for _, r, t in parts}
+    u |= {f"TT:{a[2]}-{b[2]}" for a, b in zip(parts, parts[1:])}
+    return u, len(syls)
+
+def greedy_select(sentences, budget_syllables):
+    """Phủ tập tham lam có chi phí: mỗi bước chọn câu có
+    (số đơn vị MỚI) / (số âm tiết) lớn nhất, đến khi hết ngân sách."""
+    info = [units_of(s) for s in sentences]
+    covered, chosen, used = set(), [], 0
+    remaining = set(range(len(sentences)))
+    while True:
+        fits = [i for i in remaining if used + info[i][1] <= budget_syllables]
+        if not fits:
+            break
+        best = max(fits, key=lambda i: len(info[i][0] - covered) / info[i][1])
+        if not info[best][0] - covered:          # không câu nào thêm đơn vị mới
+            break
+        chosen.append(best); covered |= info[best][0]
+        used += info[best][1]; remaining.remove(best)
+    return chosen, covered
+
+corpus = [
+    "Mẹ tôi mua một con cá rất to ở chợ.", "Ba ba bơi dưới ao.",
+    "Những ngọn núi phủ tuyết trắng xóa.", "Anh ấy nghĩ rằng ngày mai sẽ mưa.",
+    "Chúng ta học tiếng Việt mỗi buổi sáng.", "Quyển sách này khuyến khích sự sáng tạo.",
+    "Người già thường dậy sớm tập thể dục.", "Cô giáo giảng bài rất kỹ lưỡng.",
+    "Hoa huệ thơm ngát cả khu vườn nhỏ.", "Bạn đã ăn cơm chưa?",
+    "Thuyền khuya lặng lẽ trôi trên sông.", "Gió mùa đông bắc tràn về đột ngột.",
+]
+chosen, covered = greedy_select(corpus, budget_syllables=40)
+all_units = set().union(*(units_of(s)[0] for s in corpus))
+print(f"chọn {len(chosen)} câu, phủ {len(covered)}/{len(all_units)} đơn vị")
+for i in chosen:
+    print("  -", corpus[i])
+
+# So sánh với chọn ngẫu nhiên cùng ngân sách âm tiết
+rng, rand_cov = random.Random(0), []
+for _ in range(200):
+    order, cov, used = rng.sample(range(len(corpus)), len(corpus)), set(), 0
+    for i in order:
+        u, n = units_of(corpus[i])
+        if used + n <= 40:
+            cov |= u; used += n
+    rand_cov.append(len(cov))
+print(f"ngẫu nhiên: trung bình {sum(rand_cov)/len(rand_cov):.1f} đơn vị")
+assert split_syllable("Nguyễn") == ("ng", "uyên", "nga")
+assert split_syllable("gì") == ("gi", "i", "huyen")
+assert len(covered) >= sum(rand_cov) / len(rand_cov)
+```
+
+Với kho ngữ liệu nhỏ trong ví dụ, tham lam phủ 97 đơn vị so với trung bình khoảng 85 của chọn ngẫu nhiên với cùng ngân sách. Trên kho ứng viên thật hàng trăm nghìn câu, khoảng cách này lớn hơn nhiều, nhất là với các vần hiếm. Khi chạy ở quy mô lớn, hãy cài đặt bằng hàng đợi ưu tiên với cập nhật lười (*lazy greedy*): vì lợi ích biên chỉ giảm dần (tính submodular), điểm cũ của một câu là cận trên của điểm mới, nên chỉ cần tính lại câu đứng đầu hàng đợi.
+
+## 36.6 Chia tập và rò rỉ dữ liệu
+
+Rò rỉ (*leakage*) là khi thông tin của tập kiểm tra lọt vào tập huấn luyện, làm kết quả đánh giá đẹp hơn thực tế. Với TTS, các nguồn rò rỉ đặc thù gồm:
+
+- **Cùng câu văn, khác người đọc** (như VCTK): mô hình đã thấy câu đó, nên đọc "dễ" hơn câu hoàn toàn mới.
+- **Cùng nguồn gốc**: hai đoạn liền nhau của cùng một chương sách nói, cùng một video, rơi vào hai tập khác nhau. Chúng chia sẻ người nói, phòng thu, micro và cả ngữ cảnh nội dung.
+- **Bản sao**: cùng một nội dung được tải lên nhiều lần (Mục 36.4.8).
+- **Người nói của tập "chưa thấy"**: khi đánh giá zero-shot, người nói ở tập kiểm tra không được xuất hiện trong tập huấn luyện, kể cả dưới một nhãn khác (một người trên hai kênh YouTube).
+- **Đoạn gợi ý**: khi đánh giá nhân bản giọng, đoạn gợi ý không được nằm trong dữ liệu huấn luyện.
+
+**Hình thức hóa.** Gán mỗi mẫu $i$ một nhóm $g(i)$ (người nói, cuốn sách, video). Phép chia hợp lệ là phép chia mà mọi mẫu cùng nhóm thuộc cùng một tập:
+
+$$
+g(i) = g(j) \;\Rightarrow\; \text{split}(i) = \text{split}(j).
+$$
+
+Cách đơn giản và tất định là $\text{split}(i) = h\big(\text{băm}(g(i)) \bmod 100\big)$ với $h$ ánh xạ khoảng giá trị sang train/val/test, như hàm `assign_split` ở trên. Ưu điểm: chạy lại pipeline với dữ liệu mới thêm vào thì các nhóm cũ vẫn ở nguyên tập cũ, không bị "xáo" sang tập khác.
+
+Việc chọn $g$ phụ thuộc câu hỏi đánh giá: muốn đo khả năng đọc **câu mới** của giọng đã biết, nhóm theo văn bản; muốn đo khả năng **nhân bản người nói mới**, nhóm theo người nói. Chi tiết về thiết kế tập đánh giá được bàn ở [Chương 38](ch38-danh-gia-tts.md).
+
+## 36.7 Tài liệu hóa: datasheet cho bộ dữ liệu TTS
+
+Gebru và cộng sự (2021) đề xuất mỗi bộ dữ liệu đi kèm một **datasheet** trả lời các câu hỏi về động cơ, thành phần, quy trình thu thập, tiền xử lý, mục đích sử dụng, phân phối và bảo trì. Với TTS, nên bổ sung các trường đặc thù. Một khung tối thiểu ở dạng YAML (chỉ là mẫu tham khảo, không phải mã chạy):
+
+```yaml
+name: vi-studio-female-north-v1
+version: 1.2.0              # tăng phiên bản mỗi khi lọc/sửa nhãn
+motivation: "Giọng đọc tin tức giọng Bắc cho ứng dụng hỗ trợ người khiếm thị"
+speakers:
+  - id: spk001
+    gender: nu               # chỉ ghi khi người nói đồng ý công bố
+    dialect: bac
+    consent_form: "consent-v3, ký ngày 2026-03-01"
+    allowed_uses: ["huấn luyện TTS", "thương mại nội bộ"]
+recording:
+  device: "condenser màng lớn, giao diện âm thanh USB"
+  format: "WAV PCM 48 kHz 24 bit mono (bản gốc)"
+  room: "phòng đã xử lý âm, nhiễu nền khoảng -65 dBFS"
+text:
+  normalization: "vn_frontend 0.4.1 (đóng băng phiên bản)"
+  unicode: NFC
+  tone_mark_style: "hòa (dấu trên nguyên âm thứ nhất)"
+  phone_set: "ipa-north-v2"
+processing:
+  pipeline_commit: "a1b2c3d"
+  trimming: "top_db=40, keep_ms=100"
+  loudness: "-23 dB (mức hoạt động)"
+splits: "chia theo câu văn; tập test gồm 300 câu không trùng văn bản"
+known_issues:
+  - "Phiên 7 giọng hơi khàn (đã gắn nhãn session=7)"
+license: "Nội bộ; không phân phối lại"
+```
+
+Trường `known_issues` thường bị bỏ trống nhưng lại là trường có giá trị nhất cho người dùng sau này. Trường `consent_form` liên kết bộ dữ liệu với văn bản đồng ý cụ thể mà người nói đã ký; [Chương 40](ch40-dao-duc-an-toan.md) bàn về nội dung cần có của văn bản này.
+
+## Lỗi thường gặp và mẹo thực hành
+
+- **Kịch bản chưa chuẩn hóa sang dạng đọc.** Người đọc tự quyết cách đọc "2/9", "TP.HCM", "COVID-19", và bản ghi lời không phản ánh điều đó. Hãy chuẩn hóa kịch bản trước khi thu, và nếu người đọc đọc khác kịch bản, sửa *bản ghi lời* chứ đừng ép âm thanh khớp văn bản.
+- **Trộn tần số lấy mẫu và âm thanh giả băng rộng.** Một vài phần trăm tệp băng hẹp có thể đủ làm vocoder tạo âm "đục" hoặc nhiễu xì ở tần số cao. Đo băng thông hiệu dụng cho mọi tệp.
+- **Im lặng đầu/cuối không nhất quán.** Mô hình tự hồi quy học "ngập ngừng" ngẫu nhiên và khó dừng; mô hình dự đoán trường độ học sai trường độ của ký hiệu đầu/cuối câu.
+- **Văn bản trộn NFC/NFD hoặc trộn kiểu đặt dấu.** Bộ ký hiệu phình ra với các "ký tự" trùng âm, mỗi biến thể có ít dữ liệu hơn. Chuẩn hóa NFC và thống nhất kiểu đặt dấu *trước* khi đếm ký hiệu.
+- **Tin tuyệt đối vào ASR.** Ảo giác trên đoạn im lặng/nhạc, "sửa" lời nói, viết số không nhất quán. Dùng đồng thuận chéo và lọc theo tốc độ nói.
+- **Đếm giờ dữ liệu bao gồm cả im lặng.** "100 giờ" sau khi cắt im lặng và lọc có thể chỉ còn 60–70 giờ tiếng nói thật. Luôn báo cáo số giờ *sau* xử lý.
+- **Chuẩn hóa độ to trước khi lọc nhiễu.** Đoạn nhỏ tiếng được khuếch đại làm nhiễu nền to theo. Lọc SNR trước, chuẩn hóa sau.
+- **Nhãn người nói theo kênh/nguồn.** Một kênh nhiều người nói, một người nói nhiều kênh. Kiểm tra bằng phân cụm embedding người nói.
+- **Lọc quá tay gây thiên lệch.** Kiểm tra phân phối giới tính, phương ngữ, phong cách trước và sau lọc.
+- **Không lưu nguồn gốc và giấy phép theo từng tệp.** Khi cần gỡ dữ liệu của một người nói (người đó rút lại sự đồng ý) hoặc một nguồn (thay đổi giấy phép), bạn phải tìm được chính xác các tệp liên quan. Ghi `source`, `license`, `speaker` ngay từ bước đầu.
+- **Sửa dữ liệu gốc tại chỗ.** Giữ bản gốc chỉ-đọc; mọi bước xử lý tạo bản mới, gắn phiên bản pipeline.
+
+## Tóm tắt
+
+- Mô hình sinh tốt tái tạo trung thực phân phối dữ liệu, kể cả nhiễu, tiếng vang và nhãn sai; vì vậy dữ liệu quyết định trần chất lượng.
+- Đánh giá dữ liệu theo bốn trục: chất lượng tín hiệu, độ trung thực văn bản–âm thanh, độ phủ, quy mô–đa dạng. Kiến trúc quyết định nên ưu tiên trục nào: mô hình nhỏ cần dữ liệu sạch, mô hình zero-shot cần đa dạng và lọc tự động.
+- Thiết kế kịch bản là bài toán phủ tập; thuật toán tham lam theo tỉ số "đơn vị mới trên chi phí" có bảo đảm $H_n \cdot \mathrm{OPT}$ và gần như tốt nhất có thể. Với tiếng Việt, nên phủ vần, vần có thanh và cặp thanh liền kề.
+- Thu âm studio: người đọc ổn định, đúng phương ngữ mục tiêu; WAV 48 kHz/24 bit mono; vị trí micro cố định; câu neo đầu mỗi phiên; QA tự động và bằng tai.
+- Dữ liệu công khai tiếng Việt đã tăng (viVoice, PhoAudiobook…), nhưng phần lớn chỉ cho nghiên cứu; luôn kiểm tra giấy phép tại nguồn.
+- Pipeline in-the-wild: chuẩn hóa định dạng → tách nguồn → VAD/phân đoạn 3–20 s → diarization → ASR → dấu câu/TN → lọc chất lượng → chuẩn hóa độ to → khử trùng lặp → manifest.
+- Văn bản huấn luyện và văn bản suy luận phải đi qua cùng một bộ chuẩn hóa văn bản, được đóng băng phiên bản.
+- Chia tập theo nhóm (người nói, nguồn, câu văn) để tránh rò rỉ; dùng hàm băm của nhóm để chia tất định.
+- Viết datasheet với các trường đặc thù cho TTS: phương ngữ, sự đồng ý, chuẩn hóa văn bản, bộ ký hiệu, vấn đề đã biết.
+
+## Bài tập
+
+**Bài 1 [Cơ bản].** Giải thích vì sao một mô hình zero-shot được huấn luyện tốt lại sinh ra tiếng vang khi đoạn gợi ý có tiếng vang. Đây là lỗi của mô hình hay của dữ liệu? Đề xuất hai cách giảm hiện tượng này khi triển khai.
+
+??? tip "Gợi ý"
+    Viết lại mục tiêu hợp lý cực đại với điều kiện là đoạn gợi ý. Trong dữ liệu huấn luyện, đoạn gợi ý và phần tiếp theo luôn có *cùng* môi trường âm học.
+
+??? success "Lời giải"
+    Trong lúc huấn luyện, đoạn gợi ý và phần mục tiêu được cắt từ cùng một bản ghi, nên chúng chia sẻ phòng, micro, nhiễu nền. Mục tiêu hợp lý cực đại dạy mô hình rằng $p(\text{phần tiếp} \mid \text{gợi ý}, \mathbf{x})$ giữ nguyên môi trường âm học của gợi ý. Đó là hành vi *đúng* theo mục tiêu huấn luyện, không phải lỗi. Cách giảm: (1) làm sạch đoạn gợi ý bằng mô hình khử nhiễu/khử vang trước khi đưa vào; (2) chọn đoạn gợi ý sạch (lọc bằng DNSMOS); (3) nếu có điều kiện huấn luyện lại, có thể thêm dữ liệu mà gợi ý và mục tiêu đến từ các bản ghi khác nhau của cùng người nói trong điều kiện sạch, để mô hình tách bạch "giọng" và "phòng".
+
+**Bài 2 [Cơ bản].** Một bộ dữ liệu có 120 người nói, mỗi người đọc cùng 400 câu. Bạn chia ngẫu nhiên 95% câu (theo mẫu) vào tập huấn luyện. Liệt kê các dạng rò rỉ có thể xảy ra và đề xuất cách chia phù hợp cho hai mục tiêu: (a) đánh giá khả năng đọc câu mới, (b) đánh giá zero-shot người nói mới.
+
+??? success "Lời giải"
+    Chia theo mẫu khiến cùng một câu văn (do người khác đọc) và cùng một người nói xuất hiện ở cả hai tập. (a) Nhóm theo câu văn: giữ riêng một tập câu (ví dụ 20 câu) cho kiểm tra, loại toàn bộ bản đọc của các câu đó khỏi tập huấn luyện. (b) Nhóm theo người nói: giữ riêng một nhóm người nói (ví dụ 10 người), loại toàn bộ dữ liệu của họ khỏi tập huấn luyện; tốt nhất kết hợp với tập câu giữ riêng để đánh giá đồng thời người mới và câu mới.
+
+**Bài 3 [Nâng cao].** Chứng minh rằng hàm $f(S) = \lvert \bigcup_{s \in S} U(s) \rvert$ là submodular, tức $f(A \cup \{s\}) - f(A) \ge f(B \cup \{s\}) - f(B)$ với mọi $A \subseteq B$. Từ đó giải thích vì sao "cập nhật lười" (lazy greedy) cho kết quả giống hệt tham lam thông thường.
+
+??? tip "Gợi ý"
+    Lợi ích biên của $s$ đối với $A$ là $\lvert U(s) \setminus \bigcup_{a \in A} U(a) \rvert$. Khi tập đã phủ lớn lên, phần "mới" chỉ có thể co lại.
+
+??? success "Lời giải"
+    Đặt $C_A = \bigcup_{a \in A} U(a)$. Vì $A \subseteq B$ nên $C_A \subseteq C_B$, do đó $U(s) \setminus C_B \subseteq U(s) \setminus C_A$ và $f(A \cup \{s\}) - f(A) = \lvert U(s) \setminus C_A \rvert \ge \lvert U(s) \setminus C_B \rvert = f(B \cup \{s\}) - f(B)$. Trong lazy greedy, điểm đã tính của một câu ở bước trước là cận trên của điểm hiện tại (lợi ích chỉ giảm, chi phí không đổi). Nếu câu ở đầu hàng đợi sau khi được tính lại vẫn có điểm không nhỏ hơn cận trên của mọi câu khác, nó chắc chắn là câu tốt nhất hiện tại — đúng lựa chọn mà tham lam thông thường sẽ làm.
+
+**Bài 4 [Nâng cao].** Một đội dùng DNSMOS OVRL ≥ 3,2 làm ngưỡng lọc cho 3 000 giờ dữ liệu tiếng Việt từ Internet và còn lại 1 100 giờ. Sau khi huấn luyện, mô hình nhân bản giọng nam lớn tuổi và giọng miền Trung kém hơn hẳn. Đưa ra giả thuyết và thiết kế một thí nghiệm kiểm tra.
+
+??? success "Lời giải"
+    Giả thuyết: bộ dự đoán MOS chấm thấp có hệ thống một số nhóm (giọng trầm, khàn, phương ngữ ít gặp trong dữ liệu huấn luyện của nó), nên bộ lọc loại bỏ không cân đối các nhóm này. Thí nghiệm: gắn nhãn (thủ công hoặc bằng bộ phân loại) giới tính/độ tuổi/phương ngữ cho một mẫu ngẫu nhiên trước và sau lọc, so sánh tỉ lệ; với từng nhóm, vẽ phân phối DNSMOS; nghe các đoạn bị loại có điểm gần ngưỡng để xem chúng thực sự kém hay chỉ "khác". Khắc phục: đặt ngưỡng theo phân vị *trong từng nhóm*, hoặc kết hợp nhiều tín hiệu (SNR, WER chéo) thay vì một bộ dự đoán MOS.
+
+**Bài 5 [Lập trình].** Mở rộng `units_of` để thêm họ đơn vị "ranh giới âm tiết": cặp (âm cuối của âm tiết trước, âm đầu của âm tiết sau), ví dụ `B:t|ng`. Chạy lại `greedy_select` và so sánh số đơn vị cần phủ và số câu được chọn.
+
+??? tip "Gợi ý"
+    Âm cuối có thể lấy gần đúng từ chữ cái cuối của vần (*-p, -t, -c, -ch, -m, -n, -ng, -nh, -i/-y, -o/-u*), nhớ kiểm tra các phụ âm cuối hai chữ trước.
+
+**Bài 6 [Lập trình].** Viết hàm `speaking_rate_outliers(records, z=3.0)` nhận danh sách bản ghi manifest (có `speaker` và `syl_per_sec`), tính trung bình và độ lệch chuẩn tốc độ nói *theo từng người nói*, và trả về danh sách `id` có $\lvert z \rvert$ vượt ngưỡng. Kiểm thử với dữ liệu giả có cài sẵn vài điểm ngoại lai.
+
+**Bài 7 [Lập trình].** Dùng `estimate_bandwidth`, viết một hàm phân loại tệp vào các "giỏ" băng thông (≤ 4 kHz, ≤ 8 kHz, ≤ 11 kHz, ≤ 16 kHz, đầy đủ). Tạo tín hiệu thử bằng cách lọc thông thấp nhiễu trắng ở các tần số cắt khác nhau và kiểm tra hàm phân loại đúng.
+
+## Tài liệu tham khảo
+
+1. Ardila, R. và cộng sự (2020). *Common Voice: A Massively-Multilingual Speech Corpus*. LREC.
+2. Bakhturina, E., Lavrukhin, V., Ginsburg, B. và Zhang, Y. (2021). *Hi-Fi Multi-Speaker English TTS Dataset*. Interspeech.
+3. Bredin, H. và cộng sự (2020). *pyannote.audio: Neural Building Blocks for Speaker Diarization*. ICASSP.
+4. Chvátal, V. (1979). *A Greedy Heuristic for the Set-Covering Problem*. Mathematics of Operations Research.
+5. EBU (2011, sửa đổi về sau). *EBU R 128: Loudness Normalisation and Permitted Maximum Level of Audio Signals*. European Broadcasting Union.
+6. Feige, U. (1998). *A Threshold of ln n for Approximating Set Cover*. Journal of the ACM.
+7. François, H. và Boëffard, O. (2001). *Design of an Optimal Continuous Speech Database for Text-to-Speech Synthesis Considered as a Set Covering Problem*. Eurospeech.
+8. Gebru, T. và cộng sự (2021). *Datasheets for Datasets*. Communications of the ACM.
+9. He, H. và cộng sự (2024). *Emilia: An Extensive, Multilingual, and Diverse Speech Dataset for Large-Scale Speech Generation*. IEEE SLT.
+10. Ito, K. và Johnson, L. (2017). *The LJ Speech Dataset*. Trang phát hành dữ liệu.
+11. ITU-R (2011, các bản sửa đổi về sau). *Recommendation BS.1770: Algorithms to Measure Audio Programme Loudness and True-Peak Audio Level*.
+12. Johnson, D. S. (1974). *Approximation Algorithms for Combinatorial Problems*. Journal of Computer and System Sciences.
+13. Kang, W. và cộng sự (2024). *Libriheavy: A 50,000 Hours ASR Corpus with Punctuation, Casing and Context*. ICASSP.
+14. Khuller, S., Moss, A. và Naor, J. (1999). *The Budgeted Maximum Coverage Problem*. Information Processing Letters.
+15. Koizumi, Y. và cộng sự (2023). *LibriTTS-R: A Restored Multi-Speaker Text-to-Speech Corpus*. Interspeech.
+16. Kominek, J. và Black, A. W. (2004). *The CMU Arctic Speech Databases*. ISCA Speech Synthesis Workshop (SSW5).
+17. Le, T.-T., Nguyen, L. T. và Nguyen, D. Q. (2024). *PhoWhisper: Automatic Speech Recognition for Vietnamese*. ICLR Tiny Papers.
+18. Luong, H.-T. và Vu, H.-Q. (2016). *A Non-Expert Kaldi Recipe for Vietnamese Speech Recognition System*. Workshop WLSI/OIAF4HLT, COLING.
+19. Nemhauser, G. L., Wolsey, L. A. và Fisher, M. L. (1978). *An Analysis of Approximations for Maximizing Submodular Set Functions — I*. Mathematical Programming.
+20. Pratap, V. và cộng sự (2020). *MLS: A Large-Scale Multilingual Dataset for Speech Research*. Interspeech.
+21. Radford, A. và cộng sự (2023). *Robust Speech Recognition via Large-Scale Weak Supervision*. ICML.
+22. Reddy, C. K. A., Gopal, V. và Cutler, R. (2021). *DNSMOS: A Non-Intrusive Perceptual Objective Speech Quality Metric to Evaluate Noise Suppressors*. ICASSP.
+23. Rouard, S., Massa, F. và Défossez, A. (2023). *Hybrid Transformers for Music Source Separation*. ICASSP.
+24. Vu, T., Nguyen, L. T. và Nguyen, D. Q. (2025). *Zero-Shot Text-to-Speech for Vietnamese*. ACL. (Giới thiệu bộ dữ liệu PhoAudiobook.)
+25. Yamagishi, J., Veaux, C. và MacDonald, K. (2019). *CSTR VCTK Corpus: English Multi-speaker Corpus for CSTR Voice Cloning Toolkit (version 0.92)*. University of Edinburgh.
+26. Zen, H. và cộng sự (2019). *LibriTTS: A Corpus Derived from LibriSpeech for Text-to-Speech*. Interspeech.
