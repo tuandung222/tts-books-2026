@@ -158,7 +158,7 @@ $$
 \text{SQNR} = 10 \log_{10} \frac{A^2/3}{s^2/12} = 10 \log_{10} \frac{A^2/3}{A^2 / (3 \cdot 2^{2b})} = 10 \log_{10} 2^{2b} \approx 6{,}02\, b \;\text{dB}.
 $$
 
-Mỗi bit thêm vào cho khoảng 6 dB: int8 cho khoảng 48 dB, int4 chỉ còn khoảng 24 dB. Công thức cũng cho thấy điểm yếu chí mạng của lượng tử hóa: $s$ tỉ lệ với **giá trị lớn nhất**. Nếu có một giá trị ngoại lai lớn gấp 10 lần phần còn lại, $s$ tăng 10 lần và SQNR của phần còn lại giảm 20 dB. Mọi kỹ thuật lượng tử hóa nâng cao về cơ bản đều là cách đối phó với giá trị ngoại lai.
+Mỗi bit thêm vào cho khoảng 6 dB: int8 cho khoảng 48 dB, int4 chỉ còn khoảng 24 dB. Công thức cũng cho thấy điểm yếu chí mạng của lượng tử hóa: $s$ tỉ lệ với **giá trị lớn nhất**. Nếu có một giá trị ngoại lai lớn gấp 10 lần phần còn lại, $s$ tăng 10 lần và SQNR của phần còn lại giảm 20 dB. Mọi kỹ thuật lượng tử hóa nâng cao về cơ bản đều là cách đối phó với giá trị ngoại lai. Mục 39.5 có thêm một ví dụ cho thấy lượng tử hóa không phải lúc nào cũng làm mô hình chạy nhanh hơn.
 
 ### Theo tensor hay theo kênh
 
@@ -216,7 +216,7 @@ with torch.inference_mode():
               f"{snr_db(y_ref, y_q):5.1f} dB")
 ```
 
-Trong lần chạy của chúng tôi, phần (a) cho 22,9 / 35,8 / 48,1 dB với 4 / 6 / 8 bit, rất sát công thức $6{,}02\,b$ (sai lệch nhỏ ở 4 bit vì dạng đối xứng chỉ dùng $2^b - 1$ mức). Phần (b) cho SNR đầu ra khoảng 32 dB với per-tensor so với khoảng 62 dB với per-channel: chênh lệch tới 30 dB, chỉ vì một lớp. Lý do: các kênh biên độ nhỏ bị lượng tử hóa thô, rồi lớp sau *khuếch đại* chúng lên gấp $1/s_c$ lần.
+Trong lần chạy của chúng tôi, phần (a) cho 22,9 / 35,8 / 48,1 dB với 4 / 6 / 8 bit, rất sát công thức $6{,}02\,b$. Sai lệch nhỏ ở 4 bit là do dạng đối xứng có bước lượng tử $2A/(2^b - 2)$ thay vì $2A/2^b$, làm SQNR giảm $20 \log_{10} \frac{2^b}{2^b - 2}$ dB, khoảng 1,2 dB khi $b = 4$ và không đáng kể khi $b = 8$. Phần (b) cho SNR đầu ra khoảng 32 dB với per-tensor so với khoảng 62 dB với per-channel: chênh lệch tới 30 dB, chỉ vì một lớp. Lý do: các kênh biên độ nhỏ bị lượng tử hóa thô, rồi lớp sau *khuếch đại* chúng lên gấp $1/s_c$ lần.
 
 Hai chi tiết đáng chú ý. Thứ nhất, trục kênh đầu ra của `ConvTranspose1d` là **trục 1** (trọng số có dạng `(C_in, C_out, k)`), khác với `Conv1d` (trục 0); nhầm trục là lỗi thường gặp khi tự viết lượng tử hóa. Thứ hai, nếu bạn lượng tử hóa cả lớp `ConvTranspose1d` phía sau, per-channel theo trục ra không cứu được, vì sự chênh lệch giờ nằm ở **trục vào** của lớp đó. Trường hợp này cần cân bằng lại biên độ giữa hai lớp liên tiếp trước khi lượng tử hóa (*cross-layer equalization*; Nagel và cộng sự, 2019), hoặc chuyển bớt độ khó từ activation sang trọng số như SmoothQuant (Xiao và cộng sự, 2023) làm với Transformer (Bài tập 4).
 
@@ -229,27 +229,6 @@ Hai chi tiết đáng chú ý. Thứ nhất, trục kênh đầu ra của `ConvT
 - **Chỉ lượng tử hóa trọng số cho phần LM**: với LM vài trăm triệu đến vài tỉ tham số trong TTS dựa trên LLM, giải mã từng token bị giới hạn bởi **băng thông bộ nhớ** (mỗi bước phải đọc toàn bộ trọng số) chứ không phải tính toán. Lượng tử hóa trọng số xuống int8 hoặc int4 (các phương pháp như LLM.int8(), GPTQ, AWQ; Dettmers và cộng sự, 2022; Frantar và cộng sự, 2023; Lin và cộng sự, 2024) giảm lượng dữ liệu phải đọc, nên tăng tốc gần tỉ lệ thuận, trong khi activation vẫn giữ 16 bit.
 
 Tính đến thời điểm biên soạn (2026), các API lượng tử hóa cũ trong `torch.ao.quantization` của PyTorch đã bị đánh dấu sắp loại bỏ và PyTorch khuyến nghị chuyển sang thư viện `torchao`; ONNX Runtime và TensorRT có công cụ lượng tử hóa riêng.
-
-### Lượng tử hóa không tự động nhanh hơn
-
-Đoạn mã sau (tiếp nối hai khối mã ở trên và khối đo RTF ở Mục 39.5) dùng công cụ lượng tử hóa động của ONNX Runtime trên vocoder đồ chơi.
-
-```python
-from onnxruntime.quantization import QuantType, quantize_dynamic
-
-# Lượng tử hóa động: trọng số int8 lưu sẵn, activation lượng tử hóa lúc chạy
-quantize_dynamic("tiny_vocoder.onnx", "tiny_vocoder_int8.onnx", weight_type=QuantType.QInt8)
-sess8 = ort.InferenceSession("tiny_vocoder_int8.onnx", opts, providers=["CPUExecutionProvider"])
-
-feed = {"mel": x.numpy()}                         # x, audio_sec: từ khối mã đo RTF ở Mục 39.5
-a, b = sess.run(["wav"], feed)[0], sess8.run(["wav"], feed)[0]
-print(f"SNR fp32 so với int8: {10 * np.log10((a**2).sum() / ((a - b)**2).sum()):.1f} dB")
-for name, s in [("ORT fp32", sess), ("ORT int8 động", sess8)]:
-    r = benchmark_rtf(lambda: s.run(["wav"], feed), audio_sec)
-    print(f"{name:14s} p50={r['p50_ms']:6.1f} ms  RTF={r['rtf_p50']:.3f}")
-```
-
-Trên máy của chúng tôi, SNR giữa hai phiên bản khoảng 44 dB (chấp nhận được), nhưng phiên bản int8 **chậm hơn gấp đôi** phiên bản fp32. Nhìn vào đồ thị sau lượng tử hóa sẽ thấy lý do: các lớp `Conv` được thay bằng `ConvInteger` cộng các phép lượng tử hóa/giải lượng tử hóa activation chạy liên tục, trong khi nhân tích chập số nguyên trên CPU này không đủ nhanh để bù lại, và lớp `ConvTranspose` vẫn ở fp32. Đây là một bài học rất thực tế: **lượng tử hóa động được thiết kế cho mô hình nặng về nhân ma trận; với mạng tích chập, hãy thử lượng tử hóa tĩnh dạng QDQ với dữ liệu hiệu chỉnh, và luôn đo**. ONNX Runtime cũng khuyến nghị chạy bước tiền xử lý mô hình (`python -m onnxruntime.quantization.preprocess`) trước khi lượng tử hóa.
 
 ### Lượng tử hóa và chất lượng âm thanh
 
