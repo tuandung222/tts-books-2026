@@ -299,6 +299,7 @@ class LogEnergy(nn.Module):
     def forward(self, x):
         return torch.log(x if self.eps is None else torch.clamp(x, min=self.eps))
 
+torch.manual_seed(0)
 model = nn.Sequential()
 model.add_module("encoder", nn.Linear(8, 8))
 model.add_module("act", nn.ReLU())
@@ -307,7 +308,6 @@ model.add_module("head", nn.Linear(8, 1))
 opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
 hooks = register_nonfinite_hooks(model)
 
-torch.manual_seed(0)
 x = torch.randn(4, 8)                                        # (B, 8)
 try:
     model(x).mean().backward()
@@ -332,7 +332,7 @@ for h in hooks:
 assert set(grad_norms(model)) >= {"grad_norm/encoder", "grad_norm/head", "grad_norm/total"}
 ```
 
-Có một bài học ẩn trong kết quả: dù đã kẹp `eps=1e-5`, chuẩn gradient vẫn lên tới hàng nghìn ở một số bước. Lý do là đạo hàm của $\ln x$ bằng $1/x$, rất lớn khi $x$ nhỏ nhưng vẫn trên ngưỡng kẹp. Đây chính là loại gai gradient mà clipping bảo vệ bạn khỏi; giải pháp bền vững hơn là dùng $\ln(x + \epsilon)$ với $\epsilon$ hợp lý hoặc tính toán trong miền log ngay từ đầu.
+Có một bài học ẩn trong kết quả: dù đã kẹp `eps=1e-5`, chuẩn gradient vẫn lên tới hàng trăm, trong khi một mạng nhỏ cỡ này bình thường chỉ có chuẩn gradient cỡ đơn vị. Lý do là đạo hàm của $\ln x$ bằng $1/x$, rất lớn khi $x$ nhỏ nhưng vẫn trên ngưỡng kẹp. Đây chính là loại gai gradient mà clipping bảo vệ bạn khỏi; giải pháp bền vững hơn là dùng $\ln(x + \epsilon)$ với $\epsilon$ hợp lý hoặc tính toán trong miền log ngay từ đầu.
 
 ## 37.5 Bảng chẩn đoán: triệu chứng → nguyên nhân → cách sửa
 
