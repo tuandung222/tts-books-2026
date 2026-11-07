@@ -102,7 +102,7 @@ $$
 
 Đầu ra của RVQ cho khung $t$ là bộ $Q$ số nguyên $(q_{t,1}, \ldots, q_{t,Q})$; với cả câu, ta được ma trận token $\mathbf{q} \in \{1, \ldots, V\}^{T' \times Q}$ đúng như trong [bảng ký hiệu](../gioi-thieu/ky-hieu.md).
 
-**Tính chất 1 — sai số là phần dư cuối.** Cộng dồn định nghĩa $\mathbf{e}^{(j)}_{q_j} = \mathbf{r}^{(j-1)} - \mathbf{r}^{(j)}$ cho $j = 1, \ldots, Q$, tổng "lồng kính thiên văn" (*telescoping*) cho:
+**Tính chất 1 — sai số là phần dư cuối.** Cộng dồn định nghĩa $\mathbf{e}^{(j)}_{q_j} = \mathbf{r}^{(j-1)} - \mathbf{r}^{(j)}$ cho $j = 1, \ldots, Q$, tổng rút gọn (*telescoping sum*) cho:
 
 $$
 \hat{\mathbf{z}} = \sum_{j=1}^{Q} \big(\mathbf{r}^{(j-1)} - \mathbf{r}^{(j)}\big) = \mathbf{r}^{(0)} - \mathbf{r}^{(Q)} = \mathbf{z} - \mathbf{r}^{(Q)}
@@ -136,7 +136,7 @@ Khi sổ mã được cập nhật bằng EMA (mục sau), số hạng codebook 
 SoundStream (Zeghidour và cộng sự, 2021) đề xuất một mẹo đơn giản mà sâu sắc: trong mỗi bước huấn luyện, **chọn ngẫu nhiên** $n_q \sim \mathcal{U}\{1, \ldots, Q\}$ và chỉ dùng $n_q$ tầng đầu, bỏ các tầng sau. Bộ giải mã vì thế phải học cách tái tạo từ **mọi** tổng riêng phần $\sum_{j \le n_q} \mathbf{e}^{(j)}_{q_j}$. Hai hệ quả:
 
 1. **Một mô hình, nhiều bitrate.** Khi suy luận, chỉ cần cắt bớt tầng là giảm bitrate, không phải huấn luyện mô hình riêng cho từng mức.
-2. **Thứ tự quan trọng được ép buộc.** Vì tầng 1 thường xuyên phải "gánh một mình", nó buộc phải mã hóa cấu trúc quan trọng nhất; tầng 2 mã hóa điều quan trọng thứ nhì trong phần còn lại, v.v. Đây cùng tinh thần với *nested dropout* (Rippel và cộng sự, 2014), vốn được chứng minh là sinh ra biểu diễn có thứ tự giống PCA.
+2. **Thứ tự quan trọng được ép buộc.** Vì tầng 1 thường xuyên phải "gánh một mình", nó buộc phải mã hóa cấu trúc quan trọng nhất; tầng 2 mã hóa điều quan trọng thứ nhì trong phần còn lại, v.v. Đây cùng tinh thần với *nested dropout* (Rippel và cộng sự, 2014), vốn được chứng minh (trong trường hợp tuyến tính) là khôi phục đúng các thành phần chính theo thứ tự như PCA.
 
 Tuy nhiên, luôn bật quantizer dropout có thể làm giảm chất lượng ở bitrate đầy đủ, vì mô hình phải chia năng lực cho mọi mức. DAC (Kumar và cộng sự, 2023) báo cáo rằng chỉ áp dụng nó với một xác suất (theo bài báo gốc là 0,5) cho cân bằng tốt hơn.
 

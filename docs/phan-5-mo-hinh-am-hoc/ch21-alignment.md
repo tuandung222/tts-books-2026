@@ -46,7 +46,7 @@ Căn chỉnh **mềm** cho phép mỗi khung "chia" mình cho nhiều token: $\m
 
 ### Vì sao đơn điệu là giả thiết đúng?
 
-Người đọc phát âm văn bản theo thứ tự — nhưng chỉ khi văn bản **đã được chuẩn hóa**. Chuỗi "$5" trong tiếng Anh đọc là "five dollars": ký hiệu đứng trước lại được đọc sau. Đây là lý do chuẩn hóa văn bản ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md)) phải chạy *trước* mô hình âm học: sau chuẩn hóa, giả thiết đơn điệu gần như luôn đúng. Tiếng Việt thuận lợi hơn ở điểm này ("5 USD" đọc là "năm đô-la Mỹ", cùng thứ tự), nhưng các trường hợp như "TP.HCM", "%", "km/h" vẫn phải được triển khai thành chữ.
+Người đọc phát âm văn bản theo thứ tự — nhưng chỉ khi văn bản **đã được chuẩn hóa**. Chuỗi "€5" trong tiếng Anh đọc là "five euros": ký hiệu tiền tệ đứng trước lại được đọc sau. Đây là lý do chuẩn hóa văn bản ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md)) phải chạy *trước* mô hình âm học: sau chuẩn hóa, giả thiết đơn điệu gần như luôn đúng. Tiếng Việt thuận lợi hơn ở điểm này ("5 USD" đọc là "năm đô-la Mỹ", cùng thứ tự), nhưng các trường hợp như "TP.HCM", "%", "km/h" vẫn phải được triển khai thành chữ.
 
 ### Bản đồ các cách tiếp cận
 

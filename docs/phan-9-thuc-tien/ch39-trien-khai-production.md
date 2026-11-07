@@ -355,3 +355,281 @@ for name, s in [("ORT fp32", sess), ("ORT int8 động", sess8)]:
 ```
 
 Trên máy của chúng tôi, SNR giữa hai phiên bản khoảng 44 dB (chấp nhận được), nhưng phiên bản int8 **chậm hơn khoảng hai lần** phiên bản fp32, nhất quán qua nhiều lần chạy. Nhìn vào đồ thị sau lượng tử hóa sẽ thấy lý do: các lớp `Conv` được thay bằng `ConvInteger` cộng các phép lượng tử hóa activation chạy liên tục, trong khi nhân tích chập số nguyên trên CPU này không đủ nhanh để bù lại, và lớp `ConvTranspose` vẫn ở fp32. Bài học: **lượng tử hóa động được thiết kế cho mô hình nặng về nhân ma trận; với mạng tích chập, hãy thử lượng tử hóa tĩnh dạng QDQ với dữ liệu hiệu chỉnh, và luôn đo**. ONNX Runtime cũng khuyến nghị chạy bước tiền xử lý mô hình (`python -m onnxruntime.quantization.preprocess`) trước khi lượng tử hóa.
+
+## 39.6 Kiến trúc phục vụ
+
+### Các thành phần
+
+Một dịch vụ TTS điển hình có các khối sau. Frontend (chuẩn hóa văn bản, G2P, phân tích SSML) chạy trên CPU; mô hình âm học hoặc LM và vocoder chạy trên GPU; âm thanh được mã hóa và truyền theo luồng về người dùng; bộ nhớ đệm và hệ thống giám sát bao quanh tất cả.
+
+```mermaid
+flowchart LR
+    C["Người dùng"] --> G["Cổng API: xác thực, giới hạn tốc độ"]
+    G --> F["Frontend CPU: SSML, chuẩn hóa, G2P, chia cụm"]
+    F --> Q["Hàng đợi và bộ gom batch"]
+    Q --> M["Mô hình âm học hoặc LM (GPU)"]
+    M --> V["Vocoder (GPU)"]
+    V --> E["Mã hóa âm thanh: PCM, Opus"]
+    E --> C
+    F <--> K["Bộ nhớ đệm"]
+    M --> O["Giám sát: độ trễ, RTF, lỗi"]
+```
+
+### Gom batch
+
+GPU hiệu quả nhất khi xử lý nhiều chuỗi cùng lúc. Có ba mức gom batch:
+
+- **Batch tĩnh**: gom đủ $B$ yêu cầu rồi chạy. Đơn giản nhưng yêu cầu đến sớm phải chờ.
+- **Batch động** (*dynamic batching*): hàng đợi gom yêu cầu cho đến khi đủ kích thước tối đa **hoặc** hết thời gian chờ tối đa (vài mili-giây), rồi chạy. Đánh đổi trực tiếp: thời gian chờ tối đa cộng thẳng vào độ trễ, đổi lại thông lượng cao hơn.
+- **Batch liên tục** (*continuous batching*; Yu và cộng sự, 2022) cho phần giải mã tự hồi quy: thay vì chờ chuỗi dài nhất trong batch kết thúc, bộ lập lịch cho chuỗi đã xong rời batch và chuỗi mới vào batch **ở mỗi bước giải mã**. Kết hợp với quản lý KV cache theo trang (*PagedAttention*; Kwon và cộng sự, 2023), GPU luôn được lấp đầy và số chuỗi đồng thời tăng mạnh.
+
+Với các mô hình không tự hồi quy, phần đệm (*padding*) là nguồn lãng phí chính. Nếu batch có các chuỗi độ dài $\ell_1, \ldots, \ell_B$ được đệm tới độ dài lớn nhất, **hiệu suất** của batch là
+
+$$
+\eta = \frac{\sum_{i=1}^{B} \ell_i}{B \cdot \max_i \ell_i}.
+$$
+
+Ví dụ ba câu dài 2, 3 và 10 giây cho $\eta = 15/30 = 50\%$: một nửa tính toán bị lãng phí cho phần đệm. Gom các yêu cầu có độ dài gần nhau vào cùng batch (*bucketing*) đưa $\eta$ về gần 1; [Chương 6](../phan-1-nen-tang/ch06-pytorch-cho-tieng-noi.md) dùng cùng ý tưởng cho huấn luyện.
+
+Với TTS dựa trên LLM ([Chương 34](../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md)), phần LM có cấu trúc giống hệt một LLM văn bản, nên có thể tận dụng các máy chủ phục vụ LLM chuyên dụng (như vLLM) để có sẵn batch liên tục, KV cache theo trang và lượng tử hóa trọng số. Điều kiện là máy chủ đó hỗ trợ bảng từ vựng mở rộng (token tiếng nói), chiến lược lấy mẫu riêng của TTS và trả về được chuỗi token. Tính đến thời điểm biên soạn (2026), một số dự án TTS mã nguồn mở đã có hướng dẫn tích hợp như vậy; hãy kiểm tra kho mã của mô hình bạn dùng. Phần bộ giải mã flow matching và vocoder thường được gom batch riêng.
+
+**Triton Inference Server** của NVIDIA là một lựa chọn phổ biến để phục vụ nhiều mô hình trên GPU: có sẵn bộ gom batch động, bộ gom batch cho mô hình có trạng thái (*sequence batcher*, hữu ích cho streaming), khả năng nối nhiều mô hình thành một đường ống (*ensemble*), và hỗ trợ nhiều backend (ONNX Runtime, TensorRT, PyTorch, Python).
+
+### Giao thức truyền
+
+| Giao thức | Khi nào dùng | Ưu điểm | Nhược điểm |
+|---|---|---|---|
+| HTTP, trả về cả tệp | Tạo sách nói, tạo dữ liệu, tác vụ ngoại tuyến | Đơn giản nhất, dễ cache | Phải chờ sinh xong |
+| HTTP streaming (chunked) | Đọc văn bản có sẵn với độ trễ thấp | Đơn giản, đi qua hầu hết hạ tầng mạng | Một chiều: văn bản phải gửi hết từ đầu |
+| WebSocket | Văn bản đến dần (từ LLM), điều khiển hai chiều (hủy, đổi giọng) | Hai chiều, độ trễ thấp | Kết nối có trạng thái, khó cân bằng tải hơn |
+| gRPC streaming | Giao tiếp giữa các dịch vụ nội bộ | Có kiểu dữ liệu chặt, hiệu quả | Ít thân thiện với trình duyệt |
+| WebRTC | Trợ lý giọng nói thời gian thực trong trình duyệt/ứng dụng | Thiết kế cho âm thanh thời gian thực: bộ đệm chống giật, Opus, khử tiếng vọng phía người dùng | Phức tạp nhất |
+
+### Mã hóa âm thanh
+
+- **PCM 16 bit** (*s16le*): không nén, không thêm độ trễ. Bitrate bằng $f_s \times 16$ bit/s cho một kênh: 256 kbit/s ở 16 kHz, 384 kbit/s ở 24 kHz. Với 1 000 luồng đồng thời ở 24 kHz, riêng băng thông đã là 384 Mbit/s.
+- **G.711** (μ-law hoặc A-law, 8 kHz, 64 kbit/s): chuẩn của mạng điện thoại; cần lấy mẫu lại xuống 8 kHz nếu hệ thống chạy qua tổng đài.
+- **Opus** (Valin và cộng sự, 2012): codec mở, độ trễ thấp, khung từ 2,5 đến 60 ms (mặc định 20 ms), bitrate từ 6 đến 510 kbit/s; với tiếng nói, vài chục kbit/s thường đã cho chất lượng tốt. Đây là lựa chọn mặc định cho streaming qua mạng.
+- **MP3/AAC**: phù hợp tệp tải về, không lý tưởng cho hội thoại vì độ trễ mã hóa và đặc điểm khung.
+
+Hai cái bẫy định dạng: (1) tệp WAV có trường kích thước dữ liệu ở phần đầu, mà khi streaming ta chưa biết kích thước; một số máy chủ ghi giá trị lớn nhất có thể vào đó, nhưng cách người dùng xử lý không thống nhất. Gửi PCM thô kèm khai báo định dạng, hoặc dùng định dạng chứa thiết kế cho streaming (Ogg, WebM), sẽ an toàn hơn. (2) Kiểu MIME `audio/L16` (RFC 2586) quy định thứ tự byte **big-endian**, trong khi PCM mà hầu hết thư viện sinh ra là little-endian; ghi nhãn sai sẽ cho ra tiếng rè.
+
+### Thực hành: endpoint streaming với FastAPI
+
+Đoạn mã sau dựng một dịch vụ tối giản với hai endpoint: HTTP streaming (gửi cả văn bản, nhận PCM theo luồng) và WebSocket (gửi văn bản theo từng tin nhắn, nhận PCM và sự kiện kết thúc). Bộ tổng hợp ở đây là một hàm giả sinh tiếng bíp; trong hệ thống thật bạn thay nó bằng mô hình. Phần cuối tệp dùng `TestClient` để kiểm thử mà không cần mở cổng mạng. [Dự án 5](../phan-10-du-an/du-an-5-tts-service-streaming.md) phát triển ý tưởng này thành một dịch vụ hoàn chỉnh.
+
+```python
+import asyncio
+import re
+import time
+import numpy as np
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+SR = 16_000
+app = FastAPI()
+
+class TTSRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=5000)
+    voice: str = "default"
+
+def split_phrases(text: str) -> list[str]:
+    """Cắt theo dấu câu (bản rút gọn; xem bộ chia cụm ở Chương 35)."""
+    return [p.strip() for p in re.split(r"(?<=[.!?,;:])\s+", text) if p.strip()]
+
+def synthesize(phrase: str, voice: str) -> np.ndarray:
+    """Bộ tổng hợp GIẢ: mỗi âm tiết là 120 ms tiếng bíp. Thay bằng mô hình thật."""
+    n = int(SR * 0.12 * len(phrase.split()))
+    t = np.arange(n) / SR
+    return (0.3 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)   # (L,)
+
+def to_pcm16(wav: np.ndarray) -> bytes:
+    return (np.clip(wav, -1, 1) * 32767).astype("<i2").tobytes()     # little-endian
+
+async def pcm_stream(text: str, voice: str):
+    for phrase in split_phrases(text):
+        # Chạy mô hình trong thread riêng để không chặn event loop của server
+        wav = await asyncio.to_thread(synthesize, phrase, voice)
+        yield to_pcm16(wav)
+
+@app.post("/v1/tts/stream")
+async def tts_stream(req: TTSRequest):
+    headers = {"X-Audio-Format": f"pcm_s16le; rate={SR}; channels=1"}
+    return StreamingResponse(pcm_stream(req.text, req.voice),
+                             media_type="application/octet-stream", headers=headers)
+
+@app.websocket("/v1/tts/ws")
+async def tts_ws(ws: WebSocket):
+    await ws.accept()
+    try:
+        while True:                       # mỗi tin nhắn JSON: {"text": ...}
+            msg = await ws.receive_json()
+            async for chunk in pcm_stream(msg["text"], msg.get("voice", "default")):
+                await ws.send_bytes(chunk)
+            await ws.send_json({"event": "done"})
+    except WebSocketDisconnect:
+        pass                              # khách ngắt kết nối: dọn dẹp tài nguyên ở đây
+
+if __name__ == "__main__":                # kiểm thử nhanh, không cần mở cổng mạng
+    from fastapi.testclient import TestClient
+    client = TestClient(app)
+    text = "Xin chào. Hôm nay trời đẹp, mình đi dạo nhé!"
+    t0 = time.perf_counter()
+    with client.stream("POST", "/v1/tts/stream", json={"text": text}) as r:
+        assert r.status_code == 200
+        chunks = list(r.iter_bytes())
+    total = sum(len(c) for c in chunks)
+    assert total == 2 * int(SR * 0.12) * len(text.split())          # 2 byte/mẫu
+    print(f"HTTP: {len(chunks)} chunk, {total} byte, {time.perf_counter() - t0:.3f} s")
+    with client.websocket_connect("/v1/tts/ws") as ws:
+        ws.send_json({"text": text})
+        n_bytes = 0
+        while (m := ws.receive()).get("bytes") is not None:
+            n_bytes += len(m["bytes"])
+        assert n_bytes == total and '"done"' in m["text"]
+    print("WebSocket: OK", n_bytes, "byte")
+```
+
+Lưu tệp với tên `tts_app.py` và chạy trực tiếp để kiểm thử, hoặc khởi động máy chủ thật bằng uvicorn:
+
+```bash
+python tts_app.py                                   # kiểm thử bằng TestClient
+uvicorn tts_app:app --host 127.0.0.1 --port 8765    # chạy máy chủ thật
+```
+
+Phía người dùng, độ trễ đến byte đầu tiên (TTFB) và RTF đo như sau. Chúng tôi đã chạy đoạn mã này với máy chủ uvicorn ở trên.
+
+```python
+import time
+import httpx
+
+def measure(url: str, text: str, sr: int = 16_000):
+    """Đo TTFB (byte audio đầu tiên) và RTF phía khách cho endpoint streaming PCM16."""
+    t0 = time.perf_counter()
+    ttfb, n_bytes = None, 0
+    with httpx.stream("POST", url, json={"text": text}, timeout=30) as r:
+        r.raise_for_status()
+        for chunk in r.iter_bytes():
+            if ttfb is None:
+                ttfb = time.perf_counter() - t0
+            n_bytes += len(chunk)
+    total = time.perf_counter() - t0
+    audio_sec = n_bytes / 2 / sr                 # PCM 16 bit mono: 2 byte mỗi mẫu
+    return {"ttfb_ms": 1e3 * ttfb, "total_ms": 1e3 * total, "rtf": total / audio_sec}
+
+# Nếu môi trường có biến HTTP(S)_PROXY, đặt NO_PROXY=127.0.0.1 để không đi qua proxy
+print(measure("http://127.0.0.1:8765/v1/tts/stream",
+              "Xin chào. Hôm nay trời đẹp, mình đi dạo nhé!"))
+```
+
+Vài lưu ý khi biến khung xương này thành dịch vụ thật:
+
+- `asyncio.to_thread` giữ cho vòng lặp sự kiện không bị chặn, nhưng **không** giải quyết việc nhiều luồng cùng gọi một mô hình GPU. Trong hệ thống thật, các yêu cầu nên đi qua một hàng đợi và một bộ gom batch duy nhất cho mỗi bản sao mô hình.
+- Xử lý **hủy**: khi người dùng ngắt kết nối hoặc gửi lệnh hủy (bị ngắt lời, [Chương 35](../phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md)), phải dừng sinh ngay để giải phóng GPU.
+- Giới hạn độ dài văn bản, số kết nối đồng thời mỗi người dùng, và thời gian chờ; kiểm tra đầu vào ở biên dịch vụ.
+
+### Bộ nhớ đệm
+
+TTS có nhiều cơ hội dùng bộ nhớ đệm:
+
+- **Đệm đầu ra**: khóa là băm của (văn bản *đã chuẩn hóa*, giọng, tham số, phiên bản mô hình). Rất hiệu quả cho các câu lặp lại như lời chào của tổng đài, menu IVR, thông báo cố định. Nhớ đưa phiên bản mô hình vào khóa, nếu không sau khi cập nhật mô hình bạn vẫn phát âm thanh cũ.
+- **Đệm đặc trưng giọng**: với mô hình zero-shot, embedding người nói, token và mel của prompt chỉ cần tính một lần cho mỗi giọng.
+- **Đệm tiền tố trong LM**: với TTS dựa trên LLM, phần đầu chuỗi (prompt) giống nhau giữa các yêu cầu cùng giọng; các máy chủ LLM có thể tái sử dụng KV cache của tiền tố chung.
+- **Đệm frontend**: kết quả chuẩn hóa văn bản và G2P cho các câu, từ thường gặp.
+
+### SSML: ngôn ngữ đánh dấu cho tổng hợp tiếng nói
+
+**SSML** (*Speech Synthesis Markup Language*; W3C, 2010) là chuẩn XML cho phép người dùng điều khiển cách đọc. Hầu hết dịch vụ TTS thương mại hỗ trợ một tập con của SSML, và mỗi nhà cung cấp mở rộng theo cách riêng. Điều quan trọng với người xây dựng hệ thống là hiểu **mỗi thẻ ánh xạ xuống frontend và mô hình như thế nào**:
+
+| Thẻ SSML | Ý nghĩa | Ánh xạ xuống hệ thống |
+|---|---|---|
+| `<break time="300ms"/>` | Chèn khoảng lặng | Token ngắt nghỉ (nếu mô hình có, [Chương 18](../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md)) hoặc chèn mẫu im lặng giữa hai đoạn |
+| `<say-as interpret-as="date">` | Chỉ định cách đọc | Ép loại chuẩn hóa trong frontend ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md)) |
+| `<sub alias="...">` | Đọc chữ thay thế | Thay chuỗi trước khi chuẩn hóa |
+| `<phoneme alphabet="ipa" ph="...">` | Chỉ định phát âm | Bỏ qua G2P cho đoạn này |
+| `<prosody rate pitch volume>` | Điều khiển ngôn điệu | Nhân trường độ; dịch F0; nhân biên độ |
+| `<emphasis>` | Nhấn mạnh | Tăng trường độ, F0 cục bộ, hoặc token phong cách |
+| `<voice>`, `<lang>` | Đổi giọng, ngôn ngữ | Chọn embedding người nói, ngôn ngữ |
+| `<mark name="..."/>` | Đánh dấu vị trí | Trả về thời điểm tương ứng để đồng bộ phụ đề, hình ảnh |
+
+Các giá trị của `interpret-as` không được chuẩn SSML 1.1 quy định đầy đủ, nên mỗi hệ thống tự định nghĩa tập giá trị mình hỗ trợ. Với mô hình dựa trên LM không có bộ dự đoán trường độ hay F0 tường minh, nhiều thẻ chỉ có thể xấp xỉ: `break` thực hiện bằng cách tổng hợp hai đoạn riêng rồi chèn im lặng (đánh đổi ngữ điệu liền mạch), `rate` bằng tham số tốc độ của mô hình (nếu có) hoặc kéo giãn thời gian sau khi sinh, các thẻ phong cách bằng chỉ dẫn ngôn ngữ tự nhiên (với mô hình hỗ trợ).
+
+Đoạn mã sau phân tích một tập con SSML thành danh sách đoạn văn bản kèm điều khiển, sẵn sàng đưa xuống frontend. Lưu ý cách xử lý phần **đuôi** (`tail`) của mỗi phần tử XML: văn bản nằm sau thẻ đóng thuộc về ngữ cảnh của phần tử *cha*, một chi tiết dễ làm sai.
+
+```python
+import re
+import xml.etree.ElementTree as ET   # production: dùng defusedxml cho đầu vào không tin cậy
+from dataclasses import dataclass, field
+
+RATE_WORDS = {"x-slow": 0.6, "slow": 0.8, "medium": 1.0, "fast": 1.2, "x-fast": 1.4}  # tự chọn
+BREAK_STRENGTH_MS = {"none": 0, "x-weak": 50, "weak": 150, "medium": 300,
+                     "strong": 600, "x-strong": 1000}                              # tự chọn
+
+@dataclass
+class Segment:
+    kind: str                                  # "text" hoặc "break"
+    text: str = ""
+    ctrl: dict = field(default_factory=dict)   # điều khiển gửi xuống frontend/mô hình
+
+def parse_time_ms(s: str) -> int:
+    m = re.fullmatch(r"\s*([\d.]+)\s*(ms|s)\s*", s)
+    if not m:
+        raise ValueError(f"time không hợp lệ: {s!r}")
+    return round(float(m[1]) * (1000 if m[2] == "s" else 1))
+
+def parse_rate(s: str) -> float:
+    return float(s[:-1]) / 100 if s.endswith("%") else RATE_WORDS.get(s, 1.0)
+
+def parse_ssml(ssml: str) -> list[Segment]:
+    out: list[Segment] = []
+
+    def add_text(text, ctrl):
+        if text and text.strip():
+            out.append(Segment("text", " ".join(text.split()), dict(ctrl)))
+
+    def walk(node, ctrl):
+        tag = node.tag.split("}")[-1]          # bỏ namespace nếu có
+        ctrl = dict(ctrl)
+        if tag == "break":
+            ms = (parse_time_ms(node.get("time")) if node.get("time")
+                  else BREAK_STRENGTH_MS[node.get("strength", "medium")])
+            out.append(Segment("break", ctrl={"ms": ms}))
+            return
+        if tag == "prosody" and node.get("rate"):
+            ctrl["rate"] = ctrl.get("rate", 1.0) * parse_rate(node.get("rate"))
+        elif tag == "say-as":
+            ctrl["say_as"] = node.get("interpret-as")
+            if node.get("format"):
+                ctrl["format"] = node.get("format")
+        elif tag == "phoneme":
+            ctrl["phonemes"] = node.get("ph")  # bỏ qua G2P cho đoạn này
+        if tag == "sub":                       # đọc alias thay cho chữ viết
+            add_text(node.get("alias"), ctrl)
+        else:
+            add_text(node.text, ctrl)
+            for child in node:
+                walk(child, ctrl)
+                add_text(child.tail, ctrl)    # phần đuôi thuộc ngữ cảnh của nút cha
+
+    walk(ET.fromstring(ssml), {})
+    return out
+
+ssml = """<speak>Xin chào<break time="300ms"/>quý khách.
+  <prosody rate="80%">Mã đơn của bạn là <say-as interpret-as="characters">AB12</say-as>,
+  giao ngày <say-as interpret-as="date" format="dmy">2/9/2026</say-as>.</prosody>
+  Chi nhánh <sub alias="Thành phố Hồ Chí Minh">TP.HCM</sub> mở cửa lúc 8 giờ.</speak>"""
+segs = parse_ssml(ssml)
+for s in segs:
+    print(s)
+assert segs[1] == Segment("break", ctrl={"ms": 300})
+assert segs[4].text == "AB12" and segs[4].ctrl == {"rate": 0.8, "say_as": "characters"}
+assert any(s.text == "Thành phố Hồ Chí Minh" for s in segs)
+```
+
+Kết quả là 11 đoạn, ví dụ `Segment(kind='text', text='2/9/2026', ctrl={'rate': 0.8, 'say_as': 'date', 'format': 'dmy'})`: frontend biết phải đọc chuỗi này là ngày theo thứ tự ngày/tháng/năm, với tốc độ 0,8 lần bình thường (tức trường độ nhân $1/0.8 = 1.25$ lần). Bảng ánh xạ từ nhãn tốc độ và độ mạnh ngắt nghỉ sang số là do chúng ta tự chọn, vì chuẩn để ngỏ cho từng hệ thống. Về an toàn, bộ phân tích XML chuẩn của Python không được thiết kế để chống dữ liệu độc hại; với đầu vào từ người dùng, hãy dùng thư viện `defusedxml` và giới hạn kích thước đầu vào.
+
+!!! note "Góc tiếng Việt"
+    - **`<prosody pitch>` và thanh điệu.** Thay đổi cao độ cho tiếng Việt phải giữ hình dạng đường nét thanh điệu. Dịch F0 theo thang logarit (cộng một số nửa cung, tức nhân tần số với một hằng số) giữ nguyên hình dạng tương đối của các thanh; còn nén khoảng biến thiên F0 ("đọc đều giọng") có thể làm các thanh huyền, ngang, sắc khó phân biệt ([Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)).
+    - **`<say-as interpret-as="date">`.** Người Việt viết ngày theo thứ tự ngày/tháng/năm; mặc định của nhiều hệ thống quốc tế lại là tháng/ngày. Hãy đặt mặc định đúng và kiểm thử với các chuỗi mơ hồ như "2/9".
+    - **`<say-as interpret-as="characters">`.** Đánh vần "AB12" theo tên chữ cái tiếng Việt ("a bê một hai") hay tiếng Anh ("ây bi") là quyết định sản phẩm, cần thống nhất với cách xử lý chữ viết tắt trong frontend ([Chương 17](../phan-4-frontend/ch17-chuan-hoa-van-ban.md), [Chương 30](../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching.md)).
