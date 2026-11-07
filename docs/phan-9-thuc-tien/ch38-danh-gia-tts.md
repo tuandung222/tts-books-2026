@@ -27,7 +27,7 @@
 | Chiều | Câu hỏi | Phép đo chủ quan | Đại lượng khách quan thay thế |
 |---|---|---|---|
 | Độ tự nhiên | Nghe có giống người thật không? | MOS, CMOS, MUSHRA | Bộ dự đoán MOS (UTMOS…), FAD |
-| Độ dễ hiểu | Có nghe đúng nội dung không? | Bài chép chính tả, SUS | WER/CER qua ASR |
+| Độ dễ hiểu | Có nghe đúng nội dung không? | Bài chép chính tả, câu không đoán trước được về ngữ nghĩa (SUS, Benoît và cộng sự, 1996) | WER/CER qua ASR |
 | Độ giống người nói | Có đúng giọng mục tiêu không? | SMOS, ABX | Cosine embedding người nói (SIM) |
 | Ngôn điệu | Ngữ điệu, nhịp, trọng âm có phù hợp? | MOS ngôn điệu, CMOS | Sai số F0, trường độ; tương quan F0 |
 | Độ bền | Có bỏ chữ, lặp chữ, ảo giác? | Đếm lỗi thủ công | WER trên câu khó, tỉ lệ câu thất bại |
@@ -513,7 +513,7 @@ Một bộ kiểm thử tiếng Việt tốt kiểm tra những điểm mà ch�
 2. **Tỉ lệ lỗi thanh qua ASR**, như hàm `evaluate` ở trên — rẻ, nhưng chịu ảnh hưởng của mô hình ngôn ngữ trong ASR.
 3. **Bộ phân loại thanh điệu** trên đường F0 của âm tiết — cần được kiểm định trước trên tiếng nói thật.
 
-**Kiểm tra đọc số và viết tắt.** Với mỗi câu, liệt kê *các* cách đọc chấp nhận được (ví dụ *nghìn/ngàn*, *linh/lẻ*, *mười lăm/mười nhăm* tùy phương ngữ và quy ước). Chấm đúng/sai thủ công hoặc bằng ASR + so khớp với danh sách cách đọc. Bài kiểm tra này thực chất kiểm tra cả front-end; hãy chạy riêng front-end trên cùng bộ câu để biết lỗi nằm ở front-end hay ở mô hình.
+**Kiểm tra đọc số và viết tắt.** Với mỗi câu, liệt kê *các* cách đọc chấp nhận được (ví dụ *nghìn/ngàn*, *linh/lẻ*, *hai mươi lăm/hai mươi nhăm* tùy phương ngữ và quy ước). Chấm đúng/sai thủ công hoặc bằng ASR + so khớp với danh sách cách đọc. Bài kiểm tra này thực chất kiểm tra cả front-end; hãy chạy riêng front-end trên cùng bộ câu để biết lỗi nằm ở front-end hay ở mô hình.
 
 **Kiểm tra phương ngữ.** Nhờ người nghe thuộc phương ngữ mục tiêu đánh giá "giọng có nhất quán là giọng [Bắc/Nam] không", và ghi lại các âm tiết bị đọc theo phương ngữ khác.
 
@@ -603,30 +603,31 @@ Nguyên tắc tổng quát: người đọc phải có đủ thông tin để **
 
 1. Anastassiou, P. và cộng sự (2024). *Seed-TTS: A Family of High-Quality Versatile Speech Generation Models*. arXiv preprint.
 2. Bates, D., Mächler, M., Bolker, B. và Walker, S. (2015). *Fitting Linear Mixed-Effects Models Using lme4*. Journal of Statistical Software.
-3. Benjamini, Y. và Hochberg, Y. (1995). *Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing*. Journal of the Royal Statistical Society, Series B.
-4. Chen, S. và cộng sự (2022). *WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing*. IEEE Journal of Selected Topics in Signal Processing.
-5. Chu, W. và Alwan, A. (2009). *Reducing F0 Frame Error of F0 Tracking Algorithms under Noisy Conditions with an Unvoiced/Voiced Classification Frontend*. ICASSP.
-6. Clark, R., Silen, H., Kenter, T. và Leith, R. (2019). *Evaluating Long-form Text-to-Speech: Comparing the Ratings of Sentences and Paragraphs*. ISCA Speech Synthesis Workshop (SSW10).
-7. Desplanques, B., Thienpondt, J. và Demuynck, K. (2020). *ECAPA-TDNN: Emphasized Channel Attention, Propagation and Aggregation in TDNN Based Speaker Verification*. Interspeech.
-8. Efron, B. và Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
-9. Holm, S. (1979). *A Simple Sequentially Rejective Multiple Test Procedure*. Scandinavian Journal of Statistics.
-10. Huang, W.-C. và cộng sự (2022). *The VoiceMOS Challenge 2022*. Interspeech.
-11. ITU-R (2015). *Recommendation BS.1534-3: Method for the Subjective Assessment of Intermediate Quality Level of Audio Systems*.
-12. ITU-T (1996). *Recommendation P.800: Methods for Subjective Determination of Transmission Quality*.
-13. ITU-T (2018, sửa đổi về sau). *Recommendation P.808: Subjective Evaluation of Speech Quality with a Crowdsourcing Approach*.
-14. Kilgour, K., Zuluaga, M., Roblek, D. và Sharifi, M. (2019). *Fréchet Audio Distance: A Reference-Free Metric for Evaluating Music Enhancement Algorithms*. Interspeech.
-15. Kirkland, A. và cộng sự (2023). *Stuck in the MOS Pit: A Critical Analysis of MOS Test Methodology in TTS Evaluation*. ISCA Speech Synthesis Workshop (SSW12).
-16. Kubichek, R. (1993). *Mel-Cepstral Distance Measure for Objective Speech Quality Assessment*. IEEE Pacific Rim Conference on Communications, Computers and Signal Processing.
-17. Le, M. và cộng sự (2023). *Voicebox: Text-Guided Multilingual Universal Speech Generation at Scale*. NeurIPS.
-18. Le, T.-T., Nguyen, L. T. và Nguyen, D. Q. (2024). *PhoWhisper: Automatic Speech Recognition for Vietnamese*. ICLR Tiny Papers.
-19. Lo, C.-C. và cộng sự (2019). *MOSNet: Deep Learning-Based Objective Assessment for Voice Conversion*. Interspeech.
-20. Mittag, G., Naderi, B., Chehadi, A. và Möller, S. (2021). *NISQA: A Deep CNN-Self-Attention Model for Multidimensional Speech Quality Prediction with Crowdsourced Datasets*. Interspeech.
-21. Owen, A. B. (2007). *The Pigeonhole Bootstrap*. The Annals of Applied Statistics.
-22. Radford, A. và cộng sự (2023). *Robust Speech Recognition via Large-Scale Weak Supervision*. ICML.
-23. Reddy, C. K. A., Gopal, V. và Cutler, R. (2021). *DNSMOS: A Non-Intrusive Perceptual Objective Speech Quality Metric to Evaluate Noise Suppressors*. ICASSP.
-24. Ribeiro, F., Florêncio, D., Zhang, C. và Seltzer, M. (2011). *CrowdMOS: An Approach for Crowdsourcing Mean Opinion Score Studies*. ICASSP.
-25. Rix, A. W., Beerends, J. G., Hollier, M. P. và Hekstra, A. P. (2001). *Perceptual Evaluation of Speech Quality (PESQ) — A New Method for Speech Quality Assessment of Telephone Networks and Codecs*. ICASSP.
-26. Saeki, T. và cộng sự (2022). *UTMOS: UTokyo-SaruLab System for VoiceMOS Challenge 2022*. Interspeech.
-27. Taal, C. H., Hendriks, R. C., Heusdens, R. và Jensen, J. (2011). *An Algorithm for Intelligibility Prediction of Time–Frequency Weighted Noisy Speech*. IEEE Transactions on Audio, Speech, and Language Processing.
-28. Wester, M., Valentini-Botinhao, C. và Henter, G. E. (2015). *Are We Using Enough Listeners? No! — An Empirically-Supported Critique of Interspeech 2014 TTS Evaluations*. Interspeech.
-29. Wilcoxon, F. (1945). *Individual Comparisons by Ranking Methods*. Biometrics Bulletin.
+3. Benoît, C., Grice, M. và Hazan, V. (1996). *The SUS Test: A Method for the Assessment of Text-to-Speech Synthesis Intelligibility Using Semantically Unpredictable Sentences*. Speech Communication.
+4. Benjamini, Y. và Hochberg, Y. (1995). *Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing*. Journal of the Royal Statistical Society, Series B.
+5. Chen, S. và cộng sự (2022). *WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing*. IEEE Journal of Selected Topics in Signal Processing.
+6. Chu, W. và Alwan, A. (2009). *Reducing F0 Frame Error of F0 Tracking Algorithms under Noisy Conditions with an Unvoiced/Voiced Classification Frontend*. ICASSP.
+7. Clark, R., Silen, H., Kenter, T. và Leith, R. (2019). *Evaluating Long-form Text-to-Speech: Comparing the Ratings of Sentences and Paragraphs*. ISCA Speech Synthesis Workshop (SSW10).
+8. Desplanques, B., Thienpondt, J. và Demuynck, K. (2020). *ECAPA-TDNN: Emphasized Channel Attention, Propagation and Aggregation in TDNN Based Speaker Verification*. Interspeech.
+9. Efron, B. và Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
+10. Holm, S. (1979). *A Simple Sequentially Rejective Multiple Test Procedure*. Scandinavian Journal of Statistics.
+11. Huang, W.-C. và cộng sự (2022). *The VoiceMOS Challenge 2022*. Interspeech.
+12. ITU-R (2015). *Recommendation BS.1534-3: Method for the Subjective Assessment of Intermediate Quality Level of Audio Systems*.
+13. ITU-T (1996). *Recommendation P.800: Methods for Subjective Determination of Transmission Quality*.
+14. ITU-T (2018, sửa đổi về sau). *Recommendation P.808: Subjective Evaluation of Speech Quality with a Crowdsourcing Approach*.
+15. Kilgour, K., Zuluaga, M., Roblek, D. và Sharifi, M. (2019). *Fréchet Audio Distance: A Reference-Free Metric for Evaluating Music Enhancement Algorithms*. Interspeech.
+16. Kirkland, A. và cộng sự (2023). *Stuck in the MOS Pit: A Critical Analysis of MOS Test Methodology in TTS Evaluation*. ISCA Speech Synthesis Workshop (SSW12).
+17. Kubichek, R. (1993). *Mel-Cepstral Distance Measure for Objective Speech Quality Assessment*. IEEE Pacific Rim Conference on Communications, Computers and Signal Processing.
+18. Le, M. và cộng sự (2023). *Voicebox: Text-Guided Multilingual Universal Speech Generation at Scale*. NeurIPS.
+19. Le, T.-T., Nguyen, L. T. và Nguyen, D. Q. (2024). *PhoWhisper: Automatic Speech Recognition for Vietnamese*. ICLR Tiny Papers.
+20. Lo, C.-C. và cộng sự (2019). *MOSNet: Deep Learning-Based Objective Assessment for Voice Conversion*. Interspeech.
+21. Mittag, G., Naderi, B., Chehadi, A. và Möller, S. (2021). *NISQA: A Deep CNN-Self-Attention Model for Multidimensional Speech Quality Prediction with Crowdsourced Datasets*. Interspeech.
+22. Owen, A. B. (2007). *The Pigeonhole Bootstrap*. The Annals of Applied Statistics.
+23. Radford, A. và cộng sự (2023). *Robust Speech Recognition via Large-Scale Weak Supervision*. ICML.
+24. Reddy, C. K. A., Gopal, V. và Cutler, R. (2021). *DNSMOS: A Non-Intrusive Perceptual Objective Speech Quality Metric to Evaluate Noise Suppressors*. ICASSP.
+25. Ribeiro, F., Florêncio, D., Zhang, C. và Seltzer, M. (2011). *CrowdMOS: An Approach for Crowdsourcing Mean Opinion Score Studies*. ICASSP.
+26. Rix, A. W., Beerends, J. G., Hollier, M. P. và Hekstra, A. P. (2001). *Perceptual Evaluation of Speech Quality (PESQ) — A New Method for Speech Quality Assessment of Telephone Networks and Codecs*. ICASSP.
+27. Saeki, T. và cộng sự (2022). *UTMOS: UTokyo-SaruLab System for VoiceMOS Challenge 2022*. Interspeech.
+28. Taal, C. H., Hendriks, R. C., Heusdens, R. và Jensen, J. (2011). *An Algorithm for Intelligibility Prediction of Time–Frequency Weighted Noisy Speech*. IEEE Transactions on Audio, Speech, and Language Processing.
+29. Wester, M., Valentini-Botinhao, C. và Henter, G. E. (2015). *Are We Using Enough Listeners? No! — An Empirically-Supported Critique of Interspeech 2014 TTS Evaluations*. Interspeech.
+30. Wilcoxon, F. (1945). *Individual Comparisons by Ranking Methods*. Biometrics Bulletin.
