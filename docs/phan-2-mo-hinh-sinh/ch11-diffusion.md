@@ -389,7 +389,7 @@ prec_ddpm = mode_report(ddpm_sample(model, 2000), "DDPM, 1000 bước")
 assert prec_ddpm > 0.7
 ```
 
-Trong lần chạy của chúng tôi (khoảng mười giây huấn luyện trên CPU), dữ liệu thật có precision cỡ 0,99 (đúng bằng xác suất một Gaussian 2 chiều nằm trong ba độ lệch chuẩn), còn DDPM đạt cỡ 0,9 với cả 8 cụm đều có số mẫu xấp xỉ nhau — **không mất mode**. Phần mẫu còn lại hơi "nhòe" ra ngoài cụm; một mạng lớn hơn, huấn luyện lâu hơn và dùng EMA trọng số sẽ thu hẹp khoảng cách này.
+Trong lần chạy của chúng tôi (khoảng mười giây huấn luyện trên CPU), dữ liệu thật có precision cỡ 0,99 (đúng bằng xác suất một Gaussian 2 chiều nằm trong ba độ lệch chuẩn), còn DDPM đạt cỡ 0,85 với cả 8 cụm đều có số mẫu xấp xỉ nhau — **không mất mode**. Phần mẫu còn lại hơi "nhòe" ra ngoài cụm; một mạng lớn hơn, huấn luyện lâu hơn và dùng EMA trọng số sẽ thu hẹp khoảng cách này.
 
 ## 11.5 Lịch nhiễu
 
@@ -639,7 +639,7 @@ for S in (100, 50, 20, 10, 5):
     mode_report(ddim_sample(model, 2000, S), f"DDIM, {S} bước")
 ```
 
-Chất lượng giữ gần như nguyên ở 50–100 bước, giảm nhẹ ở 10–20 bước và sụt rõ rệt ở 5 bước: khi bước quá lớn, sai số rời rạc hóa của Euler làm mẫu lệch khỏi các cụm. Đây là đánh đổi số bước/chất lượng mà mọi hệ thống TTS dựa trên diffusion phải cân nhắc.
+Trong lần chạy của chúng tôi, chất lượng giữ nguyên ở 50–100 bước (precision ngang, thậm chí nhỉnh hơn DDPM 1000 bước trên ví dụ này), giảm nhẹ ở 20 bước, giảm rõ ở 10 bước và sụt mạnh ở 5 bước (precision chỉ còn cỡ 0,3): khi bước quá lớn, sai số rời rạc hóa của Euler làm mẫu lệch khỏi các cụm, dù số mẫu mỗi cụm vẫn khá cân bằng. Đây là đánh đổi số bước/chất lượng mà mọi hệ thống TTS dựa trên diffusion phải cân nhắc.
 
 ## 11.9 Các cách tham số hóa: $\boldsymbol{\epsilon}$, $\mathbf{x}_0$, $\mathbf{v}$ và score
 
