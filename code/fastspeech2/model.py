@@ -152,6 +152,7 @@ class VarianceAdaptor(nn.Module):
         if durations is None:  # suy luận: làm tròn trường độ dự đoán
             durations = torch.round((torch.exp(log_d_pred) - 1) * duration_scale)
             durations = durations.clamp(min=0).long().masked_fill(src_pad, 0)
+            durations[durations.sum(1) == 0, 0] = 1  # tránh câu rỗng (attention toàn đệm -> NaN)
         x, mel_lens = length_regulate(x, durations, max_len)  # (B, T, C)
         mel_pad = make_pad_mask(mel_lens, x.size(1))
 
