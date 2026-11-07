@@ -603,8 +603,8 @@ Nguyên tắc tổng quát: người đọc phải có đủ thông tin để **
 
 1. Anastassiou, P. và cộng sự (2024). *Seed-TTS: A Family of High-Quality Versatile Speech Generation Models*. arXiv preprint.
 2. Bates, D., Mächler, M., Bolker, B. và Walker, S. (2015). *Fitting Linear Mixed-Effects Models Using lme4*. Journal of Statistical Software.
-3. Benoît, C., Grice, M. và Hazan, V. (1996). *The SUS Test: A Method for the Assessment of Text-to-Speech Synthesis Intelligibility Using Semantically Unpredictable Sentences*. Speech Communication.
-4. Benjamini, Y. và Hochberg, Y. (1995). *Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing*. Journal of the Royal Statistical Society, Series B.
+3. Benjamini, Y. và Hochberg, Y. (1995). *Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing*. Journal of the Royal Statistical Society, Series B.
+4. Benoît, C., Grice, M. và Hazan, V. (1996). *The SUS Test: A Method for the Assessment of Text-to-Speech Synthesis Intelligibility Using Semantically Unpredictable Sentences*. Speech Communication.
 5. Chen, S. và cộng sự (2022). *WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing*. IEEE Journal of Selected Topics in Signal Processing.
 6. Chu, W. và Alwan, A. (2009). *Reducing F0 Frame Error of F0 Tracking Algorithms under Noisy Conditions with an Unvoiced/Voiced Classification Frontend*. ICASSP.
 7. Clark, R., Silen, H., Kenter, T. và Leith, R. (2019). *Evaluating Long-form Text-to-Speech: Comparing the Ratings of Sentences and Paragraphs*. ISCA Speech Synthesis Workshop (SSW10).

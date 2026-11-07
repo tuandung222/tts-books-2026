@@ -26,7 +26,7 @@
 2. **Nút thắt do con người thiết kế.** Mel-spectrogram 80 kênh là một biểu diễn trung gian cố định. Nó bỏ đi pha và một phần chi tiết tần số cao; mô hình không được phép tự học một biểu diễn trung gian tốt hơn cho chính nhiệm vụ của mình.
 3. **Sai số lan truyền.** Lỗi của giai đoạn một (mel quá trơn, sai cao độ) không thể được giai đoạn hai sửa, vì hai mô hình được tối ưu riêng rẽ.
 
-Các mô hình end-to-end đầu tiên như FastSpeech 2s hay EATS đã sinh dạng sóng trực tiếp từ văn bản, nhưng chất lượng còn thua hệ thống hai giai đoạn tốt nhất. **VITS** (*Variational Inference with adversarial learning for end-to-end Text-to-Speech*; Kim và cộng sự, 2021) là mô hình đầu tiên được công bố rộng rãi vượt qua cặp Glow-TTS + HiFi-GAN đã tinh chỉnh, trong khi vẫn huấn luyện **một lần** và sinh **song song**. Theo báo cáo gốc, trên LJSpeech, VITS đạt MOS xấp xỉ 4,43 so với 4,46 của ghi âm thật; phép thử CMOS ở phụ lục cho thấy người nghe vẫn hơi nghiêng về ghi âm thật, nên không nên hiểu là "ngang con người" tuyệt đối.
+Các mô hình end-to-end đầu tiên như FastSpeech 2s hay EATS đã sinh dạng sóng trực tiếp từ văn bản, nhưng chất lượng còn thua hệ thống hai giai đoạn tốt nhất. **VITS** (*Variational Inference with adversarial learning for end-to-end Text-to-Speech*; Kim và cộng sự, 2021) là mô hình end-to-end song song có ảnh hưởng lớn nhất trong giai đoạn này: theo đánh giá của chính bài báo, nó vượt các hệ thống hai giai đoạn công khai tốt nhất lúc đó (kể cả cặp Glow-TTS + HiFi-GAN đã tinh chỉnh), trong khi vẫn huấn luyện **một lần** và sinh **song song**. Theo báo cáo gốc, trên LJSpeech, VITS đạt MOS xấp xỉ 4,43 so với 4,46 của ghi âm thật; phép thử CMOS ở phụ lục cho thấy người nghe vẫn hơi nghiêng về ghi âm thật, nên không nên hiểu là "ngang con người" tuyệt đối.
 
 Ý tưởng cốt lõi của VITS là ghép bốn mảnh ghép quen thuộc vào một khung xác suất duy nhất:
 
@@ -49,6 +49,8 @@ flowchart LR
         PE -->|"z"| FLOW["Flow f (chiều thuận)"]
         PE -->|"đoạn ngẫu nhiên của z"| DEC["Bộ giải mã HiFi-GAN"]
         DEC --> SHAT["Đoạn sóng sinh ra"]
+        SHAT --> DISC["Bộ phân biệt MPD"]
+        S -->|"đoạn tương ứng"| DISC
         X["Văn bản x"] --> TE["Bộ mã hóa văn bản"]
         TE -->|"mu, sigma theo token"| KL["KL + MAS"]
         FLOW -->|"f(z)"| KL
@@ -125,7 +127,7 @@ $$
 Như vậy L1 trên mel chính là cực đại likelihood dưới giả định Laplace (liên hệ L1 ↔ Laplace đã gặp ở [Chương 1](../phan-1-nen-tang/ch01-toan-nen-tang.md)). Chọn miền mel vì nó gần với cảm nhận thính giác. Trong mã chính thức, L1 được lấy **trung bình** trên mọi phần tử mel và nhân hệ số $c_{\text{mel}} = 45$ (kế thừa từ HiFi-GAN); bạn có thể đọc hệ số này như $1/b$, tức là một lựa chọn về "độ tin" của likelihood, và nó quyết định cán cân giữa tái tạo với KL.
 
 !!! warning "Mất mát tái tạo chỉ trên một đoạn"
-    Bộ giải mã HiFi-GAN quá nặng để chạy trên toàn bộ $\mathbf{z}$ của cả batch. VITS chỉ giải mã một **đoạn ngẫu nhiên** dài 32 khung (8192 mẫu với $H = 256$) của mỗi câu, và mất mát tái tạo chỉ tính trên đoạn đó (*windowed generator training*, Mục 27.6). Về mặt xác suất, đây là ước lượng không chệch (sai khác hệ số) của tổng log-likelihood theo khung nếu vị trí đoạn được chọn đều.
+    Bộ giải mã HiFi-GAN quá nặng để chạy trên toàn bộ $\mathbf{z}$ của cả batch. VITS chỉ giải mã một **đoạn ngẫu nhiên** dài 32 khung (8192 mẫu với $H = 256$) của mỗi câu, và mất mát tái tạo chỉ tính trên đoạn đó (*windowed generator training*, Mục 27.6). Có thể xem đây là một ước lượng ngẫu nhiên (xấp xỉ, sai khác một hệ số tỉ lệ) của mất mát trên toàn câu; các khung sát hai đầu câu được chọn ít hơn một chút vì đoạn cắt phải nằm trọn trong câu.
 
 ## 27.3. Prior có flow và số hạng KL
 
@@ -145,7 +147,7 @@ $$
 p_\theta(\mathbf{z} \mid \mathbf{x}, \mathbf{A}) = \mathcal{N}\big(f_\theta(\mathbf{z});\, \boldsymbol{\mu}_\theta(\mathbf{x}, \mathbf{A}),\, \boldsymbol{\sigma}_\theta(\mathbf{x}, \mathbf{A})\big)\,\left|\det \frac{\partial f_\theta(\mathbf{z})}{\partial \mathbf{z}}\right|.
 $$
 
-Nói cách khác, flow "gỡ" bớt sự phức tạp của $\mathbf{z}$: sau khi đi qua $f_\theta$, các khung trong cùng một token mới cần trông giống nhau. Flow gồm các lớp affine coupling với mạng con là khối WaveNet không nhân quả, nên có trường tiếp nhận theo thời gian và mô hình hóa được tương quan giữa các khung kề nhau. Ablation trong bài báo gốc cho thấy bỏ flow khỏi prior làm MOS tụt khoảng 1,52 điểm, mức giảm lớn nhất trong mọi thí nghiệm của bài. Đây là bằng chứng rõ nhất cho nhận định "độ linh hoạt của prior quyết định chất lượng".
+Nói cách khác, flow "gỡ" bớt sự phức tạp của $\mathbf{z}$: sau khi đi qua $f_\theta$, các khung trong cùng một token mới cần trông giống nhau. Flow gồm các lớp affine coupling với mạng con là khối WaveNet không nhân quả, nên có trường tiếp nhận theo thời gian và mô hình hóa được tương quan giữa các khung kề nhau. Ablation trong bài báo gốc cho thấy bỏ flow khỏi prior làm MOS tụt khoảng 1,52 điểm, mức giảm lớn nhất trong các thí nghiệm ablation của bài. Đây là bằng chứng rõ nhất cho nhận định "độ linh hoạt của prior quyết định chất lượng".
 
 ### 27.3.2. Flow bảo toàn thể tích
 

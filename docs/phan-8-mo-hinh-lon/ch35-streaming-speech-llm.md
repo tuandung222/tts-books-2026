@@ -472,7 +472,7 @@ Hướng thứ hai là để mô hình **tự học** khi nào nói, khi nào im
 - **RQ-Transformer**: một Transformer lớn chạy theo trục thời gian (khởi tạo từ một LLM văn bản 7B tên Helium) và một Transformer nhỏ chạy theo trục sổ mã trong mỗi khung, để không phải trải phẳng mọi tầng RVQ thành một chuỗi dài.
 - **Độ trễ**: báo cáo nêu độ trễ lý thuyết 160 ms (80 ms của một khung Mimi cộng 80 ms trễ giữa token ngữ nghĩa và token âm học) và khoảng 200 ms trong thực tế trên GPU.
 
-Có thể hình thức hóa mô hình luồng kép như sau. Gọi $\mathbf{o}_s$ là token (văn bản và âm thanh) của hệ thống và $\mathbf{u}_s$ là token âm thanh của người dùng tại khung $s$. Mô hình học
+Có thể hình thức hóa mô hình luồng kép như sau. Gọi $\mathbf{o}_s$ là token (văn bản và âm thanh) của hệ thống và $\mathbf{u}_s$ là token âm thanh của người dùng tại khung $s$. Ở dạng tổng quát (theo báo cáo, Moshi mô hình hóa cả luồng người dùng khi huấn luyện), mô hình học phân phối chung
 
 $$
 p(\mathbf{o}_{1:S}, \mathbf{u}_{1:S}) = \prod_{s=1}^{S} p(\mathbf{o}_s, \mathbf{u}_s \mid \mathbf{o}_{<s}, \mathbf{u}_{<s}),
