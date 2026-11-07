@@ -78,7 +78,7 @@ Hai hệ quả quan trọng:
 - **Chunk đều nhau** ($d_i = d$): điều kiện trở thành $\rho\, k d \leq k d$, tức $\rho \leq 1$. Chỉ cần sinh nhanh hơn thời gian thực.
 - **Chunk tăng theo cấp số nhân** ($d_i = d_0 r^i$, $r > 1$): hai vế là $\rho\, d_0 r (r^k - 1)/(r - 1)$ và $d_0 (r^k - 1)/(r - 1)$, nên điều kiện là $\rho\, r \leq 1$, tức **$r \leq 1/\rho$**.
 
-Hệ quả thứ hai rất thực dụng. Để giảm TTFA, ta muốn chunk đầu thật ngắn; để có ngôn điệu tốt và ít chi phí trên mỗi chunk, ta muốn các chunk sau dài. Công thức cho biết tốc độ "nở" tối đa của kích thước chunk: với $\rho = 0{,}25$, mỗi chunk có thể dài gấp tối đa 4 lần chunk trước; với $\rho = 0{,}9$, gần như phải giữ chunk đều. Trong thực tế thời gian xử lý dao động (GPU dùng chung, mạng chập chờn), nên người ta thêm một **bộ đệm phát** nhỏ: bắt đầu phát tại $R_0 + B$ thay vì $R_0$, đổi $B$ giây độ trễ lấy biên an toàn.
+Hệ quả thứ hai rất thực dụng. Để giảm TTFA, ta muốn chunk đầu thật ngắn; để có ngôn điệu tốt và ít chi phí trên mỗi chunk, ta muốn các chunk sau dài. Công thức cho biết tốc độ "nở" tối đa của kích thước chunk: với $\rho = 0.25$, mỗi chunk có thể dài gấp tối đa 4 lần chunk trước; với $\rho = 0.9$, gần như phải giữ chunk đều. Trong thực tế thời gian xử lý dao động (GPU dùng chung, mạng chập chờn), nên người ta thêm một **bộ đệm phát** nhỏ: bắt đầu phát tại $R_0 + B$ thay vì $R_0$, đổi $B$ giây độ trễ lấy biên an toàn.
 
 Đoạn mã sau mô phỏng quá trình này.
 
@@ -109,7 +109,7 @@ assert simulate_stream(equal, 0.9)[1] == 0.0    # RTF < 1 và chunk đều: khô
 assert simulate_stream(equal, 1.2)[1] > 0.0     # RTF > 1: chắc chắn ngắt quãng
 ```
 
-Kết quả chạy cho thấy đúng như lý thuyết: với $\rho = 0{,}3$, lịch "tăng dần" giảm TTFA từ 450 ms xuống 225 ms mà không ngắt quãng; nhưng với $\rho = 0{,}9$, cùng lịch đó gây ngắt quãng (vì chunk thứ hai dài gấp đôi chunk đầu, vi phạm $r \leq 1/\rho \approx 1{,}1$), trong khi chunk đều thì vẫn ổn. Không có lịch chunk nào cứu được một hệ thống có $\rho > 1$.
+Kết quả chạy cho thấy đúng như lý thuyết: với $\rho = 0.3$, lịch "tăng dần" giảm TTFA từ 450 ms xuống 225 ms mà không ngắt quãng; nhưng với $\rho = 0.9$, cùng lịch đó gây ngắt quãng (vì chunk thứ hai dài gấp đôi chunk đầu, vi phạm $r \leq 1/\rho \approx 1.1$), trong khi chunk đều thì vẫn ổn. Không có lịch chunk nào cứu được một hệ thống có $\rho > 1$.
 
 ## 35.2 Văn bản đến theo luồng: TTS tăng dần
 
@@ -551,10 +551,10 @@ Các nguyên lý ở trên áp dụng cho mọi ngôn ngữ, nhưng tiếng Vi�
 ??? success "Lời giải"
     (a) $600 + 120 + 250 + 150 + 180 + 100 = 1\,400$ ms. (b) Ngưỡng im lặng 600 ms chiếm gần một nửa. Thay ngưỡng cố định bằng mô hình dự đoán lượt lời (kiểu VAP), hoặc bắt đầu chạy LLM một cách "đầu cơ" ngay khi phát hiện khả năng hết lượt (và hủy nếu người dùng nói tiếp), có thể giảm khâu này đáng kể.
 
-**Bài 2 [Cơ bản].** Một TTS có RTF $\rho = 0{,}4$ và độ trễ khởi động $\tau_0 = 0{,}1$ s. Bạn muốn chunk đầu dài 0,2 s và các chunk sau tăng dần đến 2 s rồi giữ nguyên. (a) Tính TTFA. (b) Thiết kế một lịch kích thước chunk thỏa điều kiện phát liên tục và đạt 2 s nhanh nhất có thể. Kiểm chứng bằng hàm `simulate_stream`.
+**Bài 2 [Cơ bản].** Một TTS có RTF $\rho = 0.4$ và độ trễ khởi động $\tau_0 = 0.1$ s. Bạn muốn chunk đầu dài 0,2 s và các chunk sau tăng dần đến 2 s rồi giữ nguyên. (a) Tính TTFA. (b) Thiết kế một lịch kích thước chunk thỏa điều kiện phát liên tục và đạt 2 s nhanh nhất có thể. Kiểm chứng bằng hàm `simulate_stream`.
 
 ??? tip "Gợi ý"
-    TTFA $= 0{,}1 + 0{,}4 \times 0{,}2 = 0{,}18$ s. Với tăng trưởng hình học, tỉ số tối đa là $1/\rho = 2{,}5$. Lưu ý điều kiện là trên *tổng tích lũy*, nên với chunk đầu nhỏ, bạn có thể tăng nhanh hơn một chút ở vài bước sau; hãy thử bằng mô phỏng.
+    TTFA $= 0.1 + 0.4 \times 0.2 = 0.18$ s. Với tăng trưởng hình học, tỉ số tối đa là $1/\rho = 2.5$. Lưu ý điều kiện là trên *tổng tích lũy*, nên với chunk đầu nhỏ, bạn có thể tăng nhanh hơn một chút ở vài bước sau; hãy thử bằng mô phỏng.
 
 **Bài 3 [Nâng cao].** (a) Với hai tín hiệu có hệ số tương quan $\gamma \in [0, 1]$, tìm điều kiện trên cặp cửa sổ $(a, b)$ để công suất trộn bằng $\sigma^2$ tại mọi điểm. (b) Đề xuất một họ cửa sổ tham số hóa theo $\gamma$ bao gồm cả crossfade tuyến tính ($\gamma = 1$) và đẳng công suất ($\gamma = 0$). (c) Trong thực tế không biết trước $\gamma$, làm sao ước lượng nó từ hai chunk?
 

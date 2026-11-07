@@ -40,7 +40,7 @@ $$
 S = \frac{1}{(1 - p) + p/s}.
 $$
 
-Đây là định luật Amdahl (Amdahl, 1967). Ví dụ minh họa: frontend chiếm 5% thời gian, mô hình âm học 25%, vocoder 70%. Tăng tốc vocoder 4 lần cho $S = 1/(0{,}30 + 0{,}175) \approx 2{,}1$ lần; tăng tốc mô hình âm học 10 lần chỉ cho $S = 1/(0{,}75 + 0{,}025) \approx 1{,}29$ lần. Kể cả khi tăng tốc vô hạn một khâu, $S$ không vượt quá $1/(1 - p)$. Bài học: hãy **đo phân bố thời gian** (bằng `torch.profiler`, một trình profile lấy mẫu như py-spy, hoặc Nsight Systems trên GPU) trước khi quyết định tối ưu ở đâu. Với TTS, kết quả thường bất ngờ: chuẩn hóa văn bản viết bằng Python thuần, sao chép dữ liệu giữa CPU và GPU, hay mã hóa âm thanh đầu ra có thể chiếm tỉ lệ đáng kể.
+Đây là định luật Amdahl (Amdahl, 1967). Ví dụ minh họa: frontend chiếm 5% thời gian, mô hình âm học 25%, vocoder 70%. Tăng tốc vocoder 4 lần cho $S = 1/(0.30 + 0.175) \approx 2.1$ lần; tăng tốc mô hình âm học 10 lần chỉ cho $S = 1/(0.75 + 0.025) \approx 1.29$ lần. Kể cả khi tăng tốc vô hạn một khâu, $S$ không vượt quá $1/(1 - p)$. Bài học: hãy **đo phân bố thời gian** (bằng `torch.profiler`, một trình profile lấy mẫu như py-spy, hoặc Nsight Systems trên GPU) trước khi quyết định tối ưu ở đâu. Với TTS, kết quả thường bất ngờ: chuẩn hóa văn bản viết bằng Python thuần, sao chép dữ liệu giữa CPU và GPU, hay mã hóa âm thanh đầu ra có thể chiếm tỉ lệ đáng kể.
 
 ## 39.2 Xuất mô hình: torch.export, ONNX, TensorRT
 
@@ -155,7 +155,7 @@ $$
 Giả sử $x$ phân phối đều trên $[-A, A]$ (phương sai $A^2/3$) và ta dùng toàn bộ $2^b$ mức cho khoảng đó, tức $s = 2A / 2^b$. Tỉ số tín hiệu trên nhiễu lượng tử hóa là
 
 $$
-\text{SQNR} = 10 \log_{10} \frac{A^2/3}{s^2/12} = 10 \log_{10} \frac{A^2/3}{A^2 / (3 \cdot 2^{2b})} = 10 \log_{10} 2^{2b} \approx 6{,}02\, b \;\text{dB}.
+\text{SQNR} = 10 \log_{10} \frac{A^2/3}{s^2/12} = 10 \log_{10} \frac{A^2/3}{A^2 / (3 \cdot 2^{2b})} = 10 \log_{10} 2^{2b} \approx 6.02\, b \;\text{dB}.
 $$
 
 Mỗi bit thêm vào cho khoảng 6 dB: int8 cho khoảng 48 dB, int4 chỉ còn khoảng 24 dB. Công thức cũng cho thấy điểm yếu chí mạng của lượng tử hóa: $s$ tỉ lệ với **giá trị lớn nhất**. Nếu có một giá trị ngoại lai lớn gấp 10 lần phần còn lại, $s$ tăng 10 lần và SQNR của phần còn lại giảm 20 dB. Mọi kỹ thuật lượng tử hóa nâng cao về cơ bản đều là cách đối phó với giá trị ngoại lai. Mục 39.5 có thêm một ví dụ cho thấy lượng tử hóa không phải lúc nào cũng làm mô hình chạy nhanh hơn.
@@ -216,7 +216,7 @@ with torch.inference_mode():
               f"{snr_db(y_ref, y_q):5.1f} dB")
 ```
 
-Trong lần chạy của chúng tôi, phần (a) cho 22,9 / 35,8 / 48,1 dB với 4 / 6 / 8 bit, rất sát công thức $6{,}02\,b$. Sai lệch nhỏ ở 4 bit là do dạng đối xứng có bước lượng tử $2A/(2^b - 2)$ thay vì $2A/2^b$, làm SQNR giảm $20 \log_{10} \frac{2^b}{2^b - 2}$ dB, khoảng 1,2 dB khi $b = 4$ và không đáng kể khi $b = 8$. Phần (b) cho SNR đầu ra khoảng 32 dB với per-tensor so với khoảng 62 dB với per-channel: chênh lệch tới 30 dB, chỉ vì một lớp. Lý do: các kênh biên độ nhỏ bị lượng tử hóa thô, rồi lớp sau *khuếch đại* chúng lên gấp $1/s_c$ lần.
+Trong lần chạy của chúng tôi, phần (a) cho 22,9 / 35,8 / 48,1 dB với 4 / 6 / 8 bit, rất sát công thức $6.02\,b$. Sai lệch nhỏ ở 4 bit là do dạng đối xứng có bước lượng tử $2A/(2^b - 2)$ thay vì $2A/2^b$, làm SQNR giảm $20 \log_{10} \frac{2^b}{2^b - 2}$ dB, khoảng 1,2 dB khi $b = 4$ và không đáng kể khi $b = 8$. Phần (b) cho SNR đầu ra khoảng 32 dB với per-tensor so với khoảng 62 dB với per-channel: chênh lệch tới 30 dB, chỉ vì một lớp. Lý do: các kênh biên độ nhỏ bị lượng tử hóa thô, rồi lớp sau *khuếch đại* chúng lên gấp $1/s_c$ lần.
 
 Hai chi tiết đáng chú ý. Thứ nhất, trục kênh đầu ra của `ConvTranspose1d` là **trục 1** (trọng số có dạng `(C_in, C_out, k)`), khác với `Conv1d` (trục 0); nhầm trục là lỗi thường gặp khi tự viết lượng tử hóa. Thứ hai, nếu bạn lượng tử hóa cả lớp `ConvTranspose1d` phía sau, per-channel theo trục ra không cứu được, vì sự chênh lệch giờ nằm ở **trục vào** của lớp đó. Trường hợp này cần cân bằng lại biên độ giữa hai lớp liên tiếp trước khi lượng tử hóa (*cross-layer equalization*; Nagel và cộng sự, 2019), hoặc chuyển bớt độ khó từ activation sang trọng số như SmoothQuant (Xiao và cộng sự, 2023) làm với Transformer (Bài tập 4).
 

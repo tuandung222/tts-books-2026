@@ -724,7 +724,7 @@ Kết quả tái tổng hợp là **giới hạn trên** của toàn hệ thốn
 **Bài 1 [Cơ bản].** Tính bitrate tối đa và số token cho một câu dài 8 giây với: (a) token FSQ 25 Hz, $V = 6\,561$; (b) codec 50 Hz, 4 sổ mã, mỗi sổ 1 024 mục; (c) token 12,5 Hz, $V = 65\,536$. Với LM có độ phức tạp attention bậc hai theo độ dài chuỗi, chi phí attention của (b) (nếu trải phẳng mọi sổ mã) gấp bao nhiêu lần (a)?
 
 ??? success "Lời giải"
-    (a) $25 \times \log_2 6561 \approx 25 \times 12{,}68 \approx 317$ bit/s; 200 token. (b) $50 \times 4 \times 10 = 2\,000$ bit/s; $50 \times 8 \times 4 = 1\,600$ token khi trải phẳng. (c) $12{,}5 \times 16 = 200$ bit/s; 100 token. Tỉ lệ chi phí attention (b)/(a) $\approx (1600/200)^2 = 64$ lần.
+    (a) $25 \times \log_2 6561 \approx 25 \times 12.68 \approx 317$ bit/s; 200 token. (b) $50 \times 4 \times 10 = 2\,000$ bit/s; $50 \times 8 \times 4 = 1\,600$ token khi trải phẳng. (c) $12.5 \times 16 = 200$ bit/s; 100 token. Tỉ lệ chi phí attention (b)/(a) $\approx (1600/200)^2 = 64$ lần.
 
 **Bài 2 [Cơ bản].** Giải thích bằng lời vì sao CosyVoice 2 bỏ x-vector khỏi LM nhưng vẫn giữ nó ở bộ giải mã flow matching. Điều gì có thể xảy ra nếu làm ngược lại (giữ ở LM, bỏ ở bộ giải mã)?
 
