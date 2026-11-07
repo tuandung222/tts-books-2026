@@ -235,23 +235,27 @@ class OnnxVitsSynthesizer(Synthesizer):
     name = "onnx-vits"
 
     def __init__(self, model_path=None, *, sample_rate=22050, text_to_ids=None,
-                 add_blank=False, noise_scale=0.667, length_scale=1.0, noise_w=0.8,
-                 speaker_ids=None, session=None, providers=None):
+                 add_blank=False, blank_id=None, noise_scale=0.667, length_scale=1.0,
+                 noise_w=0.8, speaker_ids=None, session=None, providers=None):
         if session is None:
             import onnxruntime as ort  # nạp muộn: chỉ cần khi dùng adapter này
             session = ort.InferenceSession(model_path, providers=list(providers or ["CPUExecutionProvider"]))
         self.session = session
         self.input_names = {i.name for i in session.get_inputs()}
         self.sample_rate = sample_rate
-        self.text_to_ids = text_to_ids or _default_text_to_ids()  # mặc định: vn_frontend.text_to_sequence
+        default_blank = 0                                  # quy ước VITS gốc / Piper
+        if text_to_ids is None:                            # mặc định: vn_frontend (Dự án 1)
+            text_to_ids, default_blank = _default_text_to_ids()  # text_to_sequence, BLANK_ID
+        self.text_to_ids = text_to_ids
         self.add_blank = add_blank
+        self.blank_id = default_blank if blank_id is None else blank_id
         self.noise_scale, self.length_scale, self.noise_w = noise_scale, length_scale, noise_w
         self.speaker_ids = dict(speaker_ids or {})
 
     def synthesize(self, text, *, speaker=None, speed=1.0):
         ids = list(self.text_to_ids(text))
         if self.add_blank:
-            ids = intersperse(ids)             # [a, b] -> [0, a, 0, b, 0]
+            ids = intersperse(ids, self.blank_id)   # [a, b] -> [blank, a, blank, b, blank]
         if not ids:
             return np.zeros(0, dtype=np.float32)
         feeds = {
@@ -269,7 +273,7 @@ class OnnxVitsSynthesizer(Synthesizer):
 
 (Mã trên đã lược bớt phần kiểm tra lỗi so với tệp gốc.) Có hai điểm cần nhớ:
 
-- **`text_to_ids` phải giống hệt lúc huấn luyện**: cùng bảng ký hiệu, cùng phương ngữ G2P, cùng quy ước chèn blank. Đây là nguồn lỗi số một khi đưa mô hình vào phục vụ. Mô hình vẫn "nói" nhưng phát âm sai, và kiểm thử đơn vị không bắt được. Cách phòng là lưu bảng ký hiệu và cấu hình front-end **cùng với** tệp ONNX (như Piper lưu `model.onnx.json`), rồi kiểm tra chúng lúc khởi động.
+- **`text_to_ids` phải giống hệt lúc huấn luyện**: cùng bảng ký hiệu, cùng phương ngữ G2P, cùng quy ước chèn blank và cùng ID của blank. VITS gốc và Piper dùng ID 0 (trùng ký hiệu đệm) làm blank, còn `vn_frontend` có token `<blank>` riêng (`BLANK_ID`). Adapter tự chọn `BLANK_ID` khi dùng `vn_frontend.text_to_sequence` mặc định. Đây là nguồn lỗi số một khi đưa mô hình vào phục vụ. Mô hình vẫn "nói" nhưng phát âm sai, và kiểm thử đơn vị không bắt được. Cách phòng là lưu bảng ký hiệu và cấu hình front-end **cùng với** tệp ONNX (như Piper lưu `model.onnx.json`), rồi kiểm tra chúng lúc khởi động.
 - Kiểm thử của adapter **không cần mô hình thật**. Một bài dùng phiên ONNX giả để kiểm tra kiểu dữ liệu và thứ tự `scales`. Một bài khác dựng một đồ thị ONNX ba nút bằng `onnx.helper` rồi chạy bằng ONNX Runtime thật.
 
 Với các mô hình khác, `CallableSynthesizer` bọc một hàm bất kỳ. Phác thảo dưới đây (chưa chạy, vì phụ thuộc mã của Dự án 2) cho thấy cách nối FastSpeech 2 + HiFi-GAN:
@@ -521,7 +525,7 @@ async def tts_stream(req: TTSRequest) -> StreamingResponse:
     chunks = plan_or_raise(req.text)              # 413/422 được trả TRƯỚC khi bắt đầu stream
     stats = StreamStats(sr, n_chars=len(req.text))
 
-    async def body():
+    async def body():                             # (rút gọn từ server.py)
         status = "cancelled"
         metrics.stream_started()
         try:
