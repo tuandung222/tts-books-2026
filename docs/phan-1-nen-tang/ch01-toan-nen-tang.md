@@ -155,7 +155,7 @@ với $\mathbf{Q}$ trực giao ($\mathbf{Q}^\top\mathbf{Q} = \mathbf{I}$, các c
 
 Ba nơi trị riêng xuất hiện liên tục trong sách:
 
-1. **Ma trận hiệp phương sai** luôn PSD (Mục 1.4.3). Các véc-tơ riêng của nó là những hướng dữ liệu biến thiên nhiều nhất: đây là phân tích thành phần chính (PCA).
+1. **Ma trận hiệp phương sai** luôn PSD (Mục 1.4.3). Các véc-tơ riêng ứng với những trị riêng lớn nhất của nó chỉ ra các hướng mà dữ liệu biến thiên nhiều nhất: đây là phân tích thành phần chính (PCA).
 2. **Ma trận Hessian** (Mục 1.3.2) đo độ cong của hàm mất mát. Tỷ số giữa trị riêng lớn nhất và nhỏ nhất, gọi là **số điều kiện** (*condition number*) $\kappa = \lambda_{\max}/\lambda_{\min}$, quyết định gradient descent hội tụ nhanh hay chậm và tốc độ học tối đa được phép ([Chương 3](ch03-toi-uu-va-ky-thuat-huan-luyen.md)).
 3. **Tích các Jacobian** qua nhiều lớp hoặc nhiều bước thời gian: nếu các trị riêng (chính xác hơn là giá trị kỳ dị) lớn hơn 1 thì gradient bùng nổ, nhỏ hơn 1 thì gradient tiêu biến ([Chương 4](ch04-cnn-rnn-mo-hinh-chuoi.md)).
 
@@ -195,7 +195,7 @@ Lưu $\mathbf{A}_k$ chỉ cần $k(m + n)$ số thay vì $mn$. Ý tưởng "cậ
 import numpy as np
 
 rng = np.random.default_rng(0)
-# Tạo ma trận 64x48 có phổ suy giảm nhanh (giống nhiều ma trận trọng số thực tế)
+# Tạo ma trận 64x48 có phổ suy giảm nhanh (dựng có chủ đích để minh họa)
 U, _ = np.linalg.qr(rng.standard_normal((64, 48)))       # cột trực chuẩn
 V, _ = np.linalg.qr(rng.standard_normal((48, 48)))
 sigma = 10.0 * 0.7 ** np.arange(48)                      # giá trị kỳ dị giảm dần
