@@ -45,4 +45,4 @@ class FastSpeech2Loss(nn.Module):
             total = total + ctc + w * b
             logs.update(forward_sum=ctc, bin=b)
         logs["total"] = total
-        return total, {k: float(v) for k, v in logs.items()}
+        return total, {k: float(v.detach()) for k, v in logs.items()}
