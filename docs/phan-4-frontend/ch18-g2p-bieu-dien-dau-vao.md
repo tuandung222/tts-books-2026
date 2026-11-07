@@ -329,23 +329,12 @@ Phép cộng (thay vì ghép) giữ nguyên số chiều $C$ và tương đươn
 
 Ngoài ra còn hai phương án "ngầm" khi dùng **đầu vào ký tự**:
 
-- **Ký tự NFC**: dấu thanh gộp vào chữ cái ("ế" là một ký hiệu) — giống phương án (b) nhưng từ vựng còn lớn hơn (chữ có dấu phụ × 5 dấu thanh, cả hoa lẫn thường nếu không đưa về chữ thường).
+- **Ký tự NFC**: dấu thanh gộp vào chữ cái ("ế" là một ký hiệu) — giống phương án (b) nhưng từ vựng còn lớn hơn (12 chữ nguyên âm × 6 thanh = 72 chữ, gấp đôi nếu phân biệt hoa thường).
 - **Ký tự NFD**: dấu thanh là ký hiệu riêng ngay sau nguyên âm mang dấu — giống phương án (a) nhưng vị trí token thanh phụ thuộc quy tắc đặt dấu, và các dấu phụ (mũ, móc, trăng) cũng tách riêng, làm chuỗi dài thêm đáng kể.
 
 ### 18.5.2. So sánh định lượng trên một câu
 
-```python
-sentence = "Hà Nội mùa thu, trời trong xanh!"
-n_chars = len(sentence)
-sep = g2p(sentence)                                   # thanh là token riêng
-fused = g2p(sentence, tone_mode="fused")              # thanh gộp vào âm chính
-n_syl = sum(t.startswith("T") for t in sep)
-print(f"ký tự: {n_chars} | âm tiết: {n_syl} | token (thanh riêng): {len(sep)} "
-      f"| token (thanh gộp): {len(fused)} | sau add_blank: {2 * len(sep) + 1}")
-assert len(sep) == len(fused) + n_syl                 # mỗi âm tiết thêm đúng 1 token thanh
-```
-
-Với câu ví dụ 7 âm tiết, phương án (a) cho 32 token, phương án (b) cho 25 token (đúng bằng 32 trừ đi 7 token thanh), và khi chèn blank (Mục 18.8) chuỗi dài 65 token. Về tổng quát, gọi $P$ là số âm vị, $S$ là số âm tiết và $B$ là số token ranh giới/dấu câu:
+Xét câu "Hà Nội mùa thu, trời trong xanh!" (32 ký tự, 7 âm tiết; đoạn mã tính các con số dưới đây nằm ở Mục 18.8.3, sau khi hàm `g2p` cấp câu đã được định nghĩa). Phương án (a) cho 32 token, phương án (b) cho 25 token (đúng bằng 32 trừ đi 7 token thanh), và khi chèn blank (Mục 18.8) chuỗi dài 65 token. Về tổng quát, gọi $P$ là số âm vị, $S$ là số âm tiết và $B$ là số token ranh giới/dấu câu:
 
 $$
 N_{(a)} = P + S + B, \qquad N_{(b)} = N_{(c)} = P + B, \qquad N_{\text{blank}} = 2N + 1.
@@ -495,6 +484,21 @@ print(" ".join(tokens))
 ```
 
 Bộ ký hiệu kết quả có 51 phần tử: padding, ranh giới, 4 dấu câu, 6 token thanh và 39 âm vị IPA (kể cả ba âm *r, ʂ, ʈ* chỉ dùng khi giữ tương phản chính tả). So với hàng trăm ký tự có dấu của đầu vào ký tự NFC, đây là một từ vựng rất gọn.
+
+Đoạn mã sau tính độ dài chuỗi cho các phương án thanh điệu đã nêu ở Mục 18.5.2:
+
+```python
+sentence = "Hà Nội mùa thu, trời trong xanh!"
+n_chars = len(sentence)
+sep = g2p(sentence)                                   # thanh là token riêng
+fused = g2p(sentence, tone_mode="fused")              # thanh gộp vào âm chính
+n_syl = sum(t.startswith("T") for t in sep)
+print(f"ký tự: {n_chars} | âm tiết: {n_syl} | token (thanh riêng): {len(sep)} "
+      f"| token (thanh gộp): {len(fused)} | sau add_blank: {2 * len(sep) + 1}")
+assert len(sep) == len(fused) + n_syl                 # mỗi âm tiết thêm đúng 1 token thanh
+# Kết quả:
+# ký tự: 32 | âm tiết: 7 | token (thanh riêng): 32 | token (thanh gộp): 25 | sau add_blank: 65
+```
 
 ## 18.9. Token hóa cho TTS dựa trên LLM
 
