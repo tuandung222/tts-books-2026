@@ -222,3 +222,163 @@ CosyVoice phiên bản đầu đưa một x-vector (embedding người nói, [Ch
 ### Lấy mẫu và kiểm soát độ dài
 
 Các chiến lược lấy mẫu của [Chương 5](../phan-1-nen-tang/ch05-transformer.md) và [Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md) áp dụng nguyên vẹn: top-k, top-p, nhiệt độ, và lấy mẫu nhận biết lặp lại (*repetition-aware sampling*) của VALL-E 2. Ngoài ra, các bản cài đặt thường chặn số token sinh ra trong một khoảng tỉ lệ với độ dài văn bản: nếu LM sinh quá ít token so với số âm tiết thì gần như chắc chắn bị bỏ chữ, quá nhiều thì có thể đang lặp vô hạn. Đây là lớp bảo vệ rẻ tiền nhưng hiệu quả, bạn nên luôn bật nó.
+
+## 34.5 Tầng thứ hai: bộ giải mã flow matching có điều kiện
+
+### Đầu vào và các nguồn điều kiện
+
+Bộ giải mã nhận chuỗi token $\mathbf{q}$ (tốc độ $f_{\text{tok}}$) và phải sinh mel $\mathbf{Y}$ (tốc độ khung mel, thường cao hơn). Các bước xử lý điều kiện điển hình:
+
+1. **Mã hóa token**: embedding token đi qua vài tầng Transformer hoặc Conformer để có biểu diễn theo ngữ cảnh.
+2. **Tăng tốc độ khung**: lặp hoặc nội suy biểu diễn để khớp tốc độ mel. Ví dụ token 25 Hz và mel 50 Hz thì mỗi token ứng với đúng 2 khung mel. Kết quả là một chuỗi điều kiện theo khung $\boldsymbol{\mu} \in \mathbb{R}^{T \times F}$, đóng vai trò giống đầu ra bộ mã hóa văn bản của Matcha-TTS ([Chương 23](../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md)). Khác biệt là ở đây **không cần căn chỉnh**: quan hệ giữa token và khung là cố định, vì LM đã "quyết định trường độ" bằng số token.
+3. **Mel của prompt** $\mathbf{Y}^{\text{p}}$: đặt ở đầu chuỗi điều kiện, phần còn lại điền 0, giống cơ chế điền khuyết của Voicebox ([Chương 33](../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon.md)). Nhờ nhìn thấy mel thật của người nói mẫu, bộ giải mã "chép" được âm sắc và điều kiện thu âm.
+4. **Embedding người nói** $\mathbf{g}$: chiếu tuyến tính rồi phát (*broadcast*) theo thời gian, hoặc đưa vào qua cơ chế điều biến như AdaLN.
+
+Mạng ước lượng trường vận tốc thường là U-Net 1-D xen các khối Transformer (kiểu Matcha-TTS) hoặc một DiT ([Chương 5](../phan-1-nen-tang/ch05-transformer.md) nói về cơ chế điều kiện AdaLN).
+
+### Hàm mất mát
+
+Để tránh trùng ký hiệu với văn bản $\mathbf{x}$, ta ký hiệu trạng thái của flow tại thời điểm $t \in [0, 1]$ là $\mathbf{Y}_t$, với $\mathbf{Y}_0 \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ là nhiễu và $\mathbf{Y}_1 = \mathbf{Y}$ là mel thật. Đường xác suất OT có điều kiện ([Chương 12](../phan-2-mo-hinh-sinh/ch12-flow-matching.md)) cho
+
+$$
+\mathbf{Y}_t = \big(1 - (1 - \sigma_{\min})\,t\big)\,\mathbf{Y}_0 + t\,\mathbf{Y}_1,
+\qquad
+\mathbf{u}_t = \frac{d\mathbf{Y}_t}{dt} = \mathbf{Y}_1 - (1 - \sigma_{\min})\,\mathbf{Y}_0 .
+$$
+
+Bộ giải mã $\mathbf{v}_\theta$ được huấn luyện để hồi quy vận tốc mục tiêu $\mathbf{u}_t$, chỉ trên các khung **không thuộc prompt**:
+
+$$
+\mathcal{L}_{\text{CFM}} = \mathbb{E}_{t, \mathbf{Y}_0, \mathbf{Y}_1}\Big[\big\lVert \mathbf{m} \odot \big(\mathbf{v}_\theta(\mathbf{Y}_t, t \mid \boldsymbol{\mu}, \mathbf{g}, \mathbf{Y}^{\text{p}}) - \mathbf{u}_t\big)\big\rVert^2\Big],
+$$
+
+trong đó $\mathbf{m} \in \{0, 1\}^{T \times F}$ bằng 1 ở các khung cần sinh. Khi huấn luyện, độ dài prompt được chọn ngẫu nhiên (kể cả bằng 0), để mô hình vừa sinh được khi có prompt vừa sinh được khi không có.
+
+### Hướng dẫn không cần bộ phân loại
+
+Trong lúc huấn luyện, các điều kiện ($\boldsymbol{\mu}$, $\mathbf{g}$, $\mathbf{Y}^{\text{p}}$) được thay bằng giá trị rỗng với một xác suất nhỏ. Khi suy luận, vận tốc dùng cho bộ giải ODE là
+
+$$
+\tilde{\mathbf{v}} = (1 + w)\,\mathbf{v}_\theta(\mathbf{Y}_t, t \mid \text{điều kiện}) - w\,\mathbf{v}_\theta(\mathbf{Y}_t, t \mid \varnothing),
+$$
+
+với $w \geq 0$ là cường độ hướng dẫn. CFG làm tăng độ rõ và độ giống giọng nhưng **nhân đôi chi phí mỗi bước** (hai lần gọi mạng, thường được gộp chung vào một batch). Số bước Euler thường ở mức khoảng mười; giảm số bước là đòn bẩy tốc độ quan trọng nhất của tầng này ([Chương 39](../phan-9-thuc-tien/ch39-trien-khai-production.md)).
+
+### Vì sao không giải mã token thẳng ra dạng sóng?
+
+Một câu hỏi tự nhiên: nếu đã có token, tại sao không huấn luyện một bộ giải mã tất định (kiểu bộ giải mã codec) để đi thẳng từ token ra âm thanh? Câu trả lời nằm ở ngân sách thông tin của Mục 34.2. Token ngữ nghĩa bị nén mạnh và cố tình loại bỏ thông tin người nói, nên ánh xạ từ token sang âm thanh là **một-nhiều**: cùng một chuỗi token có thể ứng với vô số giọng và điều kiện thu. Một bộ giải mã tất định huấn luyện bằng L1/L2 sẽ cho ra trung bình của các khả năng đó, tức âm thanh nhòe ([Chương 7](../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh.md)). Một mô hình sinh có điều kiện như flow matching, cộng với prompt mel, giải quyết đúng vấn đề này.
+
+Ngược lại, nếu token được thiết kế để **cùng nhau** mang đủ thông tin (ví dụ token cục bộ cộng token toàn cục mô tả người nói như BiCodec của Spark-TTS), thì bộ giải mã tất định kiểu codec là đủ. Hai lựa chọn này là hai điểm khác nhau trong không gian thiết kế, ta sẽ gặp lại ở Mục 34.7.
+
+Đầu ra mel cuối cùng được đưa vào một vocoder họ HiFi-GAN ([Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)). Theo báo cáo gốc, CosyVoice dùng một vocoder kết hợp nguồn kích thích kiểu NSF với đầu ra iSTFT (HiFTNet). Hãy nhớ hợp đồng tương thích cấu hình mel giữa bộ giải mã và vocoder ([Chương 26](../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh.md)): tần số lấy mẫu, bước nhảy, số kênh mel, cách lấy log phải khớp tuyệt đối.
+
+## 34.6 Streaming: flow matching nhận biết chunk
+
+### Bài toán
+
+Với LM, streaming gần như miễn phí: token sinh ra đến đâu có thể chuyển xuống tầng dưới đến đó. Nút thắt nằm ở bộ giải mã flow matching. Nếu mạng $\mathbf{v}_\theta$ dùng attention hai chiều trên toàn chuỗi, vận tốc tại khung đầu tiên phụ thuộc vào token cuối cùng; ta phải chờ LM sinh xong cả câu mới bắt đầu được, và độ trễ đến gói âm thanh đầu tiên tăng tuyến tính theo độ dài câu.
+
+Cách đơn giản nhất là cắt chuỗi token thành các đoạn rồi giải mã từng đoạn độc lập. Nhưng như thế mỗi đoạn không biết gì về đoạn trước, gây đứt gãy ngữ điệu và tiếng "cạch" ở ranh giới. Điều ta muốn là: **khung thuộc đoạn $k$ được nhìn mọi khung của đoạn $k$ và các đoạn trước, nhưng không nhìn đoạn sau**.
+
+### Mặt nạ chunk
+
+Chia trục thời gian (ở tốc độ khung của bộ giải mã) thành các chunk dài $M$ khung. Khung $i$ thuộc chunk $c(i) = \lfloor i / M \rfloor$. Định nghĩa mặt nạ attention
+
+$$
+A^{(M)}_{ij} = \mathbb{1}\big[c(j) \leq c(i)\big] = \mathbb{1}\Big[\big\lfloor j/M \big\rfloor \leq \big\lfloor i/M \big\rfloor\Big].
+$$
+
+Hai trường hợp riêng quen thuộc: $M = 1$ cho mặt nạ nhân quả thông thường (mỗi khung chỉ nhìn quá khứ và chính nó); $M \geq T$ cho mặt nạ đầy đủ, không nhân quả. Giữa hai thái cực là các mặt nạ chunk: bên trong một chunk, attention là hai chiều (chất lượng tốt hơn nhân quả thuần), giữa các chunk thì nhân quả (cho phép streaming).
+
+**Mệnh đề.** Xét một mạng gồm $L$ tầng, mỗi tầng chỉ trộn thông tin giữa các khung qua attention với mặt nạ $A^{(M)}$ (các phép toán còn lại tác động từng khung độc lập). Khi đó đầu ra tại các khung của chunk $k$ chỉ phụ thuộc vào đầu vào của các chunk $0, \ldots, k$.
+
+*Chứng minh (quy nạp theo số tầng).* Ở tầng thứ nhất, đầu ra tại khung $i$ là tổ hợp có trọng số của các khung $j$ với $c(j) \leq c(i)$, nên chỉ phụ thuộc vào đầu vào của các chunk $\leq c(i)$. Giả sử khẳng định đúng tới tầng $\ell$. Đầu ra tầng $\ell + 1$ tại khung $i$ là hàm của các biểu diễn tầng $\ell$ tại các khung $j$ với $c(j) \leq c(i)$; theo giả thiết quy nạp, mỗi biểu diễn đó chỉ phụ thuộc vào đầu vào của các chunk $\leq c(j) \leq c(i)$. $\square$
+
+Mệnh đề đòi hỏi *mọi* phép trộn theo thời gian đều tôn trọng ranh giới chunk. Nếu mạng có tích chập theo thời gian (như U-Net 1-D), tích chập đó phải là **nhân quả** hoặc chỉ nhìn trong phạm vi chunk; cách cài tích chập nhân quả có bộ đệm trạng thái được trình bày ở [Chương 35](ch35-streaming-speech-llm.md). Bộ giải ODE không phá vỡ tính chất này: mỗi bước Euler chỉ là một lần gọi mạng cộng với phép cộng theo từng khung.
+
+Đoạn mã dưới đây xây dựng mặt nạ chunk và kiểm chứng mệnh đề bằng thực nghiệm: chạy một bộ giải mã đồ chơi trên các tiền tố tăng dần (mô phỏng streaming) phải cho đúng kết quả của lần chạy toàn chuỗi.
+
+```python
+import torch
+import torch.nn.functional as F
+
+def chunk_mask(T: int, chunk: int | None) -> torch.Tensor:
+    """Mặt nạ attention boolean (T, T); True = khung i ĐƯỢC nhìn khung j.
+    chunk=None: không nhân quả (nhìn toàn bộ); chunk=1: nhân quả hoàn toàn;
+    chunk=M: khung i nhìn mọi khung thuộc chunk của nó và các chunk trước."""
+    if chunk is None:
+        return torch.ones(T, T, dtype=torch.bool)
+    c = torch.arange(T) // chunk               # chỉ số chunk của từng khung, (T,)
+    return c[None, :] <= c[:, None]            # (T, T): c(j) <= c(i)
+
+print(chunk_mask(6, 2).int())
+
+# Một "bộ giải mã" đồ chơi: 3 lớp self-attention một đầu, có residual
+torch.manual_seed(0)
+C, T, M = 16, 12, 4
+Wq, Wk, Wv = (torch.randn(3, C, C) / C**0.5).unbind(0)
+
+def decoder(x, mask):                          # x: (B, T, C), mask: (T, T)
+    for _ in range(3):
+        q, k, v = x @ Wq, x @ Wk, x @ Wv       # (B, T, C)
+        x = x + F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
+    return x
+
+x = torch.randn(1, T, C)
+y_full = decoder(x, chunk_mask(T, M))          # chạy một lần trên cả chuỗi
+
+# Kiểm tra 1: đầu ra của chunk k chỉ phụ thuộc vào các chunk <= k.
+# Mô phỏng streaming: mỗi lần chỉ đưa vào tiền tố gồm các chunk đã có.
+for k in range(T // M):
+    end = (k + 1) * M
+    y_prefix = decoder(x[:, :end], chunk_mask(end, M))
+    assert torch.allclose(y_prefix[:, k * M:end], y_full[:, k * M:end], atol=1e-5)
+
+# Kiểm tra 2: thay đổi tương lai không làm đổi quá khứ
+x2 = x.clone()
+x2[:, 2 * M:] += 10.0                          # sửa chunk thứ 3 trở đi
+assert torch.allclose(decoder(x2, chunk_mask(T, M))[:, :2 * M], y_full[:, :2 * M], atol=1e-5)
+
+# Đối chứng: với mặt nạ không nhân quả, quá khứ BỊ ảnh hưởng
+assert not torch.allclose(decoder(x2, chunk_mask(T, None))[:, :2 * M],
+                          decoder(x, chunk_mask(T, None))[:, :2 * M])
+print("Streaming theo chunk cho kết quả trùng với chạy toàn chuỗi.")
+
+# Khi huấn luyện: bốc ngẫu nhiên một loại mặt nạ cho mỗi batch
+def sample_train_mask(T: int, M: int) -> torch.Tensor:
+    kind = torch.randint(0, 4, ()).item()
+    return chunk_mask(T, [None, 1, M, 2 * M][kind])
+assert sample_train_mask(T, M).shape == (T, T)
+```
+
+Chú ý cách gọi `F.scaled_dot_product_attention` với mặt nạ boolean: `True` nghĩa là *được phép* nhìn. Quy ước này ngược với tham số `key_padding_mask` của `nn.MultiheadAttention` (ở đó `True` nghĩa là *bị che*), một nguồn lỗi rất phổ biến.
+
+### Một mô hình, nhiều mức độ trễ
+
+Hàm `sample_train_mask` ở cuối đoạn mã phản ánh ý tưởng của CosyVoice 2: theo báo cáo gốc, khi huấn luyện bộ giải mã, mỗi batch được gán ngẫu nhiên một trong bốn mặt nạ: **không nhân quả**, **nhân quả hoàn toàn**, **chunk-$M$** và **chunk-$2M$**. Cùng một bộ trọng số vì thế phục vụ được nhiều chế độ khi suy luận:
+
+- Chế độ ngoại tuyến (đọc sách nói, tạo dữ liệu): dùng mặt nạ không nhân quả để có chất lượng tốt nhất.
+- Chế độ hội thoại cần độ trễ thấp: dùng chunk-$M$ hoặc nhân quả.
+
+Bài báo còn lập luận rằng việc huấn luyện chung các mặt nạ có nhiều ngữ cảnh hơn giúp các mặt nạ ít ngữ cảnh hơn học tốt hơn, một dạng tự chưng cất ngầm. Đây là nhận định của tác giả; bạn nên kiểm chứng bằng thí nghiệm loại bỏ (*ablation*) nếu áp dụng cho dự án của mình.
+
+Ngoài mặt nạ, bộ mã hóa token thường được cho phép nhìn trước một vài token tương lai (*lookahead*) qua một lớp tích chập nhỏ. Lookahead cải thiện phát âm ở ranh giới chunk, đổi lại tăng độ trễ đúng bằng số token nhìn trước.
+
+### Phía LM: xen kẽ văn bản và token
+
+Khi văn bản đầu vào cũng đến theo luồng (ví dụ do một LLM sinh ra), LM không thể chờ đủ câu. CosyVoice 2 giải quyết bằng cách huấn luyện LM trên chuỗi **xen kẽ** theo tỉ lệ cố định: cứ một nhóm token văn bản lại đến một nhóm token tiếng nói (theo báo cáo gốc, 5 token văn bản rồi 15 token tiếng nói). Nhờ vậy LM có thể bắt đầu sinh tiếng khi mới nhận một phần văn bản. Cơ chế này và các chiến lược chia văn bản theo luồng khác được trình bày kỹ ở [Chương 35](ch35-streaming-speech-llm.md).
+
+### Chi phí của streaming với flow matching
+
+Streaming không miễn phí. Với một chunk mới, bộ giải ODE phải chạy $K_{\text{ODE}}$ bước (ký hiệu $K_{\text{ODE}}$ để phân biệt với số bước khuếch tán $K$), mỗi bước cần attention tới các khung của những chunk trước *tại cùng bước ODE đó*. Có hai cách:
+
+- **Lưu đệm** key/value của các chunk trước cho từng tầng và từng bước ODE. Bộ nhớ tỉ lệ với (số tầng) × $K_{\text{ODE}}$ × (số khung quá khứ) × $C$.
+- **Tính lại** phần quá khứ, có giới hạn bằng cửa sổ trượt (chỉ nhìn một số chunk gần nhất). Đơn giản hơn, tốn tính toán hơn, và chất lượng phụ thuộc độ rộng cửa sổ.
+
+Độ trễ đến gói âm thanh đầu tiên xấp xỉ
+
+$$
+\tau_{\text{đầu}} \approx \tau_{\text{văn bản}} + \tau_{\text{LM}}(n_{\text{tok}}) + K_{\text{ODE}} \cdot \tau_{\text{flow}}(M) + \tau_{\text{voc}}(M),
+$$
+
+trong đó $n_{\text{tok}}$ là số token cần cho chunk đầu (kể cả lookahead). Công thức cho thấy các "núm vặn" độ trễ: chunk nhỏ hơn, ít bước ODE hơn, LM nhanh hơn. [Chương 35](ch35-streaming-speech-llm.md) phân tích chi tiết ngân sách độ trễ của một hệ thống hội thoại hoàn chỉnh.
