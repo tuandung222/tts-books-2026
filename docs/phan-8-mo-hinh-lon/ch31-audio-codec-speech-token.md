@@ -496,7 +496,7 @@ Vì sao cần GAN? Ở bitrate thấp, codec **không thể** giữ đúng dạn
 
 ### SoundStream (2021)
 
-SoundStream (Zeghidour và cộng sự, 2021) là codec thần kinh đầu-cuối đầu tiên dùng RVQ và đạt chất lượng cạnh tranh với codec truyền thống:
+SoundStream (Zeghidour và cộng sự, 2021) là một trong những codec thần kinh đầu-cuối đầu tiên dùng RVQ và đạt chất lượng cạnh tranh với codec truyền thống:
 
 - Encoder/decoder **hoàn toàn tích chập và nhân quả**, ở 24 kHz với các stride $(2, 4, 5, 8)$, tức 75 khung/giây.
 - RVQ với quantizer dropout cho bitrate co giãn trong một mô hình (bài báo báo cáo dải 3–18 kbps); sổ mã khởi tạo bằng k-means, cập nhật EMA, khởi động lại mã chết.
@@ -551,7 +551,7 @@ Bảng trên tóm tắt theo các bài báo gốc; các bản phát hành có th
 
 ### Token âm học: giữ tất cả, trộn tất cả
 
-Token của EnCodec, DAC được tối ưu thuần túy cho **tái tạo**. Chúng mã hóa nội dung ngữ âm, giọng người nói, ngôn điệu, tiếng ồn nền, độ vang phòng, thậm chí đặc tính micro. Với TTS, điều đó vừa tốt (nhân bản được mọi đặc điểm của giọng mẫu) vừa xấu: mô hình ngôn ngữ phải dự đoán cả những biến thiên "vô nghĩa" về mặt ngôn ngữ. Một quan sát quan trọng của AudioLM (Borsos và cộng sự, 2023): mô hình ngôn ngữ chỉ huấn luyện trên token âm học sinh ra âm thanh có chất lượng âm học tốt nhưng **nội dung lộn xộn** — giống "nói líu lo" không thành từ, vì cấu trúc ngôn ngữ dài hạn bị chìm trong chi tiết âm học.
+Token của EnCodec, DAC được tối ưu thuần túy cho **tái tạo**. Chúng mã hóa nội dung ngữ âm, giọng người nói, ngôn điệu, tiếng ồn nền, độ vang phòng, thậm chí đặc tính micro. Với TTS, điều đó vừa tốt (nhân bản được mọi đặc điểm của giọng mẫu) vừa xấu: mô hình ngôn ngữ phải dự đoán cả những biến thiên "vô nghĩa" về mặt ngôn ngữ. Một quan sát quan trọng của AudioLM (Borsos và cộng sự, 2023): mô hình ngôn ngữ chỉ huấn luyện trên token âm học sinh ra âm thanh có chất lượng âm học tốt nhưng **nội dung kém mạch lạc** — dễ thành "nói líu lo" không rõ từ, vì cấu trúc ngôn ngữ dài hạn bị chìm trong chi tiết âm học.
 
 ### Token ngữ nghĩa từ học tự giám sát
 
