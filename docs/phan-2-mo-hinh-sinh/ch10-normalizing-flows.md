@@ -730,7 +730,7 @@ Vì sao flow dần nhường chỗ cho diffusion và flow matching ở vai trò 
 - **NaN do $\exp(\mathbf{s})$ nổ.** Dùng $\tanh$/soft clamp cho log-tỉ lệ, khởi tạo 0 lớp cuối, cắt gradient theo chuẩn ([Chương 3](../phan-1-nen-tang/ch03-toi-uu-va-ky-thuat-huan-luyen.md)), và giảm tốc độ học.
 - **Sai số nghịch đảo tích lũy.** Qua hàng chục lớp, sai số float32 có thể tích lũy; hãy theo dõi lỗi tái tạo $\lVert f(g(\mathbf{x})) - \mathbf{x} \rVert$ trên dữ liệu thật. Tính nghịch đảo ma trận $\mathbf{W}$ của tích chập 1×1 ở float32 ngay cả khi phần còn lại chạy fp16.
 - **ActNorm khởi tạo từ một batch không đại diện** (toàn câu ngắn hoặc nhiều im lặng) khiến thang đo lệch ngay từ đầu. Khởi tạo bằng một batch lớn, đa dạng.
-- **Mặt nạ không xen kẽ.** Nếu mọi lớp ghép dùng cùng mặt nạ, một nửa số chiều không bao giờ được biến đổi (bài tập 8). Kiểm tra bằng cách in Jacobian của cả flow: các khối phải đều khác 0.
+- **Mặt nạ không xen kẽ.** Nếu mọi lớp ghép dùng cùng mặt nạ, một nửa số chiều không bao giờ được biến đổi (bài tập 7). Kiểm tra bằng cách in Jacobian của cả flow: các khối phải đều khác 0.
 - **So sánh NLL sai đơn vị.** Ghi rõ nats hay bits, theo mẫu hay theo chiều; nếu dữ liệu được chuẩn hóa (trừ trung bình, chia độ lệch chuẩn), phải cộng log-det của phép chuẩn hóa trước khi so sánh với mô hình khác.
 - **Tiết kiệm bộ nhớ nhờ khả nghịch.** Vì đầu vào mỗi lớp tính lại được từ đầu ra, có thể không lưu kích hoạt trung gian và tái tính toán khi lan truyền ngược — hữu ích khi flow rất sâu, đổi bộ nhớ lấy thời gian.
 
