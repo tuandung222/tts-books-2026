@@ -391,7 +391,7 @@ print("RoPE: tính tương đối, bảo toàn chuẩn, tương đương giữa 
 | Phương pháp | Đưa vào ở đâu | Tương đối? | Ngoại suy độ dài | Ví dụ trong TTS |
 |---|---|---|---|---|
 | Sinusoidal | Cộng vào embedding | Gián tiếp (qua phép quay tuyến tính) | Trung bình | Transformer-TTS, FastSpeech |
-| Học được | Cộng vào embedding | Không | Không vượt `max_len` | Nhiều mô hình kiểu GPT đời đầu |
+| Học được | Cộng vào embedding | Không | Không vượt `max_len` | Các TTS dựa trên GPT-2 như Tortoise, XTTS (theo mã nguồn công bố) |
 | Shaw / T5 | Sửa điểm (và giá trị) | Có, trong cửa sổ cắt | Tốt | Bộ mã hóa văn bản Glow-TTS, VITS |
 | ALiBi | Trừ vào điểm | Có | Tốt (theo báo cáo gốc) | Ít gặp |
 | RoPE | Quay $\mathbf{q}, \mathbf{k}$ | Có | Khá, có kỹ thuật mở rộng | LM xương sống của TTS dựa trên LLM, F5-TTS |
