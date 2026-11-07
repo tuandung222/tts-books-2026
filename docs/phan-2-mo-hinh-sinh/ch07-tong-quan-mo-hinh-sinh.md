@@ -138,7 +138,7 @@ assert abs(best_fwd[1]) < 0.06 and abs(best_fwd[2] - np.sqrt(4.25)) < 0.06
 assert abs(abs(best_rev[1]) - 2.0) < 0.06 and abs(best_rev[2] - 0.5) < 0.06
 ```
 
-Kết quả: KL thuận cho $\mu \approx 0$, $\sigma \approx 2{,}05$, một Gauss rộng đặt **giữa** hai mode, đúng chỗ dữ liệu gần như không có; KL ngược cho $\mu \approx \pm 2$, $\sigma \approx 0{,}5$, khớp hoàn hảo **một** mode và bỏ quên mode còn lại. (Việc KL thuận cho đúng trung bình và phương sai của dữ liệu không phải ngẫu nhiên: với họ phân phối mũ, MLE tương đương *khớp mô-men*, xem Bài tập 3.)
+Kết quả: KL thuận cho $\mu \approx 0$, $\sigma \approx 2.05$, một Gauss rộng đặt **giữa** hai mode, đúng chỗ dữ liệu gần như không có; KL ngược cho $\mu \approx \pm 2$, $\sigma \approx 0.5$, khớp hoàn hảo **một** mode và bỏ quên mode còn lại. (Việc KL thuận cho đúng trung bình và phương sai của dữ liệu không phải ngẫu nhiên: với họ phân phối mũ, MLE tương đương *khớp mô-men*, xem Bài tập 3.)
 
 Hai bài học rút ra từ thí nghiệm nhỏ này sẽ theo chúng ta suốt Phần II:
 
@@ -476,7 +476,7 @@ viết dưới dạng $-\operatorname{logsumexp}$ để ổn định số học.
 
 ### 7.5.3. Mã minh họa
 
-Ví dụ kinh điển của Bishop là một **bài toán ngược**: biến $y$ sinh ra $x = y + 0{,}3 \sin(2\pi y) + \text{nhiễu}$; ta cần dự đoán $y$ từ $x$. Với một số giá trị $x$, có tới ba giá trị $y$ hợp lệ. Đây là một phiên bản thu nhỏ của TTS: từ "kết quả" (văn bản) suy ngược ra "nguyên nhân" (tiếng nói) không duy nhất.
+Ví dụ kinh điển của Bishop là một **bài toán ngược**: biến $y$ sinh ra $x = y + 0.3 \sin(2\pi y) + \text{nhiễu}$; ta cần dự đoán $y$ từ $x$. Với một số giá trị $x$, có tới ba giá trị $y$ hợp lệ. Đây là một phiên bản thu nhỏ của TTS: từ "kết quả" (văn bản) suy ngược ra "nguyên nhân" (tiếng nói) không duy nhất.
 
 ```python
 import math
@@ -532,7 +532,7 @@ with torch.no_grad():
 print(f"NLL MDN cuối: {loss_mdn.item():.3f}")
 ```
 
-Tại $x = 0{,}5$, phương trình $y + 0{,}3\sin(2\pi y) = 0{,}5$ có ba nghiệm xấp xỉ $0{,}22$, $0{,}5$ và $0{,}78$. Bộ hồi quy L2 trả về một con số gần $0{,}48$, xấp xỉ trung bình có trọng số của ba nhánh. MDN học được ba thành phần với trung bình gần $0{,}22$, $0{,}49$, $0{,}77$; trọng số của chúng phản ánh mật độ dữ liệu trên từng nhánh (ở nhánh giữa, $x$ thay đổi chậm hơn theo $y$ nên có nhiều giá trị $y$ cho ra $x \approx 0{,}5$ hơn), và mẫu lấy từ MDN rơi vào cả ba nhánh.
+Tại $x = 0.5$, phương trình $y + 0.3\sin(2\pi y) = 0.5$ có ba nghiệm xấp xỉ $0.22$, $0.5$ và $0.78$. Bộ hồi quy L2 trả về một con số gần $0.48$, xấp xỉ trung bình có trọng số của ba nhánh. MDN học được ba thành phần với trung bình gần $0.22$, $0.49$, $0.77$; trọng số của chúng phản ánh mật độ dữ liệu trên từng nhánh (ở nhánh giữa, $x$ thay đổi chậm hơn theo $y$ nên có nhiều giá trị $y$ cho ra $x \approx 0.5$ hơn), và mẫu lấy từ MDN rơi vào cả ba nhánh.
 
 ### 7.5.4. MDN trong TTS và giới hạn của nó
 
@@ -681,7 +681,7 @@ Một sợi chỉ đỏ nối các chương: **mỗi họ là một cách khác 
 ??? success "Lời giải"
     (a) Đầu ra tại vị trí $t$ giờ phụ thuộc vào đầu vào tại các vị trí sau $t$, mà đầu vào tại $t+1$ chính là $s_t$ (do dịch phải một bước). Khi tính song song, mạng "nhìn thấy" giá trị cần dự đoán; khi tính tuần tự trên tiền tố, phần tương lai không tồn tại (bị đệm bằng 0). Hai cách tính cho kết quả khác nhau nên `assert` thất bại. (b) Khi huấn luyện, mạng học cách sao chép $s_t$ từ đầu vào, loss giảm rất nhanh xuống mức thấp bất thường. Khi suy luận, thông tin tương lai không có, nên mô hình chưa bao giờ học cách dự đoán thực sự và sinh ra rác.
 
-**Bài 3 [Cơ bản].** Chứng minh rằng nếu khớp một phân phối Gauss $\mathcal{N}(\mu, \sigma^2)$ vào một phân phối $p$ bất kỳ (có mô-men bậc hai hữu hạn) bằng cách cực tiểu $D_{\mathrm{KL}}(p \Vert \mathcal{N}(\mu, \sigma^2))$, nghiệm là $\mu = \mathbb{E}_p[y]$, $\sigma^2 = \operatorname{Var}_p(y)$. Áp dụng cho hỗn hợp $p = \sum_k \pi_k \mathcal{N}(\mu_k, \sigma_k^2)$ và kiểm tra lại con số $\sigma \approx 2{,}06$ trong mục 7.2.2.
+**Bài 3 [Cơ bản].** Chứng minh rằng nếu khớp một phân phối Gauss $\mathcal{N}(\mu, \sigma^2)$ vào một phân phối $p$ bất kỳ (có mô-men bậc hai hữu hạn) bằng cách cực tiểu $D_{\mathrm{KL}}(p \Vert \mathcal{N}(\mu, \sigma^2))$, nghiệm là $\mu = \mathbb{E}_p[y]$, $\sigma^2 = \operatorname{Var}_p(y)$. Áp dụng cho hỗn hợp $p = \sum_k \pi_k \mathcal{N}(\mu_k, \sigma_k^2)$ và kiểm tra lại con số $\sigma \approx 2.06$ trong mục 7.2.2.
 
 ??? success "Lời giải"
     Cực tiểu KL thuận tương đương cực đại $J(\mu, \sigma^2) = \mathbb{E}_p[\log \mathcal{N}(y; \mu, \sigma^2)] = -\tfrac12 \log(2\pi\sigma^2) - \mathbb{E}_p[(y - \mu)^2] / (2\sigma^2)$. Đạo hàm theo $\mu$: $\mathbb{E}_p[y - \mu] / \sigma^2 = 0 \Rightarrow \mu = \mathbb{E}_p[y]$. Đạo hàm theo $\sigma^2$: $-1/(2\sigma^2) + \mathbb{E}_p[(y-\mu)^2] / (2\sigma^4) = 0 \Rightarrow \sigma^2 = \mathbb{E}_p[(y-\mu)^2]$. Với hỗn hợp: $\mu = \sum_k \pi_k \mu_k$ và $\sigma^2 = \sum_k \pi_k(\sigma_k^2 + \mu_k^2) - \mu^2$. Với $\pi = (0.5, 0.5)$, $\mu_k = \pm 2$, $\sigma_k = 0.5$: $\mu = 0$, $\sigma^2 = 0.25 + 4 = 4.25$, $\sigma \approx 2.06$.

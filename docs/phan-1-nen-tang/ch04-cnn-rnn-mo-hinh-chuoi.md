@@ -286,3 +286,393 @@ print("Công thức khớp với đo đạc bằng gradient")
 
     - Bộ mã hóa văn bản theo **ký tự** phải có trường tiếp nhận đủ phủ cả âm tiết để "biết" dấu thanh thuộc về âm tiết nào. Ví dụ, bộ mã hóa của Tacotron 2 có ba lớp tích chập kernel 5, nên trường tiếp nhận của phần tích chập là $1 + 3 \times 4 = 13$ ký tự — phủ được một âm tiết dài như "nghiêng" (7 chữ cái) cùng phần lân cận. Phần BiLSTM phía sau (mục 4.7.6) mở rộng ngữ cảnh ra cả câu.
     - Bộ dự đoán cao độ/trường độ ở mức khung hoặc âm vị nên nhìn được ít nhất **âm tiết đứng trước và đứng sau**. Một bộ dự đoán chỉ nhìn vài khung sẽ sinh đường F0 đúng xu hướng chung nhưng sai hình dạng thanh (ví dụ thanh hỏi không "gãy" xuống rồi lên).
+
+## 4.5 Tích chập chuyển vị và hiện tượng bàn cờ
+
+### 4.5.1 Từ khung mel tới mẫu âm thanh: bài toán nâng mẫu
+
+Một vocoder nhận mel-spectrogram có khoảng $f_s / H$ khung mỗi giây (với $H = 256$, $f_s = 22\,050$ Hz là khoảng 86 khung/giây) và phải sinh ra $f_s$ mẫu mỗi giây: mỗi khung phải "nở" thành $H$ mẫu. Các vocoder GAN như MelGAN và HiFi-GAN làm việc này bằng một dãy lớp **nâng mẫu có học** (*learned upsampling*) với tích các hệ số bằng đúng $H$; ví dụ HiFi-GAN V1 dùng các hệ số $8 \times 8 \times 2 \times 2 = 256$.
+
+### 4.5.2 Định nghĩa
+
+Ở mục 4.2.4 ta thấy một tích chập stride $s$ là phép nhân với ma trận $\mathbf{C} \in \mathbb{R}^{T_{\text{out}} \times T_{\text{in}}}$ "béo" (ít hàng hơn cột), ánh xạ chuỗi dài thành chuỗi ngắn. **Tích chập chuyển vị** là phép nhân với $\mathbf{C}^\top$: nó ánh xạ chuỗi ngắn trở lại chuỗi dài. Lưu ý $\mathbf{C}^\top$ **không phải** nghịch đảo của $\mathbf{C}$; nó chỉ có cùng "mẫu hình kết nối" theo chiều ngược lại. (Tên gọi "deconvolution" vì thế là gây hiểu nhầm.)
+
+Một cách hình dung tương đương và trực quan hơn là **góc nhìn "rải"** (*scatter*): mỗi mẫu đầu vào $x[n]$ cộng một bản sao của kernel, nhân với $x[n]$, vào các vị trí đầu ra $n s, n s + 1, \ldots, n s + k - 1$ (khi $d = 1$):
+
+$$
+y[t] = \sum_{n} \sum_{m=0}^{k-1} \mathbb{1}[\,t = n s + m\,]\; w_m\, x[n] .
+$$
+
+Từ đó suy ra độ dài đầu ra (cùng công thức ta đã dùng trong mã ở mục 4.2):
+
+$$
+T_{\text{out}} = (T_{\text{in}} - 1)\, s - 2p + d\,(k-1) + p_{\text{out}} + 1,
+$$
+
+với $p_{\text{out}}$ là tham số `output_padding` dùng để khử sự mơ hồ về độ dài. Một lựa chọn phổ biến là $k = 2s$, $p = s/2$, cho $T_{\text{out}} = s \cdot T_{\text{in}}$ đúng bằng hệ số nâng mẫu — đây cũng là quy tắc chọn kernel của HiFi-GAN (kernel 16 cho hệ số 8, kernel 4 cho hệ số 2).
+
+### 4.5.3 Hiện tượng bàn cờ
+
+Trong góc nhìn "rải", vị trí đầu ra $t$ nhận đóng góp từ mọi $n$ thỏa $0 \le t - n s \le k - 1$. Nếu $k$ **chia hết** cho $s$, mỗi vị trí (xa biên) nhận đúng $k/s$ đóng góp. Nếu không, số đóng góp **dao động tuần hoàn** giữa $\lfloor k/s \rfloor$ và $\lceil k/s \rceil$ với chu kỳ $s$. Với ảnh, điều này tạo ra họa tiết bàn cờ (Odena và cộng sự, 2016); với âm thanh, một thành phần tuần hoàn chu kỳ $s$ mẫu là một **âm thuần** ở tần số $f_{\text{out}}/s$ và các họa âm của nó — nghe như tiếng rè, tiếng "kim loại" cố định không đổi theo nội dung.
+
+Điều kiện "$k$ chia hết cho $s$" là **cần nhưng chưa đủ**. Góc nhìn đa pha (*polyphase*) cho thấy vì sao: các vị trí đầu ra có cùng pha $r = t \bmod s$ chỉ dùng các nhịp kernel $w_r, w_{r+s}, w_{r+2s}, \ldots$. Vậy tích chập chuyển vị thực chất là $s$ bộ lọc con độc lập, mỗi bộ lo một pha, rồi đan xen kết quả. Nếu các bộ lọc con có độ lợi (*gain*) khác nhau — điều hoàn toàn có thể xảy ra với trọng số đã học — thì một đầu vào hằng số vẫn cho đầu ra tuần hoàn. Pons và cộng sự (2021) phân tích chi tiết các nguồn nhiễu do nâng mẫu trong tổng hợp âm thanh: theo họ, tích chập chuyển vị và sub-pixel dễ gây nhiễu dạng âm thuần (*tonal artifacts*), còn nâng mẫu bằng nội suy thì gây nhiễu kiểu lọc (*filtering artifacts*).
+
+Các cách khắc phục thường gặp:
+
+1. **Chọn $k$ là bội số của $s$** (ví dụ $k = 2s$), như HiFi-GAN.
+2. **Nội suy rồi tích chập** (*resize-convolution*): nâng mẫu bằng láng giềng gần nhất hoặc nội suy tuyến tính, sau đó dùng `Conv1d` thường. Mọi vị trí dùng chung một bộ lọc nên không có thành phần tuần hoàn do cấu trúc.
+3. **Sub-pixel 1D** (*pixel shuffle*): một `Conv1d` sinh $C \cdot s$ kênh rồi xếp lại thành $C$ kênh dài gấp $s$ lần. Về khả năng biểu diễn, nó tương đương tích chập chuyển vị, nên vẫn cần khởi tạo cẩn thận.
+4. **Tránh nâng mẫu trong miền thời gian**: các vocoder như iSTFTNet, Vocos dự đoán hệ số STFT ở tốc độ khung rồi dùng iSTFT ([Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)).
+
+Ngoài ra, các phi tuyến (như Leaky ReLU) áp lên tín hiệu đã nâng mẫu có thể sinh ra tần số vượt Nyquist và gây **chồng phổ** (*aliasing*); BigVGAN xử lý bằng các hàm kích hoạt chống chồng phổ — chi tiết ở [Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md).
+
+**Mã minh họa.** Cho đầu vào hằng 1 và kernel hằng 1, đầu ra của tích chập chuyển vị chính là "số lần chồng lấp" tại mỗi vị trí.
+
+```python
+def overlap_pattern(kernel_size, stride, t_in=8):
+    """Đầu vào hằng 1, kernel hằng 1: đầu ra đếm số lần chồng lấp tại mỗi vị trí."""
+    up = nn.ConvTranspose1d(1, 1, kernel_size, stride=stride, bias=False)
+    nn.init.ones_(up.weight)
+    with torch.no_grad():
+        y = up(torch.ones(1, 1, t_in))            # (1, 1, (t_in-1)*s + k)
+    k = kernel_size
+    return y[0, 0, k:-k].int().tolist()           # bỏ vùng biên
+
+print("k=3, s=2:", overlap_pattern(3, 2))   # không chia hết -> 1, 2, 1, 2, ...
+print("k=4, s=2:", overlap_pattern(4, 2))   # chia hết -> đều
+print("k=5, s=4:", overlap_pattern(5, 4))   # 1, 1, 1, 2, 1, 1, 1, 2, ...
+
+# Khắc phục 1: nội suy láng giềng gần nhất rồi tích chập thường
+x = torch.ones(1, 1, 8)
+conv = nn.Conv1d(1, 1, 3, padding=1, bias=False)
+nn.init.ones_(conv.weight)
+with torch.no_grad():
+    y = conv(F.interpolate(x, scale_factor=2, mode="nearest"))
+print("nearest + conv:", y[0, 0, 2:-2].int().tolist())        # đều: 3, 3, 3, ...
+
+# Khắc phục 2: sub-pixel 1D — tích chập ra C*s kênh rồi xếp lại theo thời gian
+def pixel_shuffle_1d(x, s):                           # x: (B, C*s, T)
+    b, cs, t = x.shape
+    x = x.view(b, cs // s, s, t).permute(0, 1, 3, 2)  # (B, C, T, s)
+    return x.reshape(b, cs // s, t * s)               # (B, C, T*s)
+
+z = pixel_shuffle_1d(torch.arange(6.).view(1, 2, 3), 2)
+assert z.tolist() == [[[0., 3., 1., 4., 2., 5.]]]
+```
+
+## 4.6 Các khối xây dựng hiện đại
+
+### 4.6.1 Khối dư
+
+Khi xếp chồng hàng chục lớp tích chập, việc tối ưu trở nên khó khăn: gradient phải đi qua một tích dài các Jacobian. **Khối dư** (*residual block*; He và cộng sự, 2016) học phần **hiệu chỉnh** thay vì toàn bộ ánh xạ:
+
+$$
+\mathbf{y} = \mathbf{x} + \mathcal{F}(\mathbf{x}), \qquad \frac{\partial \mathbf{y}}{\partial \mathbf{x}} = \mathbf{I} + \frac{\partial \mathcal{F}}{\partial \mathbf{x}} .
+$$
+
+Số hạng $\mathbf{I}$ trong Jacobian tạo một "đường cao tốc" cho gradient: kể cả khi $\partial \mathcal{F} / \partial \mathbf{x}$ nhỏ, gradient vẫn truyền nguyên vẹn về các lớp đầu. Khi số kênh vào và ra khác nhau, nhánh tắt dùng một tích chập $1 \times 1$. Gần như mọi vocoder và mô hình âm học hiện đại đều là chồng các khối dư.
+
+### 4.6.2 Đơn vị kích hoạt có cổng
+
+PixelCNN có điều kiện (van den Oord và cộng sự, 2016b) và WaveNet dùng **đơn vị kích hoạt có cổng** (*gated activation unit*):
+
+$$
+\mathbf{z} = \tanh(\mathcal{W}_f \ast \mathbf{x}) \odot \sigma(\mathcal{W}_g \ast \mathbf{x}),
+$$
+
+trong đó $\ast$ là tích chập, $\odot$ là tích từng phần tử. Nhánh $\tanh$ mang "nội dung", nhánh sigmoid là một **van** trong $(0, 1)$ quyết định bao nhiêu nội dung được đi qua, và van này phụ thuộc vào chính đầu vào. Phép nhân giữa hai nhánh tạo ra tương tác bậc hai mà một phi tuyến đơn (như ReLU) không có — cùng tinh thần với các cổng của LSTM ở mục 4.7.
+
+Điều kiện hóa được đưa vào **bên trong** cả hai nhánh. Với điều kiện cục bộ $\mathbf{c}$ (ví dụ mel đã nâng mẫu lên tốc độ mẫu) và điều kiện toàn cục $\mathbf{g}$ (ví dụ embedding người nói), WaveNet dùng
+
+$$
+\mathbf{z} = \tanh\!\left(\mathcal{W}_f \ast \mathbf{x} + \mathcal{V}_f \ast \mathbf{c} + \mathbf{U}_f\, \mathbf{g}\right) \odot \sigma\!\left(\mathcal{W}_g \ast \mathbf{x} + \mathcal{V}_g \ast \mathbf{c} + \mathbf{U}_g\, \mathbf{g}\right).
+$$
+
+Một biến thể gần gũi là **GLU** (*Gated Linear Unit*; Dauphin và cộng sự, 2017): $(\mathbf{W}\mathbf{x}) \odot \sigma(\mathbf{V}\mathbf{x})$, bỏ $\tanh$ ở nhánh nội dung. Dauphin và cộng sự lập luận rằng nhánh tuyến tính giúp gradient không bị co lại bởi đạo hàm của $\tanh$. GLU xuất hiện trong mô-đun tích chập của Conformer ([Chương 5](ch05-transformer.md)) và trong biến thể SwiGLU của Transformer hiện đại.
+
+WaveNet còn tách đầu ra mỗi khối thành hai nhánh: nhánh **dư** đi tiếp tới khối sau, và nhánh **skip** được cộng dồn từ mọi khối rồi đưa vào phần đầu ra. Nhánh skip cho phép đầu ra kết hợp trực tiếp đặc trưng ở mọi thang thời gian. Chi tiết WaveNet được trình bày ở [Chương 24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md).
+
+### 4.6.3 Tích chập tách theo chiều sâu
+
+Một `Conv1d` thông thường làm đồng thời hai việc: trộn thông tin **theo thời gian** (trong cửa sổ $k$) và **theo kênh**. **Tích chập tách theo chiều sâu** (*depthwise-separable convolution*; xem Chollet, 2017) tách hai việc này: một tích chập theo chiều sâu ($g = C$, chỉ trộn thời gian) rồi một tích chập $1 \times 1$ (chỉ trộn kênh). Với $C$ kênh vào, $C'$ kênh ra, bỏ qua độ lệch:
+
+$$
+\frac{\text{tham số tách}}{\text{tham số thường}} = \frac{C k + C C'}{C C' k} = \frac{1}{C'} + \frac{1}{k}.
+$$
+
+Với $C' = 256$, $k = 7$, tỷ lệ này khoảng 0,147 — tiết kiệm gần 7 lần. Giả định ngầm là "mẫu hình thời gian" và "tổ hợp kênh" có thể học tách rời mà không mất nhiều năng lực biểu diễn; thực nghiệm trên nhiều miền cho thấy giả định này khá hợp lý, nhất là khi bù lại bằng nhiều kênh hơn.
+
+### 4.6.4 Khối ConvNeXt 1D
+
+ConvNeXt (Liu và cộng sự, 2022) "hiện đại hóa" khối tích chập bằng các lựa chọn thiết kế học từ Transformer:
+
+1. Tích chập theo chiều sâu với **kernel lớn** (7) để trộn thời gian — vai trò giống attention cục bộ;
+2. **LayerNorm** thay vì BatchNorm;
+3. MLP từng vị trí kiểu **nút cổ chai ngược** (*inverted bottleneck*): mở rộng số kênh (bài báo gốc dùng hệ số 4), GELU, rồi thu hẹp lại — giống khối FFN của Transformer;
+4. **Layer scale**: nhân nhánh dư với véc-tơ $\boldsymbol{\gamma}$ khởi tạo rất nhỏ, để mỗi khối gần như là ánh xạ đồng nhất lúc đầu huấn luyện;
+5. Ít hàm kích hoạt và ít lớp chuẩn hóa hơn khối ResNet cổ điển.
+
+Phiên bản 1D của khối này là xương sống của vocoder **Vocos** (Siuzdak, 2024), chạy ở tốc độ khung thay vì tốc độ mẫu nên rất nhanh; F5-TTS cũng dùng các khối ConvNeXt (phiên bản V2) để tinh chỉnh biểu diễn văn bản trước khi đưa vào Transformer ([Chương 33](../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon.md)).
+
+**Mã minh họa.** Khối dư có cổng kiểu WaveNet và khối ConvNeXt 1D; cuối cùng so sánh số tham số của tích chập thường và tích chập tách.
+
+```python
+class GatedResidualBlock(nn.Module):
+    """Khối dư kiểu WaveNet: tích chập giãn nở nhân quả + kích hoạt có cổng
+    + điều kiện cục bộ (ví dụ mel đã nâng mẫu) + nhánh skip."""
+    def __init__(self, channels, cond_channels, kernel_size=3, dilation=1):
+        super().__init__()
+        self.pad = (kernel_size - 1) * dilation
+        self.conv = nn.Conv1d(channels, 2 * channels, kernel_size, dilation=dilation)
+        self.cond = nn.Conv1d(cond_channels, 2 * channels, 1)   # chiếu điều kiện 1x1
+        self.res = nn.Conv1d(channels, channels, 1)
+        self.skip = nn.Conv1d(channels, channels, 1)
+
+    def forward(self, x, c):                      # x: (B, C, T), c: (B, C_cond, T)
+        h = self.conv(F.pad(x, (self.pad, 0))) + self.cond(c)    # (B, 2C, T)
+        h_f, h_g = h.chunk(2, dim=1)                             # 2 x (B, C, T)
+        z = torch.tanh(h_f) * torch.sigmoid(h_g)                 # cổng: (B, C, T)
+        return x + self.res(z), self.skip(z)                     # (dư, skip)
+
+class ConvNeXtBlock1d(nn.Module):
+    """Khối ConvNeXt 1D: depthwise conv -> LayerNorm -> MLP mở rộng với GELU
+    -> layer scale -> cộng dư."""
+    def __init__(self, dim, kernel_size=7, expansion=4, layer_scale=1e-6):
+        super().__init__()
+        self.dwconv = nn.Conv1d(dim, dim, kernel_size, padding=kernel_size // 2, groups=dim)
+        self.norm = nn.LayerNorm(dim)
+        self.pw1 = nn.Linear(dim, expansion * dim)
+        self.pw2 = nn.Linear(expansion * dim, dim)
+        self.gamma = nn.Parameter(layer_scale * torch.ones(dim))
+
+    def forward(self, x):                         # x: (B, C, T)
+        h = self.dwconv(x).transpose(1, 2)        # (B, T, C): LayerNorm trên trục kênh
+        h = self.pw2(F.gelu(self.pw1(self.norm(h))))
+        return x + (self.gamma * h).transpose(1, 2)   # (B, C, T)
+
+def n_params(m):
+    return sum(p.numel() for p in m.parameters())
+
+B, C, T = 2, 64, 50
+blk = GatedResidualBlock(C, cond_channels=80, dilation=4)
+res, skip = blk(torch.randn(B, C, T), torch.randn(B, 80, T))
+assert res.shape == skip.shape == (B, C, T)
+cnx = ConvNeXtBlock1d(C)
+assert cnx(torch.randn(B, C, T)).shape == (B, C, T)
+
+# Tích chập thường vs tách theo chiều sâu (C_in = C_out = 256, k = 7)
+full = nn.Conv1d(256, 256, 7, padding=3)
+sep = nn.Sequential(nn.Conv1d(256, 256, 7, padding=3, groups=256), nn.Conv1d(256, 256, 1))
+print("Conv thường:", n_params(full), "| tách theo chiều sâu:", n_params(sep))
+print("Tỷ lệ:", round(n_params(sep) / n_params(full), 3), "≈ 1/7 + 1/256 =", round(1 / 7 + 1 / 256, 3))
+```
+
+## 4.7 Mạng nơ-ron hồi quy
+
+### 4.7.1 RNN cơ bản
+
+**Trực giác.** Thay vì nhìn một cửa sổ cố định, RNN đọc chuỗi từng bước và cập nhật một **trạng thái ẩn** $\mathbf{h}_t$ — một "bản tóm tắt" về mọi thứ đã thấy. Cùng một hàm cập nhật được dùng ở mọi bước, tức là trọng số được chia sẻ theo thời gian như CNN, nhưng ngữ cảnh không bị giới hạn bởi cửa sổ.
+
+**Hình thức hóa.** RNN Elman với đầu vào $\mathbf{x}_t \in \mathbb{R}^{D}$, trạng thái $\mathbf{h}_t \in \mathbb{R}^{H}$:
+
+$$
+\mathbf{a}_t = \mathbf{W}\mathbf{h}_{t-1} + \mathbf{U}\mathbf{x}_t + \mathbf{b}, \qquad
+\mathbf{h}_t = \tanh(\mathbf{a}_t), \qquad
+\hat{\mathbf{y}}_t = \mathbf{V}\mathbf{h}_t + \mathbf{e},
+$$
+
+với $\mathbf{W} \in \mathbb{R}^{H \times H}$ là ma trận hồi quy, $\mathbf{U} \in \mathbb{R}^{H \times D}$, $\mathbf{V}$ và $\mathbf{e}$ là phần đầu ra. "Mở" (*unroll*) RNN theo thời gian ta được một mạng truyền thẳng rất sâu — sâu bằng độ dài chuỗi — trong đó mọi lớp dùng chung $(\mathbf{W}, \mathbf{U}, \mathbf{b})$.
+
+### 4.7.2 Lan truyền ngược theo thời gian (BPTT)
+
+Hàm mất mát là tổng theo thời gian $\mathcal{L} = \sum_{t=1}^{T} \ell_t(\hat{\mathbf{y}}_t)$. Áp dụng lan truyền ngược ([Chương 2](ch02-hoc-may-va-mang-no-ron.md)) cho mạng đã mở gọi là **lan truyền ngược theo thời gian** (*backpropagation through time*, BPTT; Werbos, 1990). Ta suy ra từng bước.
+
+**Bước 1 — gradient theo trạng thái.** $\mathbf{h}_t$ ảnh hưởng tới $\mathcal{L}$ qua hai đường: trực tiếp qua $\ell_t$, và gián tiếp qua $\mathbf{a}_{t+1}$ (rồi mọi bước sau). Đặt $\mathbf{g}_t = \partial \mathcal{L} / \partial \mathbf{h}_t$ và $\boldsymbol{\delta}_t = \partial \mathcal{L} / \partial \mathbf{a}_t$:
+
+$$
+\mathbf{g}_t = \mathbf{V}^\top \frac{\partial \ell_t}{\partial \hat{\mathbf{y}}_t} + \mathbf{W}^\top \boldsymbol{\delta}_{t+1}, \qquad \boldsymbol{\delta}_{T+1} = \mathbf{0} .
+$$
+
+**Bước 2 — qua phi tuyến.** Vì $\mathbf{h}_t = \tanh(\mathbf{a}_t)$ tác động từng phần tử và $\tanh'(a) = 1 - \tanh^2(a)$:
+
+$$
+\boldsymbol{\delta}_t = (1 - \mathbf{h}_t \odot \mathbf{h}_t) \odot \mathbf{g}_t .
+$$
+
+Hai công thức trên được tính **ngược** từ $t = T$ về $t = 1$.
+
+**Bước 3 — gradient theo tham số.** Vì tham số được chia sẻ, gradient là tổng đóng góp của mọi bước:
+
+$$
+\frac{\partial \mathcal{L}}{\partial \mathbf{W}} = \sum_{t=1}^{T} \boldsymbol{\delta}_t\, \mathbf{h}_{t-1}^\top, \qquad
+\frac{\partial \mathcal{L}}{\partial \mathbf{U}} = \sum_{t=1}^{T} \boldsymbol{\delta}_t\, \mathbf{x}_t^\top, \qquad
+\frac{\partial \mathcal{L}}{\partial \mathbf{b}} = \sum_{t=1}^{T} \boldsymbol{\delta}_t .
+$$
+
+Chi phí bộ nhớ của BPTT tỷ lệ với $T$ vì phải lưu mọi $\mathbf{h}_t$. Với chuỗi rất dài, người ta dùng **BPTT cắt cụt** (*truncated BPTT*): chia chuỗi thành các đoạn $k$ bước, truyền trạng thái ẩn sang đoạn sau nhưng **cắt gradient** (`h = h.detach()` trong PyTorch) ở ranh giới đoạn.
+
+### 4.7.3 Gradient tiêu biến và bùng nổ
+
+Ghép hai bước trên, gradient truyền từ bước $t$ về bước $k < t$ phải đi qua tích các Jacobian:
+
+$$
+\frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k} = \prod_{i=k+1}^{t} \frac{\partial \mathbf{h}_i}{\partial \mathbf{h}_{i-1}} = \prod_{i=k+1}^{t} \operatorname{diag}\!\left(1 - \mathbf{h}_i \odot \mathbf{h}_i\right) \mathbf{W}
+$$
+
+(tích lấy theo thứ tự $i = t, t-1, \ldots, k+1$ từ trái sang phải). Dùng tính chất $\lVert \mathbf{A}\mathbf{B} \rVert \le \lVert \mathbf{A} \rVert \lVert \mathbf{B} \rVert$ với chuẩn phổ, và $|\tanh'| \le \gamma = 1$:
+
+$$
+\left\lVert \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k} \right\rVert \le \left(\gamma\, \sigma_{\max}(\mathbf{W})\right)^{t-k},
+$$
+
+với $\sigma_{\max}(\mathbf{W})$ là giá trị kỳ dị lớn nhất. Suy ra (Bengio và cộng sự, 1994; Pascanu và cộng sự, 2013):
+
+- Nếu $\sigma_{\max}(\mathbf{W}) < 1/\gamma$, gradient **tiêu biến** theo hàm mũ của khoảng cách $t - k$ — điều kiện **đủ**. Mô hình gần như không học được phụ thuộc xa.
+- Để gradient **bùng nổ**, **cần** $\sigma_{\max}(\mathbf{W}) > 1/\gamma$. Khi đó một vài bước cập nhật khổng lồ có thể phá hỏng quá trình huấn luyện.
+
+Bùng nổ thì chữa tương đối dễ bằng **cắt gradient theo chuẩn** ([Chương 3](ch03-toi-uu-va-ky-thuat-huan-luyen.md)) — gần như bắt buộc khi huấn luyện RNN. Tiêu biến thì khó hơn nhiều, và đó là động lực của LSTM.
+
+**Mã minh họa.** Ta chọn $\mathbf{W} = \rho\,\mathbf{Q}$ với $\mathbf{Q}$ trực giao, nên mọi giá trị kỳ dị của $\mathbf{W}$ đều bằng $\rho$. Với RNN tuyến tính, chuẩn gradient đúng bằng $\rho^{t-k}$ nhân hằng số; với $\tanh$, đạo hàm $\tanh' < 1$ còn làm gradient co thêm.
+
+```python
+def grad_norm_through_time(rho, steps, hidden=32, nonlinear=True, seed=0):
+    """Chuẩn của dL/dh_0 với L = <u, h_T>, W = rho * Q (Q trực giao)."""
+    g = torch.Generator().manual_seed(seed)
+    q, _ = torch.linalg.qr(torch.randn(hidden, hidden, generator=g))
+    W = rho * q                                   # mọi giá trị kỳ dị của W đều bằng rho
+    h0 = (0.1 * torch.randn(hidden, generator=g)).requires_grad_()
+    x = 0.1 * torch.randn(steps, hidden, generator=g)   # đầu vào nhỏ
+    u = torch.randn(hidden, generator=g)
+    h = h0
+    for t in range(steps):
+        a = W @ h + x[t]
+        h = torch.tanh(a) if nonlinear else a
+    (u @ h).backward()
+    return h0.grad.norm().item()
+
+for rho in [0.8, 1.0, 1.2]:
+    lin = [grad_norm_through_time(rho, T, nonlinear=False) for T in (10, 50, 100)]
+    nl = [grad_norm_through_time(rho, T, nonlinear=True) for T in (10, 50, 100)]
+    print(f"rho={rho}: tuyến tính {['%.1e' % v for v in lin]} | tanh {['%.1e' % v for v in nl]}")
+```
+
+Kết quả điển hình: với $\rho = 0{,}8$, chuẩn gradient sau 100 bước giảm xuống cỡ $10^{-9}$–$10^{-10}$; với $\rho = 1{,}2$ ở mạng tuyến tính, nó tăng lên cỡ $10^{8}$. Với $\tanh$ và $\rho = 1{,}2$ thì gradient *không* bùng nổ vì trạng thái bị bão hòa ($\tanh' \approx 0$) — nhưng chính sự bão hòa này lại là một nguồn tiêu biến khác. Ngay cả $\rho = 1$ (trường hợp "lý tưởng" của mạng tuyến tính) cũng tiêu biến khi có $\tanh$.
+
+### 4.7.4 LSTM
+
+**Long Short-Term Memory** (Hochreiter và Schmidhuber, 1997; cổng quên được bổ sung bởi Gers và cộng sự, 2000) thêm một **ô nhớ** $\mathbf{c}_t$ được cập nhật theo kiểu **cộng** và được điều khiển bởi ba cổng:
+
+$$
+\begin{aligned}
+\mathbf{i}_t &= \sigma(\mathbf{W}_i \mathbf{h}_{t-1} + \mathbf{U}_i \mathbf{x}_t + \mathbf{b}_i) && \text{(cổng vào)}\\
+\mathbf{f}_t &= \sigma(\mathbf{W}_f \mathbf{h}_{t-1} + \mathbf{U}_f \mathbf{x}_t + \mathbf{b}_f) && \text{(cổng quên)}\\
+\mathbf{o}_t &= \sigma(\mathbf{W}_o \mathbf{h}_{t-1} + \mathbf{U}_o \mathbf{x}_t + \mathbf{b}_o) && \text{(cổng ra)}\\
+\tilde{\mathbf{c}}_t &= \tanh(\mathbf{W}_c \mathbf{h}_{t-1} + \mathbf{U}_c \mathbf{x}_t + \mathbf{b}_c) && \text{(nội dung mới)}\\
+\mathbf{c}_t &= \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t \\
+\mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{c}_t)
+\end{aligned}
+$$
+
+**Vì sao LSTM giảm tiêu biến gradient?** Xét riêng đường đi qua ô nhớ (bỏ qua ảnh hưởng gián tiếp qua các cổng, vốn phụ thuộc $\mathbf{h}_{t-1}$):
+
+$$
+\frac{\partial \mathbf{c}_t}{\partial \mathbf{c}_{t-1}} \approx \operatorname{diag}(\mathbf{f}_t)
+\quad\Longrightarrow\quad
+\frac{\partial \mathbf{c}_t}{\partial \mathbf{c}_k} \approx \operatorname{diag}\!\Big(\prod_{i=k+1}^{t} \mathbf{f}_i\Big).
+$$
+
+Không còn phép nhân với ma trận $\mathbf{W}$ và đạo hàm $\tanh'$ ở mỗi bước, chỉ còn tích của các giá trị cổng quên — **do mô hình tự quyết định**. Khi $\mathbf{f}_i \approx 1$, thông tin và gradient đi qua hàng trăm bước gần như nguyên vẹn. Đây cũng chính là ý tưởng của khối dư ở mục 4.6.1, nhưng theo trục thời gian: cập nhật cộng $\mathbf{c}_t = \mathbf{c}_{t-1} + (\ldots)$ khi $\mathbf{f}_t = 1$.
+
+Hai chi tiết thực hành:
+
+- **Khởi tạo độ lệch cổng quên dương** (thường là 1) để lúc đầu mạng "nhớ lâu", một khuyến nghị được Jozefowicz và cộng sự (2015) xác nhận bằng thực nghiệm.
+- Trong PyTorch, `nn.LSTM` xếp trọng số bốn cổng theo thứ tự **(i, f, g, o)** — `g` là $\tilde{\mathbf{c}}_t$ — và có **hai** véc-tơ độ lệch `bias_ih`, `bias_hh` (tổng của chúng mới là $\mathbf{b}$). Số tham số một lớp là $4H(D + H) + 8H$.
+
+### 4.7.5 GRU
+
+**Gated Recurrent Unit** (Cho và cộng sự, 2014) gộp ô nhớ vào trạng thái ẩn và chỉ dùng hai cổng. Theo quy ước của PyTorch:
+
+$$
+\begin{aligned}
+\mathbf{r}_t &= \sigma(\mathbf{W}_r \mathbf{h}_{t-1} + \mathbf{U}_r \mathbf{x}_t + \mathbf{b}_r) && \text{(cổng đặt lại)}\\
+\mathbf{z}_t &= \sigma(\mathbf{W}_z \mathbf{h}_{t-1} + \mathbf{U}_z \mathbf{x}_t + \mathbf{b}_z) && \text{(cổng cập nhật)}\\
+\tilde{\mathbf{h}}_t &= \tanh\!\big(\mathbf{U}_n \mathbf{x}_t + \mathbf{b}_n + \mathbf{r}_t \odot (\mathbf{W}_n \mathbf{h}_{t-1} + \mathbf{b}'_n)\big)\\
+\mathbf{h}_t &= (1 - \mathbf{z}_t) \odot \tilde{\mathbf{h}}_t + \mathbf{z}_t \odot \mathbf{h}_{t-1}
+\end{aligned}
+$$
+
+Cổng cập nhật $\mathbf{z}_t$ nội suy giữa trạng thái cũ và ứng viên mới, đóng cả vai trò cổng quên và cổng vào của LSTM. (Một số tài liệu dùng quy ước ngược lại, đổi vai trò của $\mathbf{z}_t$ và $1 - \mathbf{z}_t$; bản chất không đổi.) GRU ít tham số hơn LSTM khoảng một phần tư, và các so sánh thực nghiệm (ví dụ Chung và cộng sự, 2014) cho thấy hai kiến trúc thường ngang ngửa nhau, tùy bài toán. Trong TTS, các vocoder tự hồi quy hiệu quả như WaveRNN và LPCNet dựa trên GRU ([Chương 24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md)), còn Tacotron 2 dùng LSTM.
+
+**Mã minh họa.** Cài đặt một bước LSTM bằng tay, dùng chính trọng số của `nn.LSTM`, và kiểm tra hai bên cho kết quả giống hệt — cách tốt nhất để chắc chắn bạn hiểu đúng thứ tự cổng.
+
+```python
+torch.manual_seed(0)
+D, H = 8, 16
+lstm = nn.LSTM(D, H, batch_first=True)
+
+def lstm_step(x_t, h, c, m):
+    """Một bước LSTM viết tay, dùng trọng số của nn.LSTM (thứ tự cổng: i, f, g, o)."""
+    z = x_t @ m.weight_ih_l0.T + m.bias_ih_l0 + h @ m.weight_hh_l0.T + m.bias_hh_l0  # (B, 4H)
+    i, f, g, o = z.chunk(4, dim=-1)
+    i, f, o = torch.sigmoid(i), torch.sigmoid(f), torch.sigmoid(o)
+    c = f * c + i * torch.tanh(g)                 # cập nhật ô nhớ: đường "cộng"
+    h = o * torch.tanh(c)
+    return h, c
+
+x = torch.randn(3, 5, D)                          # (B, T, D)
+h = c = torch.zeros(3, H)
+outs = []
+for t in range(x.shape[1]):
+    h, c = lstm_step(x[:, t], h, c, lstm)
+    outs.append(h)
+ref, (h_n, c_n) = lstm(x)                         # ref: (B, T, H)
+assert torch.allclose(torch.stack(outs, 1), ref, atol=1e-6)
+assert torch.allclose(c, c_n[0], atol=1e-6)
+
+n = sum(p.numel() for p in lstm.parameters())
+assert n == 4 * H * (D + H) + 8 * H               # PyTorch có 2 véc-tơ bias
+print("LSTM viết tay khớp nn.LSTM; số tham số =", n)
+
+# Mẹo: khởi tạo độ lệch cổng quên = 1 (đặt ở bias_ih, còn bias_hh để 0)
+with torch.no_grad():
+    for name, p in lstm.named_parameters():
+        if "bias" in name:
+            p.zero_()
+            if "bias_ih" in name:
+                p[H:2 * H] = 1.0                  # đoạn [H, 2H) ứng với cổng quên f
+```
+
+### 4.7.6 RNN hai chiều và chuỗi có độ dài thay đổi
+
+Một RNN một chiều tại bước $t$ chỉ biết quá khứ. Với bài toán mà **toàn bộ đầu vào có sẵn** — như mã hóa một câu văn bản trước khi tổng hợp — ta muốn mỗi vị trí biết cả ngữ cảnh phía sau. **RNN hai chiều** (Schuster và Paliwal, 1997) chạy một RNN xuôi và một RNN ngược rồi ghép trạng thái: $\mathbf{h}_t = [\overrightarrow{\mathbf{h}}_t; \overleftarrow{\mathbf{h}}_t]$. Bộ mã hóa của Tacotron 2 dùng một lớp BiLSTM 512 đơn vị (256 mỗi chiều) sau ba lớp tích chập (Shen và cộng sự, 2018). RNN hai chiều **không dùng được** cho phần sinh tự hồi quy hay cho streaming, vì chiều ngược cần tương lai.
+
+Khi huấn luyện theo batch, các câu có độ dài khác nhau được **đệm** (*padding*) tới cùng độ dài. Với RNN một chiều, phần đệm nằm *sau* nội dung thật nên không làm hỏng trạng thái tại các vị trí thật. Nhưng với chiều **ngược** của BiLSTM, RNN bắt đầu đọc từ phần đệm — trạng thái tại các vị trí thật bị "nhiễm" phần đệm. Cách đúng trong PyTorch là **đóng gói** chuỗi bằng `pack_padded_sequence`.
+
+```python
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
+torch.manual_seed(0)
+bilstm = nn.LSTM(input_size=4, hidden_size=8, batch_first=True, bidirectional=True)
+lengths = torch.tensor([6, 3])
+x = torch.randn(2, 6, 4)                          # (B, N, D) — câu thứ 2 dài 3, còn lại là đệm
+x[1, 3:] = 0.0
+
+# Cách SAI: chạy thẳng trên chuỗi đã đệm -> chiều ngược "đọc" cả phần đệm
+naive, _ = bilstm(x)                              # (B, N, 2H)
+
+# Cách ĐÚNG: đóng gói theo độ dài thật
+packed = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
+out, _ = bilstm(packed)
+out, _ = pad_packed_sequence(out, batch_first=True, total_length=6)   # (B, N, 2H)
+
+# Đối chứng: chạy riêng câu thứ 2 không đệm
+alone, _ = bilstm(x[1:2, :3])                     # (1, 3, 2H)
+assert torch.allclose(out[1, :3], alone[0], atol=1e-6)
+print("Sai lệch chiều xuôi (cách sai):", (naive[1, :3, :8] - alone[0, :, :8]).abs().max().item())
+print("Sai lệch chiều ngược (cách sai):", (naive[1, :3, 8:] - alone[0, :, 8:]).abs().max().item())
+```
+
+Chiều xuôi khớp (sai lệch cỡ $10^{-8}$, chỉ là sai số dấu phẩy động), còn chiều ngược sai lệch đáng kể. Lỗi này **không gây ra ngoại lệ nào**: mô hình vẫn huấn luyện được, chỉ kém hơn và hành xử khác nhau tùy độ dài câu khác trong batch.
+
+!!! note "Góc tiếng Việt"
+    Kiểu câu tiếng Việt thường được đánh dấu bằng **tiểu từ cuối câu**: "Anh đi à?", "Anh đi nhé.", "Anh có đi không?". Ngữ điệu của cả câu — kể cả các âm tiết đầu — phụ thuộc vào tiểu từ này ([Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)). Một bộ mã hóa văn bản hai chiều (BiLSTM, hoặc self-attention ở [Chương 5](ch05-transformer.md)) nhìn được tiểu từ ngay từ đầu. Ngược lại, trong TTS streaming chỉ được nhìn trước một ít token, mô hình có thể đã đọc xong nửa đầu câu với ngữ điệu trần thuật trước khi "thấy" chữ "không?" ở cuối — một lý do để các hệ thống streaming chọn ranh giới đoạn theo cụm từ và dấu câu ([Chương 35](../phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md)).
