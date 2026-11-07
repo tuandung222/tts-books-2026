@@ -487,7 +487,7 @@ print(f"{ratio:.1%} năng lượng phần dư nằm trong ±2 mẫu quanh xung (
 assert gain > 10 and ratio > 0.5
 ```
 
-Lưu ý quy ước dấu: `librosa.lpc` trả về $[1, a_1, \ldots, a_M]$ của *bộ lọc ngược* $A(z) = 1 + \sum_i a_i z^{-i}$, nên phần dư là $e_n = s_n + \sum_i a_i s_{n-i}$ (ngược dấu so với công thức ở trên). Với tín hiệu tổng hợp đúng theo mô hình toàn cực như ở đây, độ lợi dự đoán rất cao (khoảng 40 dB); với tiếng nói thật con số thấp hơn nhiều, nhưng phần dư vẫn "dễ" hơn tín hiệu gốc.
+Lưu ý quy ước dấu: `librosa.lpc` trả về $[1, a_1, \ldots, a_M]$ của *bộ lọc ngược* $A(z) = 1 + \sum_i a_i z^{-i}$, nên phần dư là $e_n = s_n + \sum_i a_i s_{n-i}$ (ngược dấu so với công thức ở trên). Với tín hiệu tổng hợp đúng theo mô hình toàn cực như ở đây, độ lợi dự đoán rất cao (khoảng 40 dB) và khoảng ba phần tư năng lượng phần dư dồn vào chưa đến 4% số mẫu nằm sát các xung thanh môn. Với tiếng nói thật, độ lợi thấp hơn nhiều, nhưng phần dư vẫn "dễ" mô hình hóa hơn tín hiệu gốc: đường bao phổ đã được bộ lọc LPC gánh.
 
 LPCNet có giới hạn: chủ yếu ở băng rộng 16 kHz, chất lượng thấp hơn các vocoder GAN tốt nhất, và đặc trưng đầu vào (cepstrum Bark + cao độ) khác mel, nên mô hình âm học phải được huấn luyện để dự đoán đúng bộ đặc trưng này. Nhóm tác giả về sau tiếp tục phát triển các biến thể hiệu quả hơn; tính đến thời điểm biên soạn (2026), kho mã LPCNet ghi rằng nó không còn được phát triển tích cực và khuyến nghị FARGAN (Valin và cộng sự, 2024), một mô hình tự hồi quy theo khung kết hợp GAN.
 
