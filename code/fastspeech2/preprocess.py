@@ -78,12 +78,12 @@ def cmd_mfa(args) -> None:
 def process_one(job: tuple) -> dict | None:
     """Trích đặc trưng cho một câu; trả về dòng manifest (hoặc None nếu bỏ qua)."""
     uid, text, args_d = job
-    from vn_frontend import PHONES, g2p, normalize_text, text_to_sequence
+    from vn_frontend import PHONES, SYMBOL_TO_ID, g2p, normalize_text
 
     cfg = AudioConfig(**args_d["audio"])
     norm = normalize_text(text)
     tokens = g2p(norm, args_d["dialect"], normalize=False)
-    ids = text_to_sequence(norm, args_d["dialect"])
+    ids = [SYMBOL_TO_ID[t] for t in tokens]
     wav = load_wav(os.path.join(args_d["data"], "wavs", f"{uid}.wav"), cfg.sample_rate)
 
     durations = None
