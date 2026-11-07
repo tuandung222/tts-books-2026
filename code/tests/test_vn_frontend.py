@@ -325,7 +325,7 @@ def test_g2p_boundaries_and_punctuation():
     assert toks[0] != " " and not any(a in ",.!?" and b == " " for a, b in zip(toks, toks[1:]))
     assert g2p("a,,, b") == ["ʔ", "a", "T1", ","] + g2p("b")  # gộp dấu câu lặp
     # từ không phải tiếng Việt: tra từ mượn hoặc đánh vần
-    assert g2p("Facebook") == g2p("phây búc")
+    assert g2p("Facebook") == g2p("phây_búc")  # một từ: không chèn ranh giới
     assert g2p("xyz") == g2p("ích_i_dài_dét")
 
 
