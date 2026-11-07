@@ -744,7 +744,7 @@ checkpoint = {"model": model.state_dict(), "ema": ema_model.state_dict(),
 torch.save(checkpoint, "checkpoint.pt")                    # đủ để huấn luyện tiếp chính xác
 ```
 
-Chạy trên CPU (bf16, không cần `GradScaler`), toàn bộ vòng lặp mất vài giây. Trong một lần chạy, loss huấn luyện giảm từ khoảng 0,16 ở bước 100 xuống khoảng 0,15 ở bước 300, tốc độ học đi theo đúng hình dạng warmup + cosine (đạt đỉnh $3 \times 10^{-3}$ ở bước 30, về 0 ở bước 300), và L1 kiểm định của mô hình thường và mô hình EMA lần lượt khoảng 0,118 và 0,118. Chuẩn gradient (khoảng 0,06–0,1) luôn dưới ngưỡng 1,0, nên phép cắt chỉ đóng vai trò lưới an toàn. Trên GPU, cùng đoạn mã tự chuyển sang fp16 với `GradScaler` (nhánh này chưa được chạy trong môi trường biên soạn, nhưng chỉ dùng các API chuẩn của `torch.amp`).
+Chạy trên CPU (bf16, không cần `GradScaler`), toàn bộ vòng lặp mất vài giây. Trong một lần chạy, loss huấn luyện giảm từ khoảng 0,16 ở bước 100 xuống khoảng 0,15 ở bước 300, tốc độ học đi theo đúng hình dạng warmup + cosine (đạt đỉnh $3 \times 10^{-3}$ ở bước 30, về 0 ở bước 300), và L1 kiểm định của mô hình thường và mô hình EMA lần lượt khoảng 0,118 và 0,118. Chuẩn gradient (khoảng 0,06–0,11) luôn dưới ngưỡng 1,0, nên phép cắt chỉ đóng vai trò lưới an toàn. Trên GPU, cùng đoạn mã tự chuyển sang fp16 với `GradScaler` (nhánh này chưa được chạy trong môi trường biên soạn, nhưng chỉ dùng các API chuẩn của `torch.amp`).
 
 Hai quan sát đáng giá từ thí nghiệm nhỏ này:
 
