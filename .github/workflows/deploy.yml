@@ -34,9 +34,30 @@ jobs:
       - name: Build site (strict)
         run: mkdocs build --strict
 
+  test-code:
+    name: Kiểm thử mã nguồn dự án
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cài PyTorch bản CPU và phụ thuộc
+        working-directory: code
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Chạy pytest
+        working-directory: code
+        run: python -m pytest -q
+
   deploy:
     name: Deploy lên GitHub Pages (nhánh gh-pages)
-    needs: build
+    needs: [build, test-code]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
