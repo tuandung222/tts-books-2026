@@ -195,7 +195,7 @@ $$
 
 Vậy $\mathbf{m}_t$ bị **kéo về 0** một thừa số $(1 - \beta_1^t)$, rất đáng kể khi $t$ nhỏ; chia cho thừa số đó cho ước lượng không chệch $\hat{\mathbf{m}}_t$. Lập luận y hệt cho $\mathbf{v}_t$ với $\beta_2$. Vì $\beta_2$ thường rất gần 1 (0,999), độ chệch của $\mathbf{v}_t$ kéo dài cỡ hàng nghìn bước, lâu hơn nhiều so với $\mathbf{m}_t$.
 
-**Điều gì xảy ra nếu bỏ hiệu chỉnh?** Ở bước đầu tiên, $\mathbf{m}_1 = (1 - \beta_1)\mathbf{g}_1$ và $\mathbf{v}_1 = (1 - \beta_2)\mathbf{g}_1^2$, nên (bỏ qua $\epsilon$) bước cập nhật có độ lớn $\eta(1 - \beta_1)/\sqrt{1 - \beta_2} \approx 3{,}16\,\eta$ với các giá trị mặc định. Ngược với trực giác "khởi đầu từ 0 thì bước sẽ nhỏ", bỏ hiệu chỉnh làm các bước đầu **lớn hơn** khoảng ba lần, đúng lúc mô hình còn mong manh nhất. Có hiệu chỉnh, bước đầu có độ lớn đúng bằng $\eta$ (theo mỗi tọa độ). Đoạn mã sau cài đặt Adam, đối chiếu với `torch.optim.Adam`, và đo độ lớn bước đầu tiên:
+**Điều gì xảy ra nếu bỏ hiệu chỉnh?** Ở bước đầu tiên, $\mathbf{m}_1 = (1 - \beta_1)\mathbf{g}_1$ và $\mathbf{v}_1 = (1 - \beta_2)\mathbf{g}_1^2$, nên (bỏ qua $\epsilon$) bước cập nhật có độ lớn $\eta(1 - \beta_1)/\sqrt{1 - \beta_2} \approx 3{,}16\,\eta$ với các giá trị mặc định. Ngược với trực giác "khởi đầu từ 0 thì bước sẽ nhỏ", bỏ hiệu chỉnh làm các bước đầu **lớn hơn** vài lần (khoảng 3 lần ở bước đầu tiên, và hơn 6 lần quanh bước thứ 10–20, vì $\mathbf{v}_t$ hồi phục chậm hơn nhiều so với $\mathbf{m}_t$), đúng lúc mô hình còn mong manh nhất. Có hiệu chỉnh, bước đầu có độ lớn đúng bằng $\eta$ (theo mỗi tọa độ). Đoạn mã sau cài đặt Adam, đối chiếu với `torch.optim.Adam`, và đo độ lớn bước đầu tiên:
 
 ```python
 import torch
