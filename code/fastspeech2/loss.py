@@ -31,12 +31,9 @@ class FastSpeech2Loss(nn.Module):
         log_d_target = torch.log(out["duration_target"].float() + 1.0)
         dur_loss = F.mse_loss(out["log_duration_pred"][src_valid], log_d_target[src_valid])
 
-        def variance_loss(pred, target):
-            valid = src_valid if pred.shape == src_valid.shape else mel_valid
-            return F.mse_loss(pred[valid], target[valid])
-
-        pitch_loss = variance_loss(out["pitch_pred"], out["pitch_target"])
-        energy_loss = variance_loss(out["energy_pred"], out["energy_target"])
+        p_valid, e_valid = ~out["pitch_pad"], ~out["energy_pad"]  # cấp token hoặc khung
+        pitch_loss = F.mse_loss(out["pitch_pred"][p_valid], out["pitch_target"][p_valid])
+        energy_loss = F.mse_loss(out["energy_pred"][e_valid], out["energy_target"][e_valid])
         total = mel_loss + post_loss + dur_loss + pitch_loss + energy_loss
         logs = dict(mel=mel_loss, postnet=post_loss, duration=dur_loss, pitch=pitch_loss,
                     energy=energy_loss)

@@ -160,8 +160,10 @@ class VarianceAdaptor(nn.Module):
             x, p_pred = self._add_pitch(x, mel_pad, pitch, pitch_shift, pitch_scale)
         if cfg.energy_level == "frame":
             x, e_pred = self._add_energy(x, mel_pad, energy, energy_scale)
+        level_pad = {"phoneme": src_pad, "frame": mel_pad}
         return x, dict(log_duration_pred=log_d_pred, pitch_pred=p_pred, energy_pred=e_pred,
-                       durations=durations, mel_lens=mel_lens, mel_pad=mel_pad)
+                       durations=durations, mel_lens=mel_lens, mel_pad=mel_pad,
+                       pitch_pad=level_pad[cfg.pitch_level], energy_pad=level_pad[cfg.energy_level])
 
 
 class PostNet(nn.Module):
