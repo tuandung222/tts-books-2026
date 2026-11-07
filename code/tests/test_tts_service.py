@@ -347,6 +347,18 @@ def test_onnx_adapter_feeds():
     assert audio.shape == (int(256 * 7 * 0.5),)
 
 
+def test_onnx_adapter_uses_vn_frontend_blank_by_default():
+    vnf = pytest.importorskip("vn_frontend")
+    if not hasattr(vnf, "text_to_sequence"):
+        pytest.skip("vn_frontend chưa đầy đủ")
+    sess = _FakeSession()
+    synth = OnnxVitsSynthesizer(session=sess, add_blank=True, sample_rate=SR)
+    synth.synthesize("xin chào")
+    ids = sess.feeds["input"][0].tolist()
+    assert ids == vnf.intersperse(vnf.text_to_sequence("xin chào"))
+    assert ids[0] == vnf.BLANK_ID
+
+
 def test_onnx_adapter_with_real_onnx_graph(tmp_path):
     """Đồ thị ONNX nhỏ dựng bằng onnx.helper: output = Cast(input) * 0.001, hình dạng (1, 1, N)."""
     onnx = pytest.importorskip("onnx")

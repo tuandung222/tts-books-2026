@@ -169,14 +169,15 @@ def intersperse(ids: Sequence[int], blank: int = 0) -> list[int]:
     return out
 
 
-def _default_text_to_ids() -> Callable[[str], list[int]]:
+def _default_text_to_ids() -> tuple[Callable[[str], list[int]], int]:
+    """Hàm văn bản -> ID và ID của token blank, lấy từ ``vn_frontend`` (Dự án 1)."""
     try:
-        from vn_frontend import text_to_sequence  # type: ignore[import-not-found]
+        from vn_frontend import BLANK_ID, text_to_sequence  # type: ignore[import-not-found]
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(
             "Cần truyền text_to_ids hoặc cài gói vn_frontend (Dự án 1) để chuyển văn bản sang ID"
         ) from exc
-    return text_to_sequence
+    return text_to_sequence, BLANK_ID
 
 
 class OnnxVitsSynthesizer(Synthesizer):
@@ -188,14 +189,17 @@ class OnnxVitsSynthesizer(Synthesizer):
     làm phẳng thành (L,).
 
     ``text_to_ids`` PHẢI giống hệt hàm dùng lúc huấn luyện (cùng bảng ký hiệu,
-    cùng việc có/không chèn blank) — đây là nguồn lỗi số một khi triển khai.
+    cùng việc có/không chèn blank, cùng ID của blank) — đây là nguồn lỗi số một khi
+    triển khai. Mặc định: ``vn_frontend.text_to_sequence`` và ``vn_frontend.BLANK_ID``;
+    với bảng ký hiệu kiểu VITS gốc/Piper, blank là ID 0.
     """
 
     name = "onnx-vits"
 
     def __init__(self, model_path: str | None = None, *, sample_rate: int = 22050,
                  text_to_ids: Callable[[str], Sequence[int]] | None = None,
-                 add_blank: bool = False, noise_scale: float = 0.667,
+                 add_blank: bool = False, blank_id: int | None = None,
+                 noise_scale: float = 0.667,
                  length_scale: float = 1.0, noise_w: float = 0.8,
                  speaker_ids: Mapping[str, int] | None = None,
                  session=None, providers: Sequence[str] | None = None) -> None:
@@ -207,8 +211,12 @@ class OnnxVitsSynthesizer(Synthesizer):
         self.session = session
         self.input_names = {i.name for i in session.get_inputs()}
         self.sample_rate = sample_rate
-        self.text_to_ids = text_to_ids or _default_text_to_ids()
+        default_blank = 0
+        if text_to_ids is None:
+            text_to_ids, default_blank = _default_text_to_ids()
+        self.text_to_ids = text_to_ids
         self.add_blank = add_blank
+        self.blank_id = default_blank if blank_id is None else blank_id
         self.noise_scale, self.length_scale, self.noise_w = noise_scale, length_scale, noise_w
         self.speaker_ids = dict(speaker_ids or {})
 
@@ -216,7 +224,7 @@ class OnnxVitsSynthesizer(Synthesizer):
                    speed: float = 1.0) -> np.ndarray:
         ids = list(self.text_to_ids(text))
         if self.add_blank:
-            ids = intersperse(ids)
+            ids = intersperse(ids, self.blank_id)
         if not ids:
             return np.zeros(0, dtype=np.float32)
         feeds = {
@@ -238,7 +246,7 @@ def synthesizer_from_env(env: Mapping[str, str] | None = None) -> Synthesizer:
     - ``TTS_SYNTHESIZER``: ``tone`` (mặc định) hoặc ``onnx``
     - ``TTS_SAMPLE_RATE``: tần số lấy mẫu (mặc định 22050)
     - ``TTS_SIMULATED_RTF``: RTF giả lập cho ``tone``
-    - ``TTS_ONNX_MODEL``, ``TTS_ADD_BLANK`` (0/1): cho ``onnx``
+    - ``TTS_ONNX_MODEL``, ``TTS_ADD_BLANK`` (0/1), ``TTS_BLANK_ID``: cho ``onnx``
     """
     env = os.environ if env is None else env
     kind = env.get("TTS_SYNTHESIZER", "tone").lower()
@@ -247,6 +255,8 @@ def synthesizer_from_env(env: Mapping[str, str] | None = None) -> Synthesizer:
         return ToneSynthesizer(sample_rate=sample_rate,
                                simulated_rtf=float(env.get("TTS_SIMULATED_RTF", "0")))
     if kind == "onnx":
+        blank = env.get("TTS_BLANK_ID")
         return OnnxVitsSynthesizer(env["TTS_ONNX_MODEL"], sample_rate=sample_rate,
-                                   add_blank=env.get("TTS_ADD_BLANK", "0") == "1")
+                                   add_blank=env.get("TTS_ADD_BLANK", "0") == "1",
+                                   blank_id=None if blank is None else int(blank))
     raise ValueError(f"TTS_SYNTHESIZER không hợp lệ: {kind!r}")
