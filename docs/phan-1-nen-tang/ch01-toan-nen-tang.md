@@ -644,3 +644,211 @@ Dự đoán L2 rơi vào khoảng $-0{,}81$, đúng chỗ "thung lũng" giữa h
 
 !!! note "Góc tiếng Việt"
     Trộn nhiều phương ngữ trong dữ liệu huấn luyện mà không cho mô hình biết người nói hay vùng miền là một cách chắc chắn để tạo ra phân phối nhiều chế độ. Ví dụ, thanh hỏi và thanh ngã được phân biệt rõ trong giọng Bắc nhưng thường nhập làm một trong giọng Nam ([Chương 15](../phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md)). Nếu dữ liệu chứa cả hai giọng, đường nét F0 "đúng" của một âm tiết mang thanh ngã sẽ có ít nhất hai chế độ. Một mô hình hồi quy L2 khi đó sẽ học một đường nét trung bình không thuộc giọng nào, nghe như thanh điệu bị "nhòe". Cách khắc phục là thêm điều kiện (embedding người nói/phương ngữ, [Chương 28](../phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning.md)) hoặc dùng mô hình sinh.
+
+## 1.5. Lý thuyết thông tin
+
+Lý thuyết thông tin, khởi nguồn từ công trình của Shannon (1948), trả lời hai câu hỏi tưởng như thuộc về viễn thông: một nguồn tin "bất định" đến đâu, và dùng sai mô hình để mã hóa thì tốn thêm bao nhiêu. Hóa ra đó chính là những câu hỏi mà hàm mất mát của mô hình sinh đặt ra.
+
+### 1.5.1. Lượng tin và entropy
+
+**Trực giác.** Một sự kiện càng hiếm thì khi xảy ra càng "mang nhiều tin". Shannon định nghĩa **lượng tin** (*self-information*) của kết quả $x$ là $-\log p(x)$: bằng 0 với sự kiện chắc chắn, tăng dần khi $p(x)$ giảm, và cộng được với các sự kiện độc lập (vì $\log$ biến tích thành tổng).
+
+**Entropy** là lượng tin trung bình:
+
+$$
+H(p) = \mathbb{E}_{p}[-\log p(X)] = -\sum_x p(x)\log p(x) .
+$$
+
+Với logarit cơ số 2, đơn vị là **bit**; với logarit tự nhiên, đơn vị là **nat** ($1$ nat $= 1/\ln 2 \approx 1{,}443$ bit). PyTorch và hầu hết các bài báo học sâu dùng nat. Với biến rời rạc có $K$ giá trị, $0 \le H(p) \le \log K$; giá trị nhỏ nhất đạt được khi phân phối tất định, lớn nhất khi phân phối đều.
+
+Một đại lượng liên quan rất hay dùng là **perplexity** $\exp(H(p))$ (với $H$ tính bằng nat), có thể hiểu là "số lựa chọn đồng khả năng tương đương". Trong các codec âm thanh ([Chương 31](../phan-8-mo-hinh-lon/ch31-audio-codec-speech-token.md)), perplexity của tần suất sử dụng các mã trong sổ mã là thước đo nhanh cho hiện tượng **sập sổ mã** (*codebook collapse*): một sổ mã 1 024 mục mà perplexity chỉ vài chục nghĩa là phần lớn các mục không được dùng.
+
+```python
+import numpy as np
+
+def entropy(p):                                  # đơn vị nat
+    p = p[p > 0]
+    return -np.sum(p * np.log(p))
+
+V = 1024                                         # kích thước sổ mã (codebook)
+uniform = np.full(V, 1.0 / V)
+rng = np.random.default_rng(0)
+skewed = rng.dirichlet(np.full(V, 0.05))         # chỉ một số ít mã được dùng nhiều
+for name, p in [("đều", uniform), ("lệch", skewed)]:
+    H = entropy(p)
+    print(f"{name:5s}: H = {H:.3f} nat = {H / np.log(2):.2f} bit, "
+          f"perplexity = {np.exp(H):7.1f} / {V}")
+
+# Thông tin tương hỗ từ bảng phân phối đồng thời p(x, y)
+pxy = np.array([[0.30, 0.05],
+                [0.05, 0.60]])
+px, py = pxy.sum(1), pxy.sum(0)
+mi = np.sum(pxy * np.log(pxy / np.outer(px, py)))
+print(f"I(X;Y) = {mi:.4f} nat ; H(X) + H(Y) - H(X,Y) = "
+      f"{entropy(px) + entropy(py) - entropy(pxy.ravel()):.4f} nat")
+```
+
+Với phân phối đều, entropy đúng bằng $\log_2 1024 = 10$ bit và perplexity bằng 1 024. Với phân phối lệch, perplexity chỉ khoảng 81: sổ mã "hiệu dụng" nhỏ hơn hơn 12 lần so với kích thước danh nghĩa. (Phần thông tin tương hỗ ở cuối đoạn mã được giải thích ở Mục 1.5.4.)
+
+Với biến liên tục, ta có **entropy vi phân** $h(p) = -\int p(x)\log p(x)\,dx$. Ví dụ, Gauss $\mathcal{N}(\mu, \sigma^2)$ có $h = \frac{1}{2}\log(2\pi e\sigma^2)$. Khác với entropy rời rạc, entropy vi phân có thể âm (khi $\sigma$ nhỏ), và nó không bất biến khi đổi biến, một hệ quả trực tiếp của công thức ở Mục 1.4.5.
+
+### 1.5.2. Entropy chéo
+
+Giả sử dữ liệu đến từ phân phối $p$, nhưng ta mô tả chúng bằng mô hình $q$. **Entropy chéo** là lượng tin trung bình khi dùng $q$ để "giải thích" dữ liệu từ $p$:
+
+$$
+H(p, q) = \mathbb{E}_{p}[-\log q(X)] = -\sum_x p(x)\log q(x) .
+$$
+
+Theo cách hiểu của nén dữ liệu: đó là độ dài mã trung bình (tính bằng bit nếu dùng $\log_2$) khi ta thiết kế bộ mã tối ưu cho $q$ nhưng dữ liệu thực ra theo $p$.
+
+**Đây chính là hàm mất mát phân loại.** Khi nhãn là một lớp cụ thể $y$, ta coi $p$ là phân phối one-hot đặt toàn bộ xác suất vào $y$. Khi đó $H(p, q) = -\log q(y)$: entropy chéo bằng **negative log-likelihood của nhãn đúng**. Trung bình trên tập huấn luyện, nó là hàm mất mát entropy chéo quen thuộc. Trong TTS, nó xuất hiện mỗi khi mô hình dự đoán một đại lượng rời rạc:
+
+- WaveNet lượng tử hóa mẫu âm thanh bằng μ-law thành 256 mức và dự đoán mẫu tiếp theo bằng softmax 256 lớp (van den Oord và cộng sự, 2016; [Chương 24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md)).
+- Các codec language model như VALL-E dự đoán token của neural audio codec bằng entropy chéo trên sổ mã (Wang và cộng sự, 2023; [Chương 32](../phan-8-mo-hinh-lon/ch32-codec-language-model.md)).
+- Cờ dừng của Tacotron 2 dùng entropy chéo nhị phân (phân phối Bernoulli, [Chương 20](../phan-5-mo-hinh-am-hoc/ch20-tacotron.md)).
+
+### 1.5.3. Phân kỳ KL và tính bất đối xứng
+
+**Phân kỳ Kullback–Leibler** đo "chi phí thêm" khi dùng $q$ thay cho $p$:
+
+$$
+D_{\mathrm{KL}}(p \,\Vert\, q) = \sum_x p(x)\log\frac{p(x)}{q(x)} = H(p, q) - H(p) .
+$$
+
+**KL không âm (bất đẳng thức Gibbs).** Dùng bất đẳng thức Jensen cho hàm lõm $\log$ (tức $\mathbb{E}[\log Z] \le \log\mathbb{E}[Z]$), lấy tổng trên các $x$ có $p(x) > 0$:
+
+$$
+-D_{\mathrm{KL}}(p \,\Vert\, q) = \sum_x p(x)\log\frac{q(x)}{p(x)} \le \log\sum_x p(x)\frac{q(x)}{p(x)} = \log\sum_{x:\,p(x) > 0} q(x) \le \log 1 = 0 .
+$$
+
+Vậy $D_{\mathrm{KL}}(p \,\Vert\, q) \ge 0$, và dấu bằng xảy ra khi và chỉ khi $p = q$. Từ đó $H(p, q) \ge H(p)$: không mô hình nào mã hóa dữ liệu tốt hơn chính phân phối thật.
+
+**Hệ quả then chốt.** Vì $H(p_{\text{data}})$ không phụ thuộc tham số $\theta$,
+
+$$
+\arg\min_\theta H(p_{\text{data}}, q_\theta) = \arg\min_\theta D_{\mathrm{KL}}(p_{\text{data}} \,\Vert\, q_\theta) .
+$$
+
+Cực tiểu hóa entropy chéo, cực tiểu hóa KL thuận và cực đại hóa log-likelihood là **cùng một việc**. Mối liên hệ này được dùng lại nhiều lần ở [Chương 7](../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh.md).
+
+**KL không đối xứng.** Nói chung $D_{\mathrm{KL}}(p \,\Vert\, q) \ne D_{\mathrm{KL}}(q \,\Vert\, p)$, và hai hướng có "tính cách" rất khác nhau:
+
+- **KL thuận** $D_{\mathrm{KL}}(p \,\Vert\, q)$ lấy kỳ vọng theo $p$. Nếu $q(x) \approx 0$ ở nơi $p(x) > 0$ thì $\log(p/q)$ rất lớn: $q$ bị phạt nặng khi **bỏ sót** bất kỳ vùng nào của dữ liệu. Kết quả là $q$ có xu hướng **phủ mọi chế độ** (*mode-covering*), chấp nhận đặt xác suất cả vào vùng "thung lũng" giữa các chế độ.
+- **KL nghịch** $D_{\mathrm{KL}}(q \,\Vert\, p)$ lấy kỳ vọng theo $q$. $q$ bị phạt nặng khi đặt xác suất vào nơi $p$ gần bằng 0, nhưng không bị phạt khi bỏ sót. Kết quả là $q$ có xu hướng **bám một chế độ** (*mode-seeking*).
+
+Đoạn mã sau khớp một Gauss $q$ với một hỗn hợp hai Gauss $p$ bằng cách tìm kiếm trên lưới tham số:
+
+```python
+import numpy as np
+
+def normal_pdf(x, mu, sigma):
+    return np.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * np.sqrt(2 * np.pi))
+
+x = np.linspace(-8, 8, 4001)
+dx = x[1] - x[0]
+# p: hỗn hợp hai Gauss (hai "chế độ", ví dụ hai cách ngắt nhịp một câu)
+p = 0.5 * normal_pdf(x, -2.5, 0.6) + 0.5 * normal_pdf(x, 2.5, 0.6)
+
+def kl(a, b):                         # KL(a || b) bằng tích phân số trên lưới
+    mask = a > 1e-300
+    return np.sum(a[mask] * (np.log(a[mask]) - np.log(b[mask] + 1e-300))) * dx
+
+best_fwd, best_rev = (np.inf, None), (np.inf, None)
+for mu in np.linspace(-4, 4, 81):
+    for sigma in np.linspace(0.2, 4, 77):
+        q = normal_pdf(x, mu, sigma)
+        f, r = kl(p, q), kl(q, p)     # thuận KL(p||q), nghịch KL(q||p)
+        if f < best_fwd[0]:
+            best_fwd = (f, (mu, sigma))
+        if r < best_rev[0]:
+            best_rev = (r, (mu, sigma))
+
+print("KL thuận  KL(p||q) nhỏ nhất tại (mu, sigma) =", np.round(best_fwd[1], 2))
+print("KL nghịch KL(q||p) nhỏ nhất tại (mu, sigma) =", np.round(best_rev[1], 2))
+```
+
+KL thuận cho $q$ có $\mu \approx 0$, $\sigma \approx 2{,}55$: một Gauss rộng phủ cả hai chế độ, đặt nhiều xác suất nhất vào đúng chỗ dữ liệu *không bao giờ* xuất hiện (giá trị lý thuyết là $\sigma = \sqrt{0{,}6^2 + 2{,}5^2} \approx 2{,}57$, xem Bài tập 5). KL nghịch cho $\mu = 2{,}5$, $\sigma = 0{,}6$: khớp hoàn hảo một chế độ và bỏ qua chế độ kia (do đối xứng, $\mu = -2{,}5$ cũng tốt như vậy).
+
+**Liên hệ với TTS.**
+
+- Huấn luyện hợp lý cực đại tương đương cực tiểu KL thuận. Khi họ phân phối của mô hình quá đơn giản (ví dụ một Gauss đơn mode cho mỗi khung mel), mô hình bị buộc phải "trải rộng", và mẫu sinh ra trở nên nhòe: đây là cùng một hiện tượng với over-smoothing ở Mục 1.4.7, nhìn từ góc độ thông tin.
+- Parallel WaveNet chưng cất một WaveNet tự hồi quy (thầy) sang một flow song song (trò) bằng cách cực tiểu KL **nghịch** từ trò tới thầy ([Chương 24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md)), một lựa chọn dẫn đến đặc tính bám chế độ.
+- Số hạng KL trong ELBO của VAE và của VITS kéo hậu nghiệm xấp xỉ về gần tiên nghiệm ([Chương 8](../phan-2-mo-hinh-sinh/ch08-vae.md), [Chương 27](../phan-7-e2e-bieu-cam/ch27-vits.md)). Với hai Gauss một chiều, KL có dạng đóng
+
+$$
+D_{\mathrm{KL}}\big(\mathcal{N}(\mu_1, \sigma_1^2) \,\Vert\, \mathcal{N}(\mu_2, \sigma_2^2)\big) = \log\frac{\sigma_2}{\sigma_1} + \frac{\sigma_1^2 + (\mu_1 - \mu_2)^2}{2\sigma_2^2} - \frac{1}{2},
+$$
+
+mà [Chương 8](../phan-2-mo-hinh-sinh/ch08-vae.md) sẽ suy ra chi tiết.
+
+### 1.5.4. Thông tin tương hỗ
+
+**Thông tin tương hỗ** đo lượng thông tin mà một biến tiết lộ về biến kia:
+
+$$
+I(X; Y) = D_{\mathrm{KL}}\big(p(x, y) \,\Vert\, p(x)\,p(y)\big) = H(X) - H(X \mid Y) = H(X) + H(Y) - H(X, Y) .
+$$
+
+Định nghĩa đầu tiên nói rằng $I(X; Y)$ là "khoảng cách" giữa phân phối đồng thời và phân phối mà hai biến *sẽ có* nếu chúng độc lập. Vì vậy $I(X; Y) \ge 0$, bằng 0 khi và chỉ khi $X$, $Y$ độc lập, và đối xứng theo $X$, $Y$. Định nghĩa thứ hai nói rằng nó là lượng bất định về $X$ được giảm bớt khi biết $Y$. Phần cuối của đoạn mã ở Mục 1.5.1 tính $I(X; Y) \approx 0{,}328$ nat theo hai cách và cho cùng kết quả.
+
+Trong TTS, thông tin tương hỗ là ngôn ngữ tự nhiên để nói về **tách rời** (*disentanglement*). Ta muốn embedding người nói chứa thông tin về *giọng* nhưng gần như không chứa thông tin về *nội dung*, và ngược lại, biểu diễn nội dung không "rò rỉ" danh tính người nói. Các kỹ thuật như nút thắt thông tin (*information bottleneck*), bộ phân loại đối kháng hay các ràng buộc cực tiểu thông tin tương hỗ đều nhằm mục tiêu đó ([Chương 28](../phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning.md), [Chương 30](../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching.md)).
+
+!!! note "Góc tiếng Việt"
+    Trong tiếng Việt, đường nét tần số cơ bản (F0) mang **nghĩa từ vựng**: "ma, mà, má, mả, mã, mạ" chỉ khác nhau ở thanh điệu. Nói theo ngôn ngữ của mục này, thông tin tương hỗ giữa F0 và danh tính của từ là lớn hơn hẳn so với tiếng Anh, nơi F0 chủ yếu mang ngữ điệu. Hệ quả thực tế: một kỹ thuật vô tình "xóa" thông tin cao độ, chẳng hạn một nút thắt quá hẹp khi tách nội dung khỏi giọng, hay một phép chuẩn hóa F0 quá mạnh, có thể chấp nhận được với tiếng Anh nhưng sẽ làm hỏng thanh điệu tiếng Việt ([Chương 15](../phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md), [Chương 16](../phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md)).
+
+## 1.6. Số phức và công thức Euler: cầu nối tới Fourier
+
+Âm thanh là dao động. Công cụ toán học thuận tiện nhất để mô tả dao động là **số phức**, và cây cầu nối hai thứ là công thức Euler. Mục này chỉ trình bày phần tối thiểu để đọc hiểu [Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md).
+
+**Số phức.** Một số phức $z = a + ib$, với $i^2 = -1$, là một điểm $(a, b)$ trên mặt phẳng. Nó có **mô-đun** $\lvert z \rvert = \sqrt{a^2 + b^2}$ (khoảng cách tới gốc) và **argument** $\arg z = \varphi$ (góc so với trục thực). Ta có thể viết $z$ ở **dạng cực** $z = r(\cos\varphi + i\sin\varphi)$ với $r = \lvert z \rvert$.
+
+**Công thức Euler.** Thay $x = i\theta$ vào chuỗi Taylor $e^{x} = \sum_{n \ge 0} x^n/n!$ và dùng $i^2 = -1$, $i^3 = -i$, $i^4 = 1$, ta tách được phần thực và phần ảo:
+
+$$
+e^{i\theta} = \Big(1 - \frac{\theta^2}{2!} + \frac{\theta^4}{4!} - \cdots\Big) + i\Big(\theta - \frac{\theta^3}{3!} + \frac{\theta^5}{5!} - \cdots\Big) = \cos\theta + i\sin\theta .
+$$
+
+Vậy dạng cực viết gọn thành $z = re^{i\varphi}$. Phép nhân trở nên rất trực quan: $r_1e^{i\varphi_1} \cdot r_2e^{i\varphi_2} = r_1r_2\,e^{i(\varphi_1 + \varphi_2)}$, tức **nhân mô-đun và cộng góc**. Nhân với $e^{i\theta}$ là **phép xoay** một góc $\theta$. Cơ chế mã hóa vị trí RoPE trong Transformer khai thác đúng tính chất này: nó xoay từng cặp chiều của query và key một góc tỷ lệ với vị trí ([Chương 5](ch05-transformer.md)).
+
+**Dao động hình sin là phần thực của một véc-tơ quay.** Một thành phần tần số $\omega$ với biên độ $A$ và pha $\varphi$ viết được thành
+
+$$
+A\cos(\omega n + \varphi) = \operatorname{Re}\big\{A e^{i\varphi}\,e^{i\omega n}\big\} .
+$$
+
+Số phức $Ae^{i\varphi}$ (gọi là *phasor*) gói **cả biên độ lẫn pha** vào một con số. Đây là lý do mọi phép phân tích tần số đều cho ra số phức.
+
+**DFT là một phép biến đổi tuyến tính.** Biến đổi Fourier rời rạc của $N$ mẫu $s[0], \ldots, s[N-1]$ là
+
+$$
+X[k] = \sum_{n=0}^{N-1} s[n]\,e^{-i2\pi kn/N}, \qquad k = 0, \ldots, N - 1 .
+$$
+
+Mỗi $X[k]$ là **tích vô hướng** của tín hiệu với một dao động phức tần số $k f_s/N$ Hz: nó cho biết tín hiệu "chứa bao nhiêu" thành phần tần số đó ($\lvert X[k] \rvert$) và với pha nào ($\arg X[k]$). Viết dưới dạng ma trận, $\mathbf{X} = \mathbf{F}\mathbf{s}$ với $F_{kn} = e^{-i2\pi kn/N}$. Các cột của $\mathbf{F}$ trực giao với nhau, $\mathbf{F}^{\mathsf{H}}\mathbf{F} = N\mathbf{I}$ (với $\mathbf{F}^{\mathsf{H}}$ là chuyển vị liên hợp), nên DFT bảo toàn năng lượng đến một hằng số (**định lý Parseval**): $\sum_k \lvert X[k] \rvert^2 = N\sum_n \lvert s[n] \rvert^2$. Như vậy toàn bộ kiến thức đại số tuyến tính ở Mục 1.2 áp dụng được cho phân tích tần số.
+
+```python
+import numpy as np
+
+# Công thức Euler: e^{i theta} = cos(theta) + i sin(theta)
+theta = np.linspace(0, 2 * np.pi, 7)
+assert np.allclose(np.exp(1j * theta), np.cos(theta) + 1j * np.sin(theta))
+
+# DFT là một phép biến đổi tuyến tính: X = F s, với F[k, n] = exp(-2πi k n / N)
+N = 16
+n = np.arange(N)
+F = np.exp(-2j * np.pi * np.outer(n, n) / N)            # (N, N) ma trận DFT
+rng = np.random.default_rng(0)
+s = rng.standard_normal(N)                               # tín hiệu thực
+X = F @ s
+assert np.allclose(X, np.fft.fft(s))                     # khớp với FFT
+assert np.allclose(F.conj().T @ F, N * np.eye(N))        # các cột trực giao
+assert np.allclose(np.sum(np.abs(X) ** 2), N * np.sum(s ** 2))   # Parseval
+mag, phase = np.abs(X), np.angle(X)                      # biên độ và pha
+assert np.allclose(mag * np.exp(1j * phase), X)          # dạng cực
+print("DFT bằng ma trận khớp np.fft.fft; định lý Parseval được nghiệm đúng.")
+```
+
+Nhân ma trận trực tiếp tốn $O(N^2)$ phép tính; thuật toán **FFT** tính cùng kết quả trong $O(N\log N)$ bằng cách khai thác cấu trúc đặc biệt của $\mathbf{F}$. Với tín hiệu thực, $X[N - k]$ là liên hợp phức của $X[k]$, nên chỉ cần giữ $N/2 + 1$ bin đầu: đó là lý do `n_fft = 1024` cho 513 bin như ở Mục 1.2.7. Với $f_s = 22\,050$ Hz, các bin cách nhau $22\,050/1024 \approx 21{,}5$ Hz.
+
+**Liên hệ với TTS.** Áp DFT lên từng đoạn ngắn của tín hiệu ta được STFT, một ma trận số phức theo thời gian và tần số. Mel-spectrogram chỉ giữ **biên độ** (qua $\lvert\cdot\rvert^2$) rồi chiếu xuống thang mel, nên **toàn bộ thông tin pha bị bỏ đi**. Khôi phục pha là bài toán khó: Griffin–Lim làm điều đó bằng lặp ([Chương 14](../phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md)), các vocoder nơ-ron học cách sinh dạng sóng trực tiếp ([Chương 24](../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md), [Chương 25](../phan-6-vocoder/ch25-gan-vocoder.md)), còn những vocoder như Vocos dự đoán thẳng biên độ và pha rồi dùng STFT ngược.
