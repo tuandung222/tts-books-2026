@@ -54,7 +54,7 @@ flowchart LR
     E --> ENC["N khối FFT (encoder)"]
     ENC --> DP["Bộ dự đoán trường độ"]
     ENC --> LR["Length regulator"]
-    DP -->|"d (khi suy luận)"| LR
+    DP -->|"d khi suy luận"| LR
     LR --> DEC["N khối FFT (decoder)"]
     DEC --> LIN["Chiếu tuyến tính"]
     LIN --> Y["Mel-spectrogram (T x F)"]
