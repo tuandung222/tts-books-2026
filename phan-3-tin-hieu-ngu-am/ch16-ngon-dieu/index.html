@@ -1,0 +1,3644 @@
+
+<!doctype html>
+<html lang="vi" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Giáo trình tiếng Việt về Tổng hợp tiếng nói (Text-to-Speech): từ nền tảng học sâu đến làm chủ các hệ thống TTS hiện đại.">
+      
+      
+        <meta name="author" content="Cộng đồng đóng góp tts-books-2026">
+      
+      
+        <link rel="canonical" href="https://tuandung222.github.io/tts-books-2026/phan-3-tin-hieu-ngu-am/ch16-ngon-dieu/">
+      
+      
+        <link rel="prev" href="../ch15-ngu-am-tieng-viet/">
+      
+      
+        <link rel="next" href="../../phan-4-frontend/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>16. Ngôn điệu (Prosody) - Giáo trình TTS 2026</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Be+Vietnam+Pro:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Be Vietnam Pro";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#chuong-16-ngon-ieu-prosody" class="md-skip">
+          Bỏ qua
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Đầu trang">
+    <a href="../.." title="Giáo trình TTS 2026" class="md-header__button md-logo" aria-label="Giáo trình TTS 2026" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Giáo trình TTS 2026
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              16. Ngôn điệu (Prosody)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Chuyển sang chế độ tối"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Chuyển sang chế độ tối" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Chuyển sang chế độ sáng"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Chuyển sang chế độ sáng" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Tìm kiếm" placeholder="Tìm kiếm" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Tìm kiếm">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Chia sẻ" aria-label="Chia sẻ" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Xoá" aria-label="Xoá" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tuandung222/tts-books-2026" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tuandung222/tts-books-2026
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+    
+  
+  Trang chủ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-1-nen-tang/" class="md-tabs__link">
+          
+  
+    
+  
+  I. Nền tảng học sâu
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-2-mo-hinh-sinh/" class="md-tabs__link">
+          
+  
+    
+  
+  II. Mô hình sinh
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  III. Tín hiệu và ngữ âm
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-4-frontend/" class="md-tabs__link">
+          
+  
+    
+  
+  IV. Xử lý văn bản
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-5-mo-hinh-am-hoc/" class="md-tabs__link">
+          
+  
+    
+  
+  V. Mô hình âm học
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-6-vocoder/" class="md-tabs__link">
+          
+  
+    
+  
+  VI. Vocoder
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-7-e2e-bieu-cam/" class="md-tabs__link">
+          
+  
+    
+  
+  VII. End-to-end và biểu cảm
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-8-mo-hinh-lon/" class="md-tabs__link">
+          
+  
+    
+  
+  VIII. TTS thời mô hình lớn
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-9-thuc-tien/" class="md-tabs__link">
+          
+  
+    
+  
+  IX. Thực tiễn
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-10-du-an/" class="md-tabs__link">
+          
+  
+    
+  
+  X. Dự án
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phu-luc/" class="md-tabs__link">
+          
+  
+    
+  
+  Phụ lục
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Thanh điều hướng" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Giáo trình TTS 2026" class="md-nav__button md-logo" aria-label="Giáo trình TTS 2026" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Giáo trình TTS 2026
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tuandung222/tts-books-2026" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tuandung222/tts-books-2026
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Trang chủ
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Trang chủ
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/loi-noi-dau/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Lời nói đầu
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/lo-trinh-hoc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Lộ trình học
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/ky-hieu/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ký hiệu toán học
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/quy-uoc-bien-soan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quy ước biên soạn
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-1-nen-tang/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    I. Nền tảng học sâu
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            I. Nền tảng học sâu
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch01-toan-nen-tang/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    1. Toán nền tảng cho học sâu
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch02-hoc-may-va-mang-no-ron/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    2. Học máy và mạng nơ-ron
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch03-toi-uu-va-ky-thuat-huan-luyen/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    3. Tối ưu hóa và kỹ thuật huấn luyện
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch04-cnn-rnn-mo-hinh-chuoi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    4. CNN, RNN và mô hình chuỗi
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch05-transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    5. Attention và Transformer
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch06-pytorch-cho-tieng-noi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    6. PyTorch cho xử lý tiếng nói
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-2-mo-hinh-sinh/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    II. Mô hình sinh
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            II. Mô hình sinh
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    7. Tổng quan mô hình sinh
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch08-vae/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    8. Variational Autoencoder
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch09-gan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    9. Mạng đối sinh (GAN)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch10-normalizing-flows/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    10. Normalizing Flows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch11-diffusion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    11. Mô hình khuếch tán (Diffusion)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch12-flow-matching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    12. Flow Matching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    III. Tín hiệu và ngữ âm
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            III. Tín hiệu và ngữ âm
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ch13-am-hoc-tieng-noi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    13. Âm học và cơ chế tạo tiếng nói
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ch14-xu-ly-tin-hieu-so/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    14. Xử lý tín hiệu số cho tiếng nói
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ch15-ngu-am-tieng-viet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    15. Ngữ âm và âm vị học tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    16. Ngôn điệu (Prosody)
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    16. Ngôn điệu (Prosody)
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#161-ngon-ieu-la-gi" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.1. Ngôn điệu là gì
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#162-tuong-quan-am-hoc-va-chuan-hoa" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2. Tương quan âm học và chuẩn hóa
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16.2. Tương quan âm học và chuẩn hóa">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1621-cao-o" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2.1. Cao độ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1622-truong-o" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2.2. Trường độ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1623-nang-luong-o-nghieng-pho-va-chat-giong" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2.3. Năng lượng, độ nghiêng phổ và chất giọng
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#163-cau-truc-phan-cap-ngon-ieu-va-tobi" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.3. Cấu trúc phân cấp ngôn điệu và ToBI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#164-thanh-ieu-va-ngu-ieu" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4. Thanh điệu và ngữ điệu
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16.4. Thanh điệu và ngữ điệu">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1641-mot-kenh-hai-chuc-nang" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.1. Một kênh, hai chức năng
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1642-uong-xuong-ha-cuoi-va-at-lai" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.2. Đường xuống, hạ cuối và đặt lại
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1643-ngu-ieu-tieng-viet" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.3. Ngữ điệu tiếng Việt
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1644-tieu-tu-tinh-thai-cuoi-cau" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.4. Tiểu từ tình thái cuối câu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1645-tieu-iem-va-nhan-manh" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.5. Tiêu điểm và nhấn mạnh
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#165-ngat-nhip-va-ngung-nghi-trong-tieng-viet" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5. Ngắt nhịp và ngừng nghỉ trong tiếng Việt
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16.5. Ngắt nhịp và ngừng nghỉ trong tiếng Việt">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1651-am-tiet-khong-phai-la-tu" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.1. Âm tiết không phải là từ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1652-cu-phap-va-o-dai-ngu-oan" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.2. Cú pháp và độ dài ngữ đoạn
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1653-dau-cau-va-ngung" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.3. Dấu câu và ngừng
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1654-mo-hinh-du-oan-ngat" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.4. Mô hình dự đoán ngắt
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#166-phong-cach-noi" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.6. Phong cách nói
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#167-tts-mo-hinh-hoa-ngon-ieu-nhu-the-nao" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.7. TTS mô hình hóa ngôn điệu như thế nào
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#168-anh-gia-ngon-ieu" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.8. Đánh giá ngôn điệu
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#169-thuc-hanh-f0-theo-am-tiet-va-uong-xuong" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9. Thực hành: F0 theo âm tiết và đường xuống
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loi-thuong-gap-va-meo-thuc-hanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lỗi thường gặp và mẹo thực hành
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tom-tat" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tóm tắt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bai-tap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bài tập
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tai-lieu-tham-khao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tài liệu tham khảo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-4-frontend/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    IV. Xử lý văn bản
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            IV. Xử lý văn bản
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-4-frontend/ch17-chuan-hoa-van-ban/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    17. Chuẩn hóa văn bản tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    18. G2P và biểu diễn đầu vào
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-5-mo-hinh-am-hoc/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    V. Mô hình âm học
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            V. Mô hình âm học
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch19-lich-su-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    19. Lịch sử TTS: từ formant đến neural
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch20-tacotron/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    20. Tacotron và TTS dựa trên attention
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch21-alignment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    21. Bài toán căn chỉnh (Alignment)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch22-fastspeech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    22. FastSpeech và TTS không tự hồi quy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    23. Glow-TTS, Grad-TTS, Matcha-TTS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-6-vocoder/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    VI. Vocoder
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            VI. Vocoder
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    24. Vocoder tự hồi quy và flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-6-vocoder/ch25-gan-vocoder/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    25. Vocoder dựa trên GAN
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    26. Vocoder khuếch tán và so sánh
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-7-e2e-bieu-cam/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    VII. End-to-end và biểu cảm
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            VII. End-to-end và biểu cảm
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch27-vits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    27. VITS và họ end-to-end
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    28. Đa người nói và nhân bản giọng
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    29. Ngôn điệu, cảm xúc và phong cách
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    30. Đa ngôn ngữ và trộn mã Việt–Anh
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-8-mo-hinh-lon/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    VIII. TTS thời mô hình lớn
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            VIII. TTS thời mô hình lớn
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch31-audio-codec-speech-token/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    31. Neural audio codec và speech token
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch32-codec-language-model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    32. Codec language model (VALL-E và họ hàng)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    33. TTS không tự hồi quy quy mô lớn
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    34. Kiến trúc lai LM + Flow hiện đại
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch35-streaming-speech-llm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    35. Streaming, Speech LLM và hội thoại
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-9-thuc-tien/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    IX. Thực tiễn
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            IX. Thực tiễn
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch36-du-lieu-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    36. Xây dựng dữ liệu TTS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch37-huan-luyen-va-debug/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    37. Huấn luyện và gỡ lỗi
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch38-danh-gia-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    38. Đánh giá hệ thống TTS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch39-trien-khai-production/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    39. Tối ưu suy luận và triển khai
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch40-dao-duc-an-toan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    40. Đạo đức, an toàn và pháp lý
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-10-du-an/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    X. Dự án
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_11" id="__nav_11_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            X. Dự án
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-1-frontend-tieng-viet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 1: Frontend tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-2-fastspeech2-hifigan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 2: FastSpeech 2 + HiFi-GAN
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-3-vits-tieng-viet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 3: VITS tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-4-zero-shot-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 4: Zero-shot TTS tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-5-tts-service-streaming/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 5: Dịch vụ TTS streaming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phu-luc/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Phụ lục
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_12" id="__nav_12_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            Phụ lục
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phu-luc/a-thuat-ngu/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A. Thuật ngữ Anh–Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phu-luc/b-danh-muc-bai-bao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    B. Danh mục bài báo cốt lõi
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phu-luc/c-tai-nguyen/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    C. Công cụ, thư viện và dữ liệu
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#161-ngon-ieu-la-gi" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.1. Ngôn điệu là gì
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#162-tuong-quan-am-hoc-va-chuan-hoa" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2. Tương quan âm học và chuẩn hóa
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16.2. Tương quan âm học và chuẩn hóa">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1621-cao-o" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2.1. Cao độ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1622-truong-o" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2.2. Trường độ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1623-nang-luong-o-nghieng-pho-va-chat-giong" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2.3. Năng lượng, độ nghiêng phổ và chất giọng
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#163-cau-truc-phan-cap-ngon-ieu-va-tobi" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.3. Cấu trúc phân cấp ngôn điệu và ToBI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#164-thanh-ieu-va-ngu-ieu" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4. Thanh điệu và ngữ điệu
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16.4. Thanh điệu và ngữ điệu">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1641-mot-kenh-hai-chuc-nang" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.1. Một kênh, hai chức năng
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1642-uong-xuong-ha-cuoi-va-at-lai" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.2. Đường xuống, hạ cuối và đặt lại
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1643-ngu-ieu-tieng-viet" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.3. Ngữ điệu tiếng Việt
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1644-tieu-tu-tinh-thai-cuoi-cau" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.4. Tiểu từ tình thái cuối câu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1645-tieu-iem-va-nhan-manh" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4.5. Tiêu điểm và nhấn mạnh
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#165-ngat-nhip-va-ngung-nghi-trong-tieng-viet" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5. Ngắt nhịp và ngừng nghỉ trong tiếng Việt
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16.5. Ngắt nhịp và ngừng nghỉ trong tiếng Việt">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1651-am-tiet-khong-phai-la-tu" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.1. Âm tiết không phải là từ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1652-cu-phap-va-o-dai-ngu-oan" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.2. Cú pháp và độ dài ngữ đoạn
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1653-dau-cau-va-ngung" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.3. Dấu câu và ngừng
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1654-mo-hinh-du-oan-ngat" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5.4. Mô hình dự đoán ngắt
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#166-phong-cach-noi" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.6. Phong cách nói
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#167-tts-mo-hinh-hoa-ngon-ieu-nhu-the-nao" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.7. TTS mô hình hóa ngôn điệu như thế nào
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#168-anh-gia-ngon-ieu" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.8. Đánh giá ngôn điệu
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#169-thuc-hanh-f0-theo-am-tiet-va-uong-xuong" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9. Thực hành: F0 theo âm tiết và đường xuống
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loi-thuong-gap-va-meo-thuc-hanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lỗi thường gặp và mẹo thực hành
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tom-tat" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tóm tắt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bai-tap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bài tập
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tai-lieu-tham-khao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tài liệu tham khảo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/tuandung222/tts-books-2026/edit/main/docs/phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md" title="Chỉnh sửa" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="chuong-16-ngon-ieu-prosody">Chương 16. Ngôn điệu (Prosody)<a class="headerlink" href="#chuong-16-ngon-ieu-prosody" title="Permanent link">&para;</a></h1>
+<div class="admonition abstract">
+<p class="admonition-title">Mục tiêu học tập</p>
+<p>Sau chương này, bạn có thể:</p>
+<ul>
+<li><strong>Định nghĩa</strong> ngôn điệu và phân biệt các thành phần của nó: ngữ điệu, nhịp, độ nổi bật, tốc độ, ngừng nghỉ, chất giọng.</li>
+<li><strong>Đo</strong> các tương quan âm học của ngôn điệu (F0 theo semitone, trường độ, năng lượng, độ nghiêng phổ) và chuẩn hóa chúng theo người nói.</li>
+<li><strong>Mô tả</strong> cấu trúc phân cấp ngôn điệu và hệ thống ký hiệu ToBI ở mức khái quát.</li>
+<li><strong>Phân tích</strong> sự tương tác giữa thanh điệu và ngữ điệu trong tiếng Việt: âm vực, đường xuống, tiểu từ cuối câu, câu hỏi, tiêu điểm.</li>
+<li><strong>Thiết kế</strong> quy tắc và đặc trưng ngắt nhịp cho tiếng Việt dựa trên tách từ, cú pháp và dấu câu.</li>
+<li><strong>So sánh</strong> cách các họ mô hình TTS mô hình hóa ngôn điệu (tường minh và ẩn).</li>
+<li><strong>Cài đặt</strong> quy trình trích F0, thống kê theo âm tiết và ước lượng đường xuống có tách ảnh hưởng của thanh điệu.</li>
+<li><strong>Đánh giá</strong> ngôn điệu bằng các phép đo chủ quan và khách quan, và nhận ra giới hạn của từng phép đo.</li>
+</ul>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Kiến thức cần có</p>
+<ul>
+<li>Cảm nhận cao độ, semitone: <a href="../ch13-am-hoc-tieng-noi/">Chương 13</a>.</li>
+<li>Trích xuất F0, năng lượng, V/UV: <a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>.</li>
+<li>Thanh điệu và cấu trúc âm tiết tiếng Việt: <a href="../ch15-ngu-am-tieng-viet/">Chương 15</a>.</li>
+<li>Bài toán một-nhiều trong TTS: <a href="../../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh/">Chương 7</a> (nên đọc).</li>
+</ul>
+</div>
+<p>Hãy đọc to ba câu: "Anh ấy đi rồi.", "Anh ấy đi rồi?", "Anh ấy đi rồi!". Các âm tiết và thanh điệu y hệt nhau, vậy mà người nghe hiểu ba ý khác nhau: một thông báo, một câu hỏi ngạc nhiên, một lời cảm thán. Phần thông tin "nằm ngoài" chuỗi âm vị ấy là <strong>ngôn điệu</strong> (<em>prosody</em>). Một hệ thống TTS phát âm đúng từng âm nhưng sai ngôn điệu sẽ nghe như "đọc chính tả": rõ chữ nhưng đơn điệu, ngắt sai chỗ, nhấn sai từ. Với các mô hình hiện đại, chất lượng âm thanh gần như đã bão hòa; <strong>ngôn điệu là nơi phân biệt giữa giọng tổng hợp "tốt" và giọng "giống người"</strong>.</p>
+<p>Với tiếng Việt, ngôn điệu có thêm một độ khó đặc thù: cùng một kênh F0 phải mang <strong>hai</strong> loại thông tin, thanh điệu (từ vựng) và ngữ điệu (câu). Chương này xây dựng các khái niệm cần thiết, rồi kết thúc bằng một thực hành tách hai thành phần đó trên dữ liệu tổng hợp.</p>
+<h2 id="161-ngon-ieu-la-gi">16.1. Ngôn điệu là gì<a class="headerlink" href="#161-ngon-ieu-la-gi" title="Permanent link">&para;</a></h2>
+<p>Ngôn điệu là các đặc trưng <strong>siêu đoạn tính</strong> (<em>suprasegmental</em>): chúng trải trên những đơn vị lớn hơn một âm (âm tiết, từ, ngữ đoạn, câu) và được thể hiện qua cao độ, trường độ, cường độ, chất giọng cùng cách tổ chức các yếu tố đó thành ngữ đoạn.</p>
+<table>
+<thead>
+<tr>
+<th>Thành phần</th>
+<th>Nội dung</th>
+<th>Tương quan âm học chính</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ngữ điệu (<em>intonation</em>)</td>
+<td>Hình dạng cao độ trên ngữ đoạn, câu</td>
+<td>Đường F0</td>
+</tr>
+<tr>
+<td>Nhịp (<em>rhythm</em>)</td>
+<td>Tổ chức thời gian của các âm tiết</td>
+<td>Trường độ âm tiết, khoảng cách giữa các đỉnh</td>
+</tr>
+<tr>
+<td>Độ nổi bật, trọng âm (<em>prominence, stress</em>)</td>
+<td>Mức "nổi" tương đối của một âm tiết hay từ</td>
+<td>Biên độ dao động F0, trường độ, cường độ, độ nghiêng phổ</td>
+</tr>
+<tr>
+<td>Tốc độ (<em>tempo</em>)</td>
+<td>Nhanh hay chậm</td>
+<td>Số âm tiết mỗi giây (có hoặc không tính ngừng)</td>
+</tr>
+<tr>
+<td>Ngừng nghỉ (<em>pause</em>)</td>
+<td>Khoảng lặng hoặc ngừng có âm ("ờ", "à")</td>
+<td>Thời lượng khoảng lặng, vị trí</td>
+</tr>
+<tr>
+<td>Chất giọng (<em>voice quality</em>)</td>
+<td>Thở, kẹt, căng...</td>
+<td>H1–H2, độ nghiêng phổ, độ tuần hoàn</td>
+</tr>
+</tbody>
+</table>
+<p>Ngôn điệu có ba nhóm chức năng: <strong>ngôn ngữ</strong> (phân ngữ đoạn, đánh dấu kiểu câu, tiêu điểm thông tin), <strong>cận ngôn ngữ</strong> (cảm xúc, thái độ, mức lịch sự) và <strong>ngoài ngôn ngữ</strong> (danh tính, tuổi, phương ngữ, sức khỏe của người nói). Mô hình TTS phải tái tạo cả ba, trong khi văn bản đầu vào chỉ chứa gợi ý gián tiếp cho nhóm thứ nhất (dấu câu, cú pháp) và hầu như không chứa gì cho hai nhóm sau.</p>
+<h2 id="162-tuong-quan-am-hoc-va-chuan-hoa">16.2. Tương quan âm học và chuẩn hóa<a class="headerlink" href="#162-tuong-quan-am-hoc-va-chuan-hoa" title="Permanent link">&para;</a></h2>
+<h3 id="1621-cao-o">16.2.1. Cao độ<a class="headerlink" href="#1621-cao-o" title="Permanent link">&para;</a></h3>
+<p>Như <a href="../ch13-am-hoc-tieng-noi/">Chương 13</a> đã giải thích, cao độ được cảm nhận theo tỉ lệ, nên phân tích ngôn điệu dùng <strong>semitone</strong> so với một mức tham chiếu <span class="arithmatex">\(f_{\text{ref}}\)</span>:</p>
+<div class="arithmatex">\[
+\text{st}(t) = 12 \log_2 \frac{f_0(t)}{f_{\text{ref}}}.
+\]</div>
+<p>Để so sánh nhiều người nói, ta chuẩn hóa theo người nói bằng <strong>z-score của log-F0</strong>:</p>
+<div class="arithmatex">\[
+z(t) = \frac{\log f_0(t) - \mu_s}{\sigma_s},
+\]</div>
+<p>với <span class="arithmatex">\(\mu_s\)</span>, <span class="arithmatex">\(\sigma_s\)</span> là trung bình và độ lệch chuẩn của log-F0 trên các khung hữu thanh của người nói <span class="arithmatex">\(s\)</span>. Quãng cao độ (<em>pitch range</em>) nên đo bằng khoảng giữa các phân vị (ví dụ phân vị 5 và 95) thay vì min–max, vì vài khung bị lỗi quãng tám có thể làm hỏng hoàn toàn min và max.</p>
+<h3 id="1622-truong-o">16.2.2. Trường độ<a class="headerlink" href="#1622-truong-o" title="Permanent link">&para;</a></h3>
+<p>Trường độ âm vị, âm tiết và khoảng lặng lấy từ căn chỉnh cưỡng bức (<a href="../../phan-5-mo-hinh-am-hoc/ch21-alignment/">Chương 21</a>). Phân phối trường độ lệch phải, gần log-chuẩn, nên các bộ dự đoán trường độ thường hồi quy <strong>log-trường độ</strong> (<a href="../../phan-5-mo-hinh-am-hoc/ch22-fastspeech/">Chương 22</a>). Hai hiện tượng quan trọng: <strong>kéo dài cuối ngữ đoạn</strong> (âm tiết trước ranh giới dài hơn hẳn) và sự phụ thuộc mạnh vào <strong>tốc độ nói</strong>. Người ta phân biệt tốc độ nói (tính cả ngừng) và tốc độ phát âm (<em>articulation rate</em>, bỏ ngừng).</p>
+<h3 id="1623-nang-luong-o-nghieng-pho-va-chat-giong">16.2.3. Năng lượng, độ nghiêng phổ và chất giọng<a class="headerlink" href="#1623-nang-luong-o-nghieng-pho-va-chat-giong" title="Permanent link">&para;</a></h3>
+<p>Năng lượng khung (RMS hoặc chuẩn L2 của STFT, tính bằng dB) tương quan với nhấn mạnh, nhưng phụ thuộc vào độ lợi của micro, nên chỉ có ý nghĩa <strong>tương đối</strong> trong một bản ghi. Khi nói nhấn mạnh hoặc to hơn, năng lượng ở vùng cao tần tăng nhanh hơn vùng thấp tần, tức <strong>độ nghiêng phổ</strong> giảm; đây là tương quan của độ nổi bật đôi khi đáng tin hơn cả cường độ tổng. Chất giọng được đo bằng các chỉ số như H1–H2 (chênh lệch biên độ hai hài đầu: lớn thì giọng thở, nhỏ thì giọng kẹt) hay độ tuần hoàn. Với tiếng Việt, giọng kẹt vừa là một phần của thanh ngã, nặng (<a href="../ch15-ngu-am-tieng-viet/">Chương 15</a>), vừa xuất hiện ở cuối câu như một hiện tượng ngôn điệu; hai nguồn này dễ bị lẫn khi phân tích.</p>
+<h2 id="163-cau-truc-phan-cap-ngon-ieu-va-tobi">16.3. Cấu trúc phân cấp ngôn điệu và ToBI<a class="headerlink" href="#163-cau-truc-phan-cap-ngon-ieu-va-tobi" title="Permanent link">&para;</a></h2>
+<p>Lý thuyết âm vị học ngôn điệu (Selkirk, 1984; Nespor và Vogel, 1986) cho rằng lời nói được tổ chức thành một <strong>phân cấp ngôn điệu</strong>: âm tiết → từ ngôn điệu → ngữ đoạn âm vị học → ngữ đoạn ngữ điệu → phát ngôn. Ranh giới ở cấp càng cao thì càng "mạnh": kéo dài cuối càng nhiều, khả năng có ngừng càng lớn, và cao độ thường được đặt lại (<em>reset</em>).</p>
+<pre class="mermaid"><code>flowchart TD
+    U["Phát ngôn"] --&gt; I1["Ngữ đoạn ngữ điệu: Sáng nay"]
+    U --&gt; I2["Ngữ đoạn ngữ điệu: bố mẹ tôi đã về quê ăn Tết"]
+    I2 --&gt; P1["Ngữ đoạn: bố mẹ tôi"]
+    I2 --&gt; P2["Ngữ đoạn: đã về quê"]
+    I2 --&gt; P3["Ngữ đoạn: ăn Tết"]
+    P1 --&gt; W1["Từ: bố mẹ"]
+    P1 --&gt; W2["Từ: tôi"]</code></pre>
+<p>Ranh giới ngôn điệu <strong>thường</strong> trùng với ranh giới cú pháp nhưng không bắt buộc: ngữ đoạn quá dài bị chia nhỏ, ngữ đoạn quá ngắn được gộp, và tốc độ nói càng nhanh thì ranh giới càng ít.</p>
+<p><strong>ToBI</strong> (<em>Tones and Break Indices</em>; Silverman và cộng sự, 1992) là hệ thống gán nhãn ngôn điệu chuẩn cho tiếng Anh Mỹ, gồm các tầng: <strong>tầng âm điệu</strong> (trọng âm cao độ như H*, L*, L+H*; trọng âm ngữ đoạn H-, L-; âm điệu ranh giới H%, L%), <strong>tầng chỉ số ngắt</strong> từ 0 (không ranh giới, như giữa từ và hư từ dính liền) đến 4 (ranh giới ngữ đoạn ngữ điệu), tầng chữ viết và tầng ghi chú. Nhiều ngôn ngữ đã có biến thể ToBI riêng. Theo hiểu biết của chúng tôi tại thời điểm biên soạn (2026), tiếng Việt <strong>chưa có</strong> một chuẩn gán nhãn kiểu ToBI được dùng rộng rãi.</p>
+<p>Trong thực hành TTS, người ta thường chỉ dùng phiên bản đơn giản hóa của tầng chỉ số ngắt. Một số kho dữ liệu tiếng Trung gán nhãn các mức ranh giới kiểu #1–#4 ngay trong văn bản. Cho tiếng Việt, bạn có thể tự định nghĩa một thang tương tự, ví dụ: B0 giữa các âm tiết trong cùng một từ, B1 ranh giới từ, B2 ranh giới ngữ đoạn không ngừng, B3 ngừng ngắn (thường ở dấu phẩy), B4 cuối câu. Đây là một <strong>đề xuất thiết kế</strong>, không phải chuẩn; quan trọng là gán nhãn nhất quán.</p>
+<h2 id="164-thanh-ieu-va-ngu-ieu">16.4. Thanh điệu và ngữ điệu<a class="headerlink" href="#164-thanh-ieu-va-ngu-ieu" title="Permanent link">&para;</a></h2>
+<h3 id="1641-mot-kenh-hai-chuc-nang">16.4.1. Một kênh, hai chức năng<a class="headerlink" href="#1641-mot-kenh-hai-chuc-nang" title="Permanent link">&para;</a></h3>
+<p>Trong tiếng Anh, F0 chủ yếu mang ngữ điệu, nên có thể đọc đường F0 khá trực tiếp thành các trọng âm cao độ và âm điệu ranh giới. Trong tiếng Việt, mỗi âm tiết đã có một <strong>đích cao độ</strong> do thanh điệu quy định; ngữ điệu chỉ có thể <strong>điều chỉnh</strong> các đích đó: nâng/hạ âm vực, mở rộng/thu hẹp quãng, kéo dài, thay đổi chất giọng ở cuối ngữ đoạn. Có thể hình dung bằng các mô hình <strong>chồng chập</strong> (<em>superpositional</em>). Mô hình nổi tiếng nhất là của Fujisaki (Fujisaki và Hirose, 1984), biểu diễn log-F0 là tổng của một mức nền, các thành phần ngữ đoạn biến thiên chậm và các thành phần trọng âm (hoặc thanh điệu) biến thiên nhanh:</p>
+<div class="arithmatex">\[
+\log F_0(t) = \log F_b + \sum_{i} A_{p,i}\, G_p(t - T_{0,i}) + \sum_{j} A_{a,j}\big[G_a(t - T_{1,j}) - G_a(t - T_{2,j})\big],
+\]</div>
+<p>với <span class="arithmatex">\(G_p(t) = \alpha^2 t\, e^{-\alpha t}\)</span> và <span class="arithmatex">\(G_a(t) = \min\!\big[1 - (1 + \beta t)e^{-\beta t},\, \gamma\big]\)</span> khi <span class="arithmatex">\(t \geq 0\)</span> (bằng 0 khi <span class="arithmatex">\(t &lt; 0\)</span>). Lệnh ngữ đoạn tại <span class="arithmatex">\(T_{0,i}\)</span> với biên độ <span class="arithmatex">\(A_{p,i}\)</span> tạo một "bướu" đi lên rồi giảm dần (đường xuống); lệnh trọng âm/thanh từ <span class="arithmatex">\(T_{1,j}\)</span> đến <span class="arithmatex">\(T_{2,j}\)</span> tạo một "bậc" trơn. Với ngôn ngữ có thanh, các lệnh thanh có thể mang dấu dương hoặc âm.</p>
+<p>Một hướng khác là mô hình <strong>tiếp cận đích</strong> (<em>target approximation</em>; Xu, 2005; Prom-on, Xu và Thipakorn, 2009): mỗi âm tiết có một đích cao độ (một hàm tuyến tính theo thời gian), và F0 thực tế tiến dần về đích đó theo động lực học của cơ quan phát âm; ngữ điệu và tiêu điểm thay đổi độ cao và quãng của các đích. Mô hình này giải thích tự nhiên vì sao thanh trước ảnh hưởng mạnh lên phần đầu của thanh sau (<a href="../ch15-ngu-am-tieng-viet/">Chương 15</a>, mục 15.7.4).</p>
+<p>Phần thực hành (mục 16.9) dùng phiên bản đơn giản nhất của ý tưởng chồng chập: trong miền semitone, F0 = đường nền tuyến tính theo thời gian + hình dạng thanh + nhiễu.</p>
+<h3 id="1642-uong-xuong-ha-cuoi-va-at-lai">16.4.2. Đường xuống, hạ cuối và đặt lại<a class="headerlink" href="#1642-uong-xuong-ha-cuoi-va-at-lai" title="Permanent link">&para;</a></h3>
+<p>Trong câu trần thuật, F0 có xu hướng giảm dần từ đầu đến cuối: đó là <strong>đường xuống</strong> (<em>declination</em>). Hiện tượng này được giải thích một phần bằng sự giảm áp suất dưới thanh môn khi hơi thở cạn dần (<a href="../ch13-am-hoc-tieng-noi/">Chương 13</a>) và một phần bằng việc người nói chủ động lập kế hoạch; độ dốc thường <strong>thoải hơn</strong> ở câu dài ('t Hart, Collier và Cohen, 1990). Ở ranh giới ngữ đoạn lớn, cao độ thường được <strong>đặt lại</strong> (<em>reset</em>) lên mức cao; ở cuối câu trần thuật thường có thêm <strong>hạ cuối</strong> (<em>final lowering</em>). Với tiếng Việt, đường xuống tác động lên <strong>âm vực</strong> mà các thanh được thực hiện: thanh ngang ở cuối câu dài có thể thấp hơn thanh ngang ở đầu câu vài semitone mà người nghe vẫn nhận là "ngang".</p>
+<h3 id="1643-ngu-ieu-tieng-viet">16.4.3. Ngữ điệu tiếng Việt<a class="headerlink" href="#1643-ngu-ieu-tieng-viet" title="Permanent link">&para;</a></h3>
+<p>Các mô tả ngữ điệu tiếng Việt (ví dụ Đỗ, Trần và Boulakia, 1998; Brunelle, Hạ và Grice, 2012) nhìn chung trình bày ngữ điệu chủ yếu qua <strong>sự nâng hoặc hạ âm vực</strong> và <strong>sự mở rộng hoặc thu hẹp quãng cao độ</strong>, đặc biệt ở âm tiết cuối ngữ đoạn, chồng lên đường nét thanh điệu, kèm theo các thay đổi về trường độ và chất giọng, thay vì qua các trọng âm cao độ như tiếng Anh. Hình dạng thanh nhìn chung được bảo toàn để không mất nghĩa, nhưng âm tiết cuối có thể bị biến đổi rõ rệt (ví dụ được nâng cao hơn trong một số loại câu hỏi). Chi tiết của các mô hình này vẫn đang được nghiên cứu; bạn đọc nên tham khảo trực tiếp các công trình trên.</p>
+<p>Về <strong>câu hỏi</strong>, tiếng Việt chủ yếu đánh dấu bằng <strong>từ vựng</strong>: câu hỏi có/không dùng "có ... không", "... chưa", "phải không", "à", "hả"; câu hỏi có từ để hỏi dùng "ai", "gì", "đâu", "nào", "bao giờ", "sao". Vì phương tiện từ vựng đã đủ, ngữ điệu câu hỏi thường không cần một đường lên rõ như tiếng Anh. Tuy vậy, câu hỏi chỉ bằng ngữ điệu ("Anh đi rồi?") vẫn tồn tại trong khẩu ngữ, và khi đó âm tiết cuối thường được nâng âm vực và kéo dài. Đây là trường hợp mô hình TTS chỉ có thể dựa vào <strong>dấu chấm hỏi</strong>.</p>
+<h3 id="1644-tieu-tu-tinh-thai-cuoi-cau">16.4.4. Tiểu từ tình thái cuối câu<a class="headerlink" href="#1644-tieu-tu-tinh-thai-cuoi-cau" title="Permanent link">&para;</a></h3>
+<p>Tiếng Việt có một lớp <strong>tiểu từ tình thái</strong> đứng cuối câu, mang thái độ và chức năng giao tiếp. Mỗi tiểu từ có thanh điệu cố định, nhưng <strong>cách nói</strong> (độ cao, độ dài, chất giọng) thay đổi theo ý định.</p>
+<table>
+<thead>
+<tr>
+<th>Tiểu từ</th>
+<th>Chức năng thường gặp</th>
+<th>Ví dụ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>à</td>
+<td>Hỏi để xác nhận, có thể kèm ngạc nhiên</td>
+<td>Anh về rồi à?</td>
+</tr>
+<tr>
+<td>ạ</td>
+<td>Lễ phép với người trên</td>
+<td>Cháu chào bác ạ.</td>
+</tr>
+<tr>
+<td>nhé (nhá; Nam: nha)</td>
+<td>Đề nghị nhẹ nhàng, mong đồng tình</td>
+<td>Mai gặp nhé.</td>
+</tr>
+<tr>
+<td>nhỉ (Nam: ha)</td>
+<td>Tìm sự đồng tình, tự hỏi</td>
+<td>Hôm nay đẹp trời nhỉ?</td>
+</tr>
+<tr>
+<td>chứ</td>
+<td>Giả định điều hiển nhiên, khẳng định</td>
+<td>Anh cũng đi chứ?</td>
+</tr>
+<tr>
+<td>hả, hở</td>
+<td>Hỏi thân mật</td>
+<td>Thật hả?</td>
+</tr>
+<tr>
+<td>đấy, đó</td>
+<td>Nhấn, hướng sự chú ý</td>
+<td>Anh làm gì đấy?</td>
+</tr>
+<tr>
+<td>mà</td>
+<td>Khẳng định, giải thích, có thể hơi phân trần</td>
+<td>Em đã bảo rồi mà.</td>
+</tr>
+<tr>
+<td>cơ (Bắc)</td>
+<td>Nhấn, đối lập</td>
+<td>Em muốn cái kia cơ.</td>
+</tr>
+<tr>
+<td>thôi</td>
+<td>Giới hạn, kết thúc</td>
+<td>Thế thôi.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Góc tiếng Việt</p>
+<p>Tiểu từ cuối câu là "điểm mù" phổ biến của TTS tiếng Việt. Mô hình huấn luyện trên dữ liệu tin tức (gần như không có tiểu từ) thường đọc "nhé", "ạ", "nhỉ" như một âm tiết bình thường ở cuối câu trần thuật: đủ thanh nhưng thiếu sắc thái, nghe cứng và đôi khi thiếu lịch sự. Ba lời khuyên. (1) Nếu ứng dụng là hội thoại hoặc chăm sóc khách hàng, dữ liệu huấn luyện phải có nhiều câu chứa tiểu từ trong ngữ cảnh tự nhiên. (2) Bộ chuẩn hóa văn bản <strong>không được</strong> xóa hay "sửa" tiểu từ. (3) Cùng một tiểu từ có thể mang nhiều thái độ ("Anh đi à?" ngạc nhiên hay hờ hững); văn bản không đủ để quyết định, nên cần điều kiện phong cách hoặc ngữ cảnh hội thoại (<a href="../../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach/">Chương 29</a>, <a href="../../phan-8-mo-hinh-lon/ch35-streaming-speech-llm/">Chương 35</a>).</p>
+</div>
+<h3 id="1645-tieu-iem-va-nhan-manh">16.4.5. Tiêu điểm và nhấn mạnh<a class="headerlink" href="#1645-tieu-iem-va-nhan-manh" title="Permanent link">&para;</a></h3>
+<p><strong>Tiêu điểm</strong> (<em>focus</em>) là phần thông tin mới hoặc đối lập mà người nói muốn làm nổi bật. Ở nhiều ngôn ngữ, từ mang tiêu điểm được nói với quãng cao độ rộng hơn, dài hơn và to hơn; phần sau tiêu điểm có thể bị thu hẹp quãng (<em>post-focus compression</em>). Mức độ của hiện tượng thu hẹp sau tiêu điểm khác nhau giữa các ngôn ngữ, và với tiếng Việt vẫn là đề tài nghiên cứu. Tiếng Việt còn dùng nhiều phương tiện <strong>từ vựng – cú pháp</strong> để đánh dấu tiêu điểm: "chính", "đúng là", "mới", "thì", cấu trúc "Chính tôi là người...". Đây là tín hiệu văn bản quý cho TTS: bộ dự đoán ngôn điệu có thể học rằng từ đứng sau "chính" thường được nhấn.</p>
+<p>Khi <strong>điều khiển</strong> nhấn mạnh trong TTS tiếng Việt (ví dụ qua thẻ SSML <code>emphasis</code>), hãy mở rộng quãng và kéo dài trường độ <strong>quanh mức trung bình cục bộ trong miền semitone</strong>, chứ không cộng một lượng Hz cố định: phép cộng Hz bóp méo đường nét thanh theo cách khác nhau giữa giọng trầm và giọng cao.</p>
+<h2 id="165-ngat-nhip-va-ngung-nghi-trong-tieng-viet">16.5. Ngắt nhịp và ngừng nghỉ trong tiếng Việt<a class="headerlink" href="#165-ngat-nhip-va-ngung-nghi-trong-tieng-viet" title="Permanent link">&para;</a></h2>
+<h3 id="1651-am-tiet-khong-phai-la-tu">16.5.1. Âm tiết không phải là từ<a class="headerlink" href="#1651-am-tiet-khong-phai-la-tu" title="Permanent link">&para;</a></h3>
+<p>Chữ viết tiếng Việt đặt dấu cách giữa các <strong>âm tiết</strong>, không phải giữa các <strong>từ</strong>: "học sinh", "Việt Nam", "máy tính" là từ hai âm tiết. Ngắt nhịp giữa hai âm tiết của một từ nghe rất mất tự nhiên, nên <strong>tách từ</strong> là bước nền tảng của dự đoán ngắt nhịp; các công cụ như VnCoreNLP, underthesea, pyvi được giới thiệu ở <a href="../../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao/">Chương 18</a>. Tách từ và ngắt nhịp còn quyết định nghĩa trong các câu mơ hồ kinh điển:</p>
+<ul>
+<li>"Ông già đi nhanh quá": [Ông già] [đi nhanh quá] (người đàn ông già bước nhanh) hay [Ông] [già đi nhanh quá] (ông ấy lão hóa nhanh).</li>
+<li>"Con ngựa đá con ngựa đá": [Con ngựa] [đá] [con ngựa đá] (con ngựa thật đá con ngựa bằng đá) hay [Con ngựa đá] [đá] [con ngựa] (ngược lại).</li>
+</ul>
+<p>Văn bản không chứa đủ thông tin để giải các mơ hồ này; một hệ thống TTS tốt ít nhất phải chọn <strong>một</strong> cách đọc nhất quán với một cách phân tích hợp lệ, thay vì ngắt ở vị trí không ứng với cách hiểu nào.</p>
+<h3 id="1652-cu-phap-va-o-dai-ngu-oan">16.5.2. Cú pháp và độ dài ngữ đoạn<a class="headerlink" href="#1652-cu-phap-va-o-dai-ngu-oan" title="Permanent link">&para;</a></h3>
+<p>Ranh giới ngữ đoạn thường rơi vào ranh giới giữa chủ ngữ và vị ngữ (nhất là khi chủ ngữ dài), giữa các mệnh đề, trước các liên từ ("nhưng", "và", "vì", "nên") trong câu dài, sau cụm chủ đề có "thì" ("Việc này thì / tôi không biết"). Người nói cũng có xu hướng <strong>cân bằng độ dài</strong> các ngữ đoạn: ít khi có ngữ đoạn chỉ một âm tiết hay quá dài. Một hệ thống dựa trên quy tắc đơn giản có thể kết hợp ba tín hiệu: dấu câu (ranh giới mạnh), ranh giới cú pháp từ bộ phân tích (ranh giới yếu), và ràng buộc độ dài (chèn ranh giới khi ngữ đoạn vượt quá một ngưỡng số âm tiết, tại ranh giới từ hợp lý nhất).</p>
+<h3 id="1653-dau-cau-va-ngung">16.5.3. Dấu câu và ngừng<a class="headerlink" href="#1653-dau-cau-va-ngung" title="Permanent link">&para;</a></h3>
+<p>Dấu câu là tín hiệu ngắt mạnh nhất trong văn bản: dấu phẩy, chấm phẩy, hai chấm thường ứng với ngừng ngắn hoặc ranh giới ngữ đoạn; dấu chấm, chấm hỏi, chấm than ứng với ranh giới câu; ngoặc đơn, gạch ngang và ngoặc kép thường kèm thay đổi âm vực (đoạn chú thích trong ngoặc thường được nói thấp và nhanh hơn). Thời lượng ngừng phụ thuộc mạnh vào người đọc và thể loại: trong sách nói, ngừng sau dấu phẩy thường ngắn (cỡ vài trăm mili-giây), sau dấu chấm dài hơn, giữa các đoạn văn còn dài hơn nữa. Hãy <strong>đo trên dữ liệu của bạn</strong> thay vì áp một con số cố định.</p>
+<div class="admonition warning">
+<p class="admonition-title">Dấu phẩy thập phân và dấu chấm trong viết tắt</p>
+<p>Tiếng Việt dùng <strong>dấu phẩy</strong> làm dấu thập phân ("3,5 triệu") và dấu chấm để nhóm chữ số ("1.000.000"), đồng thời dùng dấu chấm trong viết tắt ("TP.HCM", "PGS.TS."). Nếu bước tách câu và dự đoán ngắt chạy <strong>trước</strong> chuẩn hóa văn bản, "3,5" sẽ bị ngắt thành "ba [ngừng] năm". Chuẩn hóa (<a href="../../phan-4-frontend/ch17-chuan-hoa-van-ban/">Chương 17</a>) phải chạy trước, và nên giữ lại thông tin ranh giới cho bước ngôn điệu.</p>
+</div>
+<h3 id="1654-mo-hinh-du-oan-ngat">16.5.4. Mô hình dự đoán ngắt<a class="headerlink" href="#1654-mo-hinh-du-oan-ngat" title="Permanent link">&para;</a></h3>
+<p>Lịch sử dự đoán ngắt nhịp đi từ quy tắc, qua mô hình thống kê (cây quyết định, CRF) trên đặc trưng từ loại và vị trí, đến mô hình neural (BiLSTM, Transformer, mô hình ngôn ngữ huấn luyện trước như PhoBERT cho tiếng Việt; Nguyen và Nguyen, 2020). Nhãn huấn luyện có thể lấy rẻ từ dữ liệu TTS: chạy căn chỉnh cưỡng bức, coi khoảng lặng dài hơn một ngưỡng là ranh giới. Nhãn này nhiễu (người đọc không ngừng ở mọi ranh giới) nhưng đủ dùng. Trong các mô hình end-to-end và mô hình lớn, ngắt nhịp thường được học ngầm từ dấu câu và ngữ cảnh; chèn thêm <strong>token ngắt tường minh</strong> vẫn hữu ích khi cần kiểm soát.</p>
+<h2 id="166-phong-cach-noi">16.6. Phong cách nói<a class="headerlink" href="#166-phong-cach-noi" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phong cách</th>
+<th>Tốc độ</th>
+<th>Cao độ</th>
+<th>Ngừng nghỉ</th>
+<th>Đặc điểm khác</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tin tức</td>
+<td>Nhanh, đều</td>
+<td>Quãng vừa, trung tính</td>
+<td>Theo cú pháp, ngắn</td>
+<td>Ít tiểu từ, phát âm rõ</td>
+</tr>
+<tr>
+<td>Sách nói, kể chuyện</td>
+<td>Vừa đến chậm, biến thiên</td>
+<td>Quãng rộng, kịch tính</td>
+<td>Dài giữa các đoạn</td>
+<td>Giọng nhân vật, cảm xúc</td>
+</tr>
+<tr>
+<td>Hội thoại</td>
+<td>Biến thiên mạnh</td>
+<td>Nhiều sắc thái</td>
+<td>Ngập ngừng, chồng lời</td>
+<td>Tiểu từ, từ đệm ("ừ", "ờ", "thì"), rút gọn</td>
+</tr>
+<tr>
+<td>Chăm sóc khách hàng</td>
+<td>Vừa</td>
+<td>Thân thiện, ổn định</td>
+<td>Rõ ràng trước thông tin quan trọng</td>
+<td>"dạ", "ạ"; đọc chậm số tài khoản, số tiền</td>
+</tr>
+<tr>
+<td>Thông báo công cộng, tổng đài</td>
+<td>Chậm</td>
+<td>Ít biến thiên</td>
+<td>Nhiều, đều</td>
+<td>Ưu tiên độ dễ hiểu</td>
+</tr>
+</tbody>
+</table>
+<p>Một mô hình chỉ học một phong cách sẽ mang phong cách đó vào mọi văn bản: giọng tin tức đọc truyện cổ tích nghe khô, giọng sách nói đọc thông báo nghe "diễn". Các cách điều kiện hóa theo phong cách (token phong cách, embedding tham chiếu, mô tả bằng ngôn ngữ tự nhiên) được trình bày ở <a href="../../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach/">Chương 29</a>.</p>
+<h2 id="167-tts-mo-hinh-hoa-ngon-ieu-nhu-the-nao">16.7. TTS mô hình hóa ngôn điệu như thế nào<a class="headerlink" href="#167-tts-mo-hinh-hoa-ngon-ieu-nhu-the-nao" title="Permanent link">&para;</a></h2>
+<p><strong>Gốc rễ của vấn đề</strong> là tính một-nhiều (<a href="../../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh/">Chương 7</a>): cùng một câu có nhiều cách nói đúng. Một mô hình hồi quy tối thiểu L2 sẽ dự đoán <strong>trung bình</strong> của các cách nói, tức một ngôn điệu phẳng, "an toàn" và đơn điệu. Mọi tiến bộ về ngôn điệu trong TTS đều là những cách khác nhau để thoát khỏi cái trung bình đó.</p>
+<p><strong>Mô hình hóa tường minh.</strong> FastSpeech 2 (<a href="../../phan-5-mo-hinh-am-hoc/ch22-fastspeech/">Chương 22</a>) có các bộ dự đoán trường độ, cao độ, năng lượng, huấn luyện với đích trích từ dữ liệu (bài báo gốc biểu diễn cao độ qua biến đổi wavelet liên tục; nhiều cài đặt sau dùng F0 mức khung hoặc mức âm vị); FastPitch dự đoán F0 trung bình theo từng âm vị. Ưu điểm: dễ kiểm soát (nhân trường độ để đổi tốc độ, dịch F0 để đổi cao độ) và dễ gỡ lỗi. Nhược điểm: vẫn hồi quy nên vẫn trung bình hóa, và phụ thuộc chất lượng nhãn F0 (rất đáng lo với thanh ngã, nặng).</p>
+<p><strong>Mô hình hóa ẩn.</strong> Biến ẩn VAE, bộ mã hóa tham chiếu và Global Style Tokens (<a href="../../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach/">Chương 29</a>) đưa thông tin ngôn điệu vào một biến ẩn; bộ dự đoán trường độ ngẫu nhiên của VITS (<a href="../../phan-7-e2e-bieu-cam/ch27-vits/">Chương 27</a>) và các bộ giải mã flow/diffusion/flow matching (<a href="../../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha/">Chương 23</a>) <strong>lấy mẫu</strong> ngôn điệu thay vì lấy trung bình; các mô hình ngôn ngữ trên token âm thanh (<a href="../../phan-8-mo-hinh-lon/ch32-codec-language-model/">Chương 32</a>–<a href="../../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai/">34</a>) học ngôn điệu từ ngữ cảnh rộng và từ đoạn âm thanh mẫu (<em>prompt</em>).</p>
+<p><strong>Đặc trưng phía văn bản.</strong> Dấu câu, từ loại, ranh giới cú pháp, embedding từ mô hình ngôn ngữ huấn luyện trước, và với văn bản dài là ngữ cảnh đoạn văn: tất cả giúp mô hình đoán được ngữ đoạn và tiêu điểm.</p>
+<div class="admonition note">
+<p class="admonition-title">Góc tiếng Việt: điều khiển cao độ mà không làm hỏng thanh</p>
+<p>Có ba phép biến đổi F0 thường gặp, và chúng ảnh hưởng tới thanh điệu rất khác nhau. <strong>Dịch</strong> cao độ <span class="arithmatex">\(k\)</span> semitone (nhân F0 với <span class="arithmatex">\(2^{k/12}\)</span>) giữ nguyên đường nét mọi thanh. <strong>Co giãn quãng</strong> trong miền semitone quanh mức trung bình cục bộ với hệ số <span class="arithmatex">\(r\)</span> giữ hình dạng nhưng làm nhỏ biên độ; khi <span class="arithmatex">\(r\)</span> nhỏ, độ dốc của thanh sắc, độ gãy của thanh ngã bị san phẳng và các thanh bắt đầu khó phân biệt (ngưỡng cụ thể cần kiểm chứng bằng nghe thử). <strong>Cộng một lượng Hz</strong> cố định thì bóp méo tỉ lệ, tác động lên giọng trầm mạnh hơn giọng cao. Khi cài đặt chức năng "đổi cao độ" hay "giọng biểu cảm hơn" cho TTS tiếng Việt, hãy làm việc trong miền log và kiểm tra lại bằng phép thử thanh điệu.</p>
+</div>
+<h2 id="168-anh-gia-ngon-ieu">16.8. Đánh giá ngôn điệu<a class="headerlink" href="#168-anh-gia-ngon-ieu" title="Permanent link">&para;</a></h2>
+<p><strong>Đánh giá chủ quan.</strong> MOS về độ tự nhiên nói chung, hoặc MOS riêng cho ngôn điệu; so sánh cặp (AB, CMOS); xếp hạng nhiều hệ thống; và các <strong>phép thử theo nhiệm vụ</strong>: người nghe có nhận ra câu hỏi hay câu kể không, từ nào được nhấn, thanh nào được nói ra (với cặp tối thiểu tiếng Việt), câu trả lời có phù hợp ngữ cảnh hội thoại không. Người nghe nên là người bản ngữ cùng phương ngữ với giọng được đánh giá (<a href="../../phan-9-thuc-tien/ch38-danh-gia-tts/">Chương 38</a>).</p>
+<p><strong>Đánh giá khách quan.</strong> Sau khi căn chỉnh thời gian giữa giọng tổng hợp và giọng tham chiếu (dùng cùng trường độ, hoặc DTW), các độ đo phổ biến là:</p>
+<div class="arithmatex">\[
+\text{RMSE}_{\text{cent}} = \sqrt{\frac{1}{\lvert \mathcal{V} \rvert} \sum_{t \in \mathcal{V}} \left(1200 \log_2 \frac{\hat f_0(t)}{f_0(t)}\right)^2},
+\]</div>
+<p>với <span class="arithmatex">\(\mathcal{V}\)</span> là tập khung mà cả hai đều hữu thanh; hệ số tương quan Pearson giữa hai đường log-F0 (đo <strong>hình dạng</strong>, không phụ thuộc lệch mức); và bộ ba độ đo lỗi cao độ:</p>
+<ul>
+<li><strong>GPE</strong> (<em>gross pitch error</em>): tỉ lệ khung trong <span class="arithmatex">\(\mathcal{V}\)</span> có sai số tương đối vượt 20%;</li>
+<li><strong>VDE</strong> (<em>voicing decision error</em>): tỉ lệ khung (trên tổng số khung) có quyết định hữu thanh/vô thanh khác nhau;</li>
+<li><strong>FFE</strong> (<em>F0 frame error</em>; Chu và Alwan, 2009): tỉ lệ khung mắc <strong>một trong hai</strong> loại lỗi trên, gộp cả hai thành một con số.</li>
+</ul>
+<p>Với trường độ: RMSE của log-trường độ âm vị/âm tiết, chênh lệch tốc độ nói, độ chính xác/độ phủ/F1 của vị trí ngừng so với tham chiếu, sai số thời lượng ngừng.</p>
+<div class="admonition warning">
+<p class="admonition-title">Giới hạn của so sánh với một tham chiếu duy nhất</p>
+<p>Vì ngôn điệu là một-nhiều, một giọng tổng hợp có ngữ điệu <strong>khác nhưng đúng</strong> vẫn bị F0 RMSE phạt nặng, trong khi một giọng phẳng nằm "giữa" các khả năng lại được điểm tốt. Đừng tối ưu mô hình chỉ theo RMSE so với tham chiếu; hãy kết hợp với thống kê phân phối (độ lệch chuẩn của F0 trong câu, độ đa dạng giữa các lần lấy mẫu) và đánh giá chủ quan. Với tiếng Việt, độ chính xác thanh điệu có thể ước lượng gián tiếp qua CER của một hệ thống ASR tốt, vì sai thanh làm sai âm tiết.</p>
+</div>
+<h2 id="169-thuc-hanh-f0-theo-am-tiet-va-uong-xuong">16.9. Thực hành: F0 theo âm tiết và đường xuống<a class="headerlink" href="#169-thuc-hanh-f0-theo-am-tiet-va-uong-xuong" title="Permanent link">&para;</a></h2>
+<p>Ta xây dựng một thí nghiệm nhỏ nhưng chứa đúng vấn đề cốt lõi: trong ngôn ngữ có thanh, không thể "đọc" ngữ điệu trực tiếp từ đường F0 mà phải tách ảnh hưởng của thanh điệu. Vì không đi kèm dữ liệu thu âm, ta <strong>tổng hợp</strong> một câu 16 âm tiết "giống tiếng Việt": mỗi âm tiết là một đoạn hữu thanh có đường F0 theo một khuôn thanh <strong>minh họa</strong> (không phải số đo thực nghiệm), cộng với một đường xuống tuyến tính có độ dốc biết trước. Ta biết đáp án, nên có thể kiểm chứng phương pháp. Với dữ liệu thật, bạn chỉ cần thay tín hiệu và lấy ranh giới âm tiết từ căn chỉnh cưỡng bức (<a href="../../phan-5-mo-hinh-am-hoc/ch21-alignment/">Chương 21</a>).</p>
+<p>Lưu khối sau thành <code>prosody_synth.py</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">SR</span> <span class="o">=</span> <span class="mi">16000</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">REF_HZ</span> <span class="o">=</span> <span class="mf">120.0</span>                 <span class="c1"># cao độ tham chiếu của "người nói" giả lập (Hz)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">DECL</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.5</span>                    <span class="c1"># độ dốc đường xuống (semitone/giây) - giá trị giả định</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Đường nét thanh điệu MINH HỌA, đơn vị semitone so với REF_HZ, theo thời gian chuẩn hóa 0..1.</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Đây không phải số đo thực nghiệm; chỉ mô phỏng hình dạng định tính (xem Chương 15).</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">TONE_SHAPES</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="s2">"ngang"</span><span class="p">:</span> <span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">]),</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="s2">"huyen"</span><span class="p">:</span> <span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.0</span><span class="p">]),</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="s2">"sac"</span><span class="p">:</span>   <span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">]),</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="s2">"hoi"</span><span class="p">:</span>   <span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">5.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.0</span><span class="p">]),</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="s2">"nga"</span><span class="p">:</span>   <span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.55</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">]),</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="s2">"nang"</span><span class="p">:</span>  <span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">6.0</span><span class="p">]),</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">}</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="n">DURATION</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"ngang"</span><span class="p">:</span> <span class="mf">0.22</span><span class="p">,</span> <span class="s2">"huyen"</span><span class="p">:</span> <span class="mf">0.22</span><span class="p">,</span> <span class="s2">"sac"</span><span class="p">:</span> <span class="mf">0.22</span><span class="p">,</span> <span class="s2">"hoi"</span><span class="p">:</span> <span class="mf">0.26</span><span class="p">,</span> <span class="s2">"nga"</span><span class="p">:</span> <span class="mf">0.26</span><span class="p">,</span> <span class="s2">"nang"</span><span class="p">:</span> <span class="mf">0.17</span><span class="p">}</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">UTTERANCE</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"sáng"</span><span class="p">,</span> <span class="s2">"sac"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"nay"</span><span class="p">,</span> <span class="s2">"ngang"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"bố"</span><span class="p">,</span> <span class="s2">"sac"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"mẹ"</span><span class="p">,</span> <span class="s2">"nang"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"tôi"</span><span class="p">,</span> <span class="s2">"ngang"</span><span class="p">),</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>             <span class="p">(</span><span class="s2">"đã"</span><span class="p">,</span> <span class="s2">"nga"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"về"</span><span class="p">,</span> <span class="s2">"huyen"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"quê"</span><span class="p">,</span> <span class="s2">"ngang"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"ăn"</span><span class="p">,</span> <span class="s2">"ngang"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"Tết"</span><span class="p">,</span> <span class="s2">"sac"</span><span class="p">),</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>             <span class="p">(</span><span class="s2">"ở"</span><span class="p">,</span> <span class="s2">"hoi"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"Huế"</span><span class="p">,</span> <span class="s2">"sac"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"với"</span><span class="p">,</span> <span class="s2">"sac"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"ông"</span><span class="p">,</span> <span class="s2">"ngang"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"bà"</span><span class="p">,</span> <span class="s2">"huyen"</span><span class="p">),</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>             <span class="p">(</span><span class="s2">"nội"</span><span class="p">,</span> <span class="s2">"nang"</span><span class="p">)]</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="k">def</span><span class="w"> </span><span class="nf">synthesize</span><span class="p">(</span><span class="n">utt</span><span class="p">,</span> <span class="n">gap</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span> <span class="n">final_lengthening</span><span class="o">=</span><span class="mf">1.4</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="sd">"""Tạo câu 'giống tiếng Việt': mỗi âm tiết là đoạn hữu thanh, giữa các âm tiết có khoảng lặng."""</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="n">wav</span><span class="p">,</span> <span class="n">f0_track</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">t</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="mf">0.0</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">syl</span><span class="p">,</span> <span class="n">tone</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">utt</span><span class="p">):</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>        <span class="n">dur</span> <span class="o">=</span> <span class="n">DURATION</span><span class="p">[</span><span class="n">tone</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">final_lengthening</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">utt</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span><span class="p">)</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">dur</span> <span class="o">*</span> <span class="n">SR</span><span class="p">)</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>        <span class="n">tau</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>        <span class="n">st</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">tau</span><span class="p">,</span> <span class="o">*</span><span class="n">TONE_SHAPES</span><span class="p">[</span><span class="n">tone</span><span class="p">])</span> <span class="o">+</span> <span class="n">DECL</span> <span class="o">*</span> <span class="p">(</span><span class="n">t</span> <span class="o">+</span> <span class="n">tau</span> <span class="o">*</span> <span class="n">dur</span><span class="p">)</span>   <span class="c1"># thanh điệu + đường xuống</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>        <span class="n">f0</span> <span class="o">=</span> <span class="n">REF_HZ</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="n">st</span> <span class="o">/</span> <span class="mi">12</span><span class="p">)</span>                                       <span class="c1"># semitone -&gt; Hz</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>        <span class="n">phase</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">f0</span><span class="p">)</span> <span class="o">/</span> <span class="n">SR</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>        <span class="n">env</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">tau</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>                                   <span class="c1"># biên độ lên rồi xuống</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>        <span class="k">if</span> <span class="n">tone</span> <span class="o">==</span> <span class="s2">"nga"</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>            <span class="n">env</span> <span class="o">*=</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">0.7</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">tau</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="mf">0.06</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>            <span class="c1"># "gãy" giữa âm tiết</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>        <span class="n">harm</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">k</span> <span class="o">*</span> <span class="n">phase</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.7</span> <span class="o">**</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">20</span><span class="p">))</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>        <span class="n">wav</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env</span> <span class="o">*</span> <span class="n">harm</span><span class="p">)</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>        <span class="n">f0_track</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f0</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>        <span class="n">bounds</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">t</span><span class="p">,</span> <span class="n">t</span> <span class="o">+</span> <span class="n">dur</span><span class="p">,</span> <span class="n">syl</span><span class="p">,</span> <span class="n">tone</span><span class="p">))</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>        <span class="n">t</span> <span class="o">+=</span> <span class="n">dur</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>        <span class="n">sil</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">gap</span> <span class="o">*</span> <span class="n">SR</span><span class="p">)</span>                                               <span class="c1"># phụ âm/khoảng lặng</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>        <span class="n">wav</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">0.003</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">sil</span><span class="p">))</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>        <span class="n">f0_track</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">sil</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>        <span class="n">t</span> <span class="o">+=</span> <span class="n">gap</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>    <span class="n">wav</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">wav</span><span class="p">)</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>    <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">wav</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">wav</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">f0_track</span><span class="p">),</span> <span class="n">bounds</span>
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="n">wav</span><span class="p">,</span> <span class="n">f0_true</span><span class="p">,</span> <span class="n">bounds</span> <span class="o">=</span> <span class="n">synthesize</span><span class="p">(</span><span class="n">UTTERANCE</span><span class="p">)</span>
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">UTTERANCE</span><span class="p">)</span><span class="si">}</span><span class="s2"> âm tiết, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">wav</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">SR</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> giây"</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Khối thứ hai (lưu thành <code>prosody_stats.py</code>) trích F0 bằng pYIN, đổi sang semitone và tính thống kê theo âm tiết: trung bình, mức đầu, mức cuối, độ dốc, biên độ. Đây đúng là các đặc trưng mà bộ dự đoán cao độ mức âm tiết hay phép thử thanh điệu dùng tới.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">librosa</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">prosody_synth</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">HOP</span> <span class="o">=</span> <span class="mi">160</span>                                                   <span class="c1"># 10 ms ở 16 kHz</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">f0</span><span class="p">,</span> <span class="n">voiced</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">librosa</span><span class="o">.</span><span class="n">pyin</span><span class="p">(</span><span class="n">wav</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">fmin</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">fmax</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">sr</span><span class="o">=</span><span class="n">SR</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>                             <span class="n">frame_length</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">hop_length</span><span class="o">=</span><span class="n">HOP</span><span class="p">)</span>  <span class="c1"># (T,)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">times</span> <span class="o">=</span> <span class="n">librosa</span><span class="o">.</span><span class="n">times_like</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="n">sr</span><span class="o">=</span><span class="n">SR</span><span class="p">,</span> <span class="n">hop_length</span><span class="o">=</span><span class="n">HOP</span><span class="p">)</span>       <span class="c1"># tâm khung (giây)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">st</span> <span class="o">=</span> <span class="mi">12</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">f0</span> <span class="o">/</span> <span class="n">REF_HZ</span><span class="p">)</span>                              <span class="c1"># Hz -&gt; semitone (nan nếu vô thanh)</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="k">def</span><span class="w"> </span><span class="nf">syllable_stats</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="mf">0.02</span><span class="p">):</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="sd">"""Thống kê F0 theo âm tiết; bỏ 20 ms ở hai đầu để tránh vùng chuyển tiếp."""</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="k">for</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">syl</span><span class="p">,</span> <span class="n">tone</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">:</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="n">m</span> <span class="o">=</span> <span class="p">(</span><span class="n">times</span> <span class="o">&gt;=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">margin</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">times</span> <span class="o">&lt;=</span> <span class="n">end</span> <span class="o">-</span> <span class="n">margin</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="n">tt</span><span class="p">,</span> <span class="n">ss</span> <span class="o">=</span> <span class="n">times</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">st</span><span class="p">[</span><span class="n">m</span><span class="p">]</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>        <span class="n">slope</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">tt</span> <span class="o">-</span> <span class="n">tt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ss</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tt</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">syl</span><span class="o">=</span><span class="n">syl</span><span class="p">,</span> <span class="n">tone</span><span class="o">=</span><span class="n">tone</span><span class="p">,</span> <span class="n">t_mid</span><span class="o">=</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">end</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dur</span><span class="o">=</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">,</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>                         <span class="n">mean</span><span class="o">=</span><span class="n">ss</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">start</span><span class="o">=</span><span class="n">ss</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">end</span><span class="o">=</span><span class="n">ss</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>                         <span class="n">slope</span><span class="o">=</span><span class="n">slope</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">ss</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">ss</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">voiced</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    <span class="k">return</span> <span class="n">rows</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">syllable_stats</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">bounds</span><span class="p">)</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'âm tiết'</span><span class="si">:</span><span class="s2">&lt;7</span><span class="si">}{</span><span class="s1">'thanh'</span><span class="si">:</span><span class="s2">&lt;7</span><span class="si">}{</span><span class="s1">'TB'</span><span class="si">:</span><span class="s2">&gt;6</span><span class="si">}{</span><span class="s1">'đầu'</span><span class="si">:</span><span class="s2">&gt;6</span><span class="si">}{</span><span class="s1">'cuối'</span><span class="si">:</span><span class="s2">&gt;6</span><span class="si">}{</span><span class="s1">'dốc st/s'</span><span class="si">:</span><span class="s2">&gt;9</span><span class="si">}{</span><span class="s1">'biên độ'</span><span class="si">:</span><span class="s2">&gt;8</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">:</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">r</span><span class="p">[</span><span class="s1">'syl'</span><span class="p">]</span><span class="si">:</span><span class="s2">&lt;7</span><span class="si">}{</span><span class="n">r</span><span class="p">[</span><span class="s1">'tone'</span><span class="p">]</span><span class="si">:</span><span class="s2">&lt;7</span><span class="si">}{</span><span class="n">r</span><span class="p">[</span><span class="s1">'mean'</span><span class="p">]</span><span class="si">:</span><span class="s2">6.1f</span><span class="si">}{</span><span class="n">r</span><span class="p">[</span><span class="s1">'start'</span><span class="p">]</span><span class="si">:</span><span class="s2">6.1f</span><span class="si">}{</span><span class="n">r</span><span class="p">[</span><span class="s1">'end'</span><span class="p">]</span><span class="si">:</span><span class="s2">6.1f</span><span class="si">}</span><span class="s2">"</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>          <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">r</span><span class="p">[</span><span class="s1">'slope'</span><span class="p">]</span><span class="si">:</span><span class="s2">9.1f</span><span class="si">}{</span><span class="n">r</span><span class="p">[</span><span class="s1">'range'</span><span class="p">]</span><span class="si">:</span><span class="s2">8.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="c1"># Sai số của F0 trích xuất so với đường F0 "thật" đã dùng để tổng hợp</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="n">truth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f0_true</span><span class="p">))</span> <span class="o">/</span> <span class="n">SR</span><span class="p">,</span> <span class="n">f0_true</span><span class="p">)</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="n">ok</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">f0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">truth</span><span class="p">)</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"sai số trung vị: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mi">1200</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">f0</span><span class="p">[</span><span class="n">ok</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">truth</span><span class="p">[</span><span class="n">ok</span><span class="p">])))</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> cent"</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>16 âm tiết, 4.21 giây
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>âm tiếtthanh      TB   đầu  cuối dốc st/s biên độ
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>sáng   sac       0.8  -0.5   2.6     20.7     3.4
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>nay    ngang    -0.8  -0.5  -1.1     -3.6     0.6
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>bố     sac       0.0  -1.3   1.9     20.9     3.3
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>mẹ     nang     -5.3  -4.1  -6.5    -22.0     2.6
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>tôi    ngang    -1.9  -1.6  -2.2     -3.7     0.6
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>đã     nga      -1.3  -2.5   1.3     23.5     4.9
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>về     huyen    -5.0  -4.0  -6.1    -14.2     2.3
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>quê    ngang    -3.1  -2.9  -3.4     -3.6     0.6
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>ăn     ngang    -3.5  -3.3  -3.8     -3.5     0.6
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>Tết    sac      -2.6  -4.0  -0.9     22.0     3.3
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>ở      hoi      -7.9  -6.5  -7.9     -8.8     2.6
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>Huế    sac      -3.5  -4.9  -1.8     21.6     3.3
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>với    sac      -3.8  -5.3  -2.1     21.9     3.4
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>ông    ngang    -5.5  -5.3  -5.8     -3.5     0.6
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>bà     huyen    -8.2  -7.1  -9.2    -14.0     2.3
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>nội    nang    -10.1  -8.7 -11.5    -17.2     3.0
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>sai số trung vị: 5.1 cent
+</span></code></pre></div>
+<p>Bảng cho thấy hai điều. Thứ nhất, <strong>hình dạng</strong> thanh (độ dốc dương của sắc, ngã; âm của huyền, nặng; gần 0 của ngang) giữ ổn định suốt câu. Thứ hai, <strong>mức</strong> của cùng một thanh giảm dần: thanh ngang đi từ −0,8 st ("nay") xuống −5,5 st ("ông"). Đó là đường xuống. Vậy đo độ dốc đường xuống thế nào?</p>
+<p>Khối thứ ba so sánh hai cách. Cách ngây thơ hồi quy mức trung bình của mọi âm tiết theo thời gian. Cách thứ hai dùng mô hình cộng tính: mức trung bình của âm tiết <span class="arithmatex">\(i\)</span> bằng <span class="arithmatex">\(b\, t_i + c_{\text{thanh}(i)}\)</span> cộng nhiễu, với <span class="arithmatex">\(b\)</span> là độ dốc chung và <span class="arithmatex">\(c_k\)</span> là "mức riêng" của thanh <span class="arithmatex">\(k\)</span>, ước lượng đồng thời bằng bình phương tối thiểu.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">prosody_stats</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">t_mid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span><span class="p">[</span><span class="s2">"t_mid"</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">])</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">mean_st</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span><span class="p">[</span><span class="s2">"mean"</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">])</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">tones</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="s2">"tone"</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">]</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Cách 1 (ngây thơ): hồi quy tuyến tính trung bình cao độ của mọi âm tiết theo thời gian</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">naive_slope</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">t_mid</span><span class="p">,</span> <span class="n">mean_st</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Cách 2: mô hình cộng tính  mean_i = b·t_i + c_{tone(i)} + nhiễu</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># (mỗi thanh có một "mức riêng" c_k; b là độ dốc đường xuống dùng chung cho cả câu)</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">tones</span><span class="p">))</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">t_mid</span><span class="p">]</span> <span class="o">+</span> <span class="p">[[</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">tn</span> <span class="o">==</span> <span class="n">k</span> <span class="k">else</span> <span class="mf">0.0</span> <span class="k">for</span> <span class="n">tn</span> <span class="ow">in</span> <span class="n">tones</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">names</span><span class="p">])</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="n">coef</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">mean_st</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="n">tone_slope</span><span class="p">,</span> <span class="n">offsets</span> <span class="o">=</span> <span class="n">coef</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">coef</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"độ dốc thật: </span><span class="si">{</span><span class="n">DECL</span><span class="si">:</span><span class="s2">+.2f</span><span class="si">}</span><span class="s2"> st/s | ngây thơ: </span><span class="si">{</span><span class="n">naive_slope</span><span class="si">:</span><span class="s2">+.2f</span><span class="si">}</span><span class="s2"> | tách thanh điệu: </span><span class="si">{</span><span class="n">tone_slope</span><span class="si">:</span><span class="s2">+.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"mức riêng của từng thanh (st):"</span><span class="p">,</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">offsets</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">tone_slope</span> <span class="o">-</span> <span class="n">DECL</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">naive_slope</span> <span class="o">-</span> <span class="n">DECL</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>độ dốc thật: -1.50 st/s | ngây thơ: -1.92 | tách thanh điệu: -1.49
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mức riêng của từng thanh (st): {'hoi': -3.8, 'huyen': -2.6, 'nang': -4.0, 'nga': 0.7, 'ngang': -0.3, 'sac': 1.0}
+</span></code></pre></div>
+<p>Cách ngây thơ cho độ dốc dốc hơn thực tế khoảng 28%, vì câu kết thúc bằng hai thanh thấp ("bà" huyền, "nội" nặng): mức thấp của <strong>thanh</strong> bị nhầm thành sự đi xuống của <strong>ngữ điệu</strong>. Đây là <strong>thiên lệch do bỏ sót biến</strong> (<em>omitted-variable bias</em>) quen thuộc trong thống kê (bài tập 5). Khi đưa thanh vào mô hình, độ dốc ước lượng gần như trùng giá trị thật, và các mức riêng của thanh xếp đúng thứ tự trực giác: sắc, ngã cao; ngang ở giữa; huyền, hỏi, nặng thấp. Với dữ liệu thật và nhiều câu, cùng ý tưởng này cho phép ước lượng khuôn thanh của từng người nói, so sánh ngữ điệu giữa các phong cách, và kiểm tra liệu một mô hình TTS có tái tạo đúng cả thanh điệu lẫn đường xuống hay không.</p>
+<h2 id="loi-thuong-gap-va-meo-thuc-hanh">Lỗi thường gặp và mẹo thực hành<a class="headerlink" href="#loi-thuong-gap-va-meo-thuc-hanh" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Phân tích F0 bằng Hz qua nhiều người nói</strong>: giọng nam và nữ lệch nhau gần một quãng tám; hãy dùng semitone hoặc z-score log-F0 theo người nói.</li>
+<li><strong>Coi lỗi quãng tám là ngữ điệu</strong>: một bước nhảy đột ngột gấp đôi hoặc giảm một nửa F0 gần như chắc chắn là lỗi trích xuất; lọc theo phân vị và kiểm tra bằng mắt.</li>
+<li><strong>Đọc ngữ điệu trực tiếp từ F0 trong ngôn ngữ có thanh</strong>: như mục 16.9 cho thấy, phải tách ảnh hưởng thanh điệu trước.</li>
+<li><strong>Ngắt chỉ dựa vào dấu câu</strong> và <strong>ngắt giữa một từ đa âm tiết</strong>: cần tách từ và thông tin cú pháp.</li>
+<li><strong>Tách câu trước khi chuẩn hóa văn bản</strong>: dấu phẩy thập phân và dấu chấm viết tắt bị coi là ranh giới.</li>
+<li><strong>Huấn luyện trên tin tức rồi dùng cho hội thoại</strong>: tiểu từ, từ đệm và ngữ điệu hội thoại sẽ sai; dữ liệu phải khớp phong cách đích.</li>
+<li><strong>Khoảng lặng đầu/cuối và giữa câu không nhất quán trong dữ liệu</strong>: mô hình học ngừng ngẫu nhiên; cắt và chuẩn hóa khoảng lặng khi chuẩn bị dữ liệu (<a href="../../phan-9-thuc-tien/ch36-du-lieu-tts/">Chương 36</a>).</li>
+<li><strong>Điều khiển cao độ bằng cách cộng Hz</strong> hoặc nén quãng quá mạnh: làm hỏng thanh điệu.</li>
+<li><strong>Đánh giá ngôn điệu chỉ bằng F0 RMSE với một tham chiếu</strong>: khuyến khích ngôn điệu phẳng.</li>
+</ul>
+<h2 id="tom-tat">Tóm tắt<a class="headerlink" href="#tom-tat" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Ngôn điệu gồm ngữ điệu, nhịp, độ nổi bật, tốc độ, ngừng nghỉ và chất giọng; nó mang chức năng ngôn ngữ, cận ngôn ngữ và ngoài ngôn ngữ mà văn bản chỉ gợi ý một phần.</li>
+<li>Tương quan âm học chính là F0 (đo bằng semitone, chuẩn hóa theo người nói), trường độ (thường mô hình hóa log-trường độ), năng lượng và độ nghiêng phổ, chất giọng.</li>
+<li>Lời nói được tổ chức thành phân cấp ngôn điệu; ToBI là chuẩn gán nhãn cho tiếng Anh, còn tiếng Việt chưa có chuẩn tương đương được dùng rộng rãi; thực hành TTS thường dùng thang chỉ số ngắt đơn giản.</li>
+<li>Trong tiếng Việt, F0 vừa mang thanh điệu vừa mang ngữ điệu; ngữ điệu thể hiện chủ yếu qua âm vực, quãng, trường độ và chất giọng, đặc biệt ở cuối ngữ đoạn, chồng lên các thanh; đường xuống làm mức của mọi thanh giảm dần trong câu.</li>
+<li>Câu hỏi tiếng Việt chủ yếu được đánh dấu bằng từ vựng; tiểu từ tình thái cuối câu (à, ạ, nhé, nhỉ, chứ...) mang thái độ và là điểm yếu phổ biến của TTS huấn luyện trên tin tức.</li>
+<li>Ngắt nhịp phải tôn trọng ranh giới từ (không phải âm tiết), cú pháp, dấu câu, và chạy sau chuẩn hóa văn bản.</li>
+<li>TTS mô hình hóa ngôn điệu theo hướng tường minh (bộ dự đoán trường độ, cao độ, năng lượng) hoặc ẩn (biến ẩn, tham chiếu, mô hình sinh lấy mẫu, mô hình ngôn ngữ trên token âm thanh); điều khiển cao độ cho tiếng Việt nên làm trong miền log.</li>
+<li>Đánh giá ngôn điệu cần cả phép đo chủ quan theo nhiệm vụ và phép đo khách quan (F0 RMSE theo cent, tương quan, GPE/VDE/FFE, trường độ, vị trí ngừng), với ý thức rõ về giới hạn của tham chiếu duy nhất.</li>
+</ul>
+<h2 id="bai-tap">Bài tập<a class="headerlink" href="#bai-tap" title="Permanent link">&para;</a></h2>
+<p><strong>Bài 1 [Cơ bản].</strong> F0 đi từ 110 Hz lên 165 Hz là bao nhiêu semitone? Một giọng nữ đi từ 220 Hz lên bao nhiêu Hz thì có cùng khoảng cao độ cảm nhận?</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p><span class="arithmatex">\(12\log_2(165/110) = 12\log_2 1{,}5 \approx 7{,}02\)</span> semitone. Giọng nữ cần cùng tỉ lệ 1,5: từ 220 Hz lên 330 Hz (tăng 110 Hz, gấp đôi giọng nam tính theo Hz nhưng bằng nhau tính theo semitone).</p>
+</details>
+<p><strong>Bài 2 [Cơ bản].</strong> Đánh dấu ranh giới ngữ đoạn (dùng "/") cho hai cách hiểu của câu "Con ngựa đá con ngựa đá" và mô tả bạn sẽ nói hai cách ấy khác nhau thế nào về ngừng và trường độ.</p>
+<details class="tip">
+<summary>Gợi ý</summary>
+<p>"Con ngựa / đá / con ngựa đá" và "Con ngựa đá / đá / con ngựa". Âm tiết đứng trước ranh giới được kéo dài; động từ "đá" thường được tách khỏi chủ ngữ bằng một ranh giới.</p>
+</details>
+<p><strong>Bài 3 [Cơ bản].</strong> Với mỗi tiểu từ à, ạ, nhé, nhỉ, chứ, hãy viết một câu và mô tả cách bạn nói nó. Dự đoán một mô hình TTS huấn luyện chỉ trên tin tức sẽ đọc các câu đó sai thế nào.</p>
+<p><strong>Bài 4 [Nâng cao].</strong> Gọi <span class="arithmatex">\(N\)</span> là tổng số khung, <span class="arithmatex">\(N_{\text{VDE}}\)</span> là số khung sai quyết định hữu thanh, <span class="arithmatex">\(N_{\text{GPE}}\)</span> là số khung (trong tập cả hai cùng hữu thanh) có lỗi thô. Viết công thức của GPE, VDE, FFE theo các đại lượng này và chứng minh <span class="arithmatex">\(\text{FFE} \geq \text{VDE}\)</span>. Khi nào FFE bằng VDE?</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p><span class="arithmatex">\(\text{GPE} = N_{\text{GPE}} / \lvert \mathcal{V} \rvert\)</span>, <span class="arithmatex">\(\text{VDE} = N_{\text{VDE}} / N\)</span>, <span class="arithmatex">\(\text{FFE} = (N_{\text{GPE}} + N_{\text{VDE}})/N\)</span> (hai tập khung rời nhau vì lỗi thô chỉ tính trên khung cả hai cùng hữu thanh, tức khung không sai quyết định V/UV). Do <span class="arithmatex">\(N_{\text{GPE}} \geq 0\)</span> nên <span class="arithmatex">\(\text{FFE} \geq \text{VDE}\)</span>, dấu bằng khi không có lỗi thô nào.</p>
+</details>
+<p><strong>Bài 5 [Nâng cao].</strong> Giải thích bằng công thức vì sao hồi quy ngây thơ ở mục 16.9 bị lệch. Gợi ý: nếu mô hình đúng là <span class="arithmatex">\(y_i = b t_i + c_{k(i)} + \varepsilon_i\)</span> mà ta hồi quy <span class="arithmatex">\(y\)</span> chỉ theo <span class="arithmatex">\(t\)</span>, hệ số ước lượng có kỳ vọng xấp xỉ <span class="arithmatex">\(b + \operatorname{Cov}(t, c_{k})/\operatorname{Var}(t)\)</span>.</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p>Trong hồi quy đơn biến, hệ số góc là <span class="arithmatex">\(\widehat{\operatorname{Cov}}(t, y)/\widehat{\operatorname{Var}}(t) = b + \widehat{\operatorname{Cov}}(t, c_k)/\widehat{\operatorname{Var}}(t) + \widehat{\operatorname{Cov}}(t, \varepsilon)/\widehat{\operatorname{Var}}(t)\)</span>. Số hạng cuối có kỳ vọng 0. Số hạng giữa khác 0 khi thành phần thanh tương quan với vị trí trong câu: câu của ta kết thúc bằng các thanh có <span class="arithmatex">\(c_k\)</span> thấp (huyền, nặng), nên <span class="arithmatex">\(\operatorname{Cov}(t, c_k) &lt; 0\)</span> và độ dốc ước lượng âm hơn thực tế. Khi đưa biến thanh vào mô hình, phần này được hấp thụ bởi các hệ số <span class="arithmatex">\(c_k\)</span>.</p>
+</details>
+<p><strong>Bài 6 [Lập trình].</strong> Sửa <code>prosody_synth.py</code>: thêm một ranh giới ngữ đoạn sau "nay" (ngừng 200 ms và đặt lại đường nền lên mức đầu câu) và thêm hạ cuối −2 st cho âm tiết cuối. Mở rộng mô hình hồi quy với một biến "ngữ đoạn" (mức riêng cho mỗi ngữ đoạn) và kiểm tra rằng độ dốc vẫn được khôi phục.</p>
+<p><strong>Bài 7 [Lập trình].</strong> Cài đặt phép co giãn quãng trong miền semitone quanh trung bình của câu với hệ số <span class="arithmatex">\(r \in \{1; 0{,}75; 0{,}5; 0{,}25\}\)</span>, tổng hợp lại câu và dùng <code>syllable_stats</code> để đo độ dốc trung bình của các âm tiết thanh sắc. Với <span class="arithmatex">\(r\)</span> nào thì độ dốc của thanh sắc chỉ còn gần bằng của thanh ngang trong bản gốc? Nghe thử và ghi nhận.</p>
+<p><strong>Bài 8 [Lập trình].</strong> Cài đặt GPE, VDE, FFE và F0 RMSE theo cent giữa <code>f0_true</code> (lấy mẫu lại theo tâm khung) và đầu ra pYIN ở mục 16.9. Thêm nhiễu trắng với SNR 20, 10, 5 dB vào tín hiệu và quan sát các độ đo thay đổi thế nào.</p>
+<h2 id="tai-lieu-tham-khao">Tài liệu tham khảo<a class="headerlink" href="#tai-lieu-tham-khao" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Ladd, D. R. (2008). <em>Intonational Phonology</em> (ấn bản 2). Cambridge University Press.</li>
+<li>Selkirk, E. (1984). <em>Phonology and Syntax: The Relation between Sound and Structure</em>. MIT Press.</li>
+<li>Nespor, M., &amp; Vogel, I. (1986). <em>Prosodic Phonology</em>. Foris.</li>
+<li>Silverman, K. và cộng sự (1992). ToBI: A standard for labeling English prosody. <em>ICSLP 1992</em>.</li>
+<li>'t Hart, J., Collier, R., &amp; Cohen, A. (1990). <em>A Perceptual Study of Intonation</em>. Cambridge University Press.</li>
+<li>Fujisaki, H., &amp; Hirose, K. (1984). Analysis of voice fundamental frequency contours for declarative sentences of Japanese. <em>Journal of the Acoustical Society of Japan (E)</em>, 5(4), 233–242.</li>
+<li>Xu, Y. (2005). Speech melody as articulatorily implemented communicative functions. <em>Speech Communication</em>, 46(3–4), 220–251.</li>
+<li>Prom-on, S., Xu, Y., &amp; Thipakorn, B. (2009). Modeling tone and intonation in Mandarin and English as a process of target approximation. <em>Journal of the Acoustical Society of America</em>, 125(1), 405–424.</li>
+<li>Đỗ Thế Dũng, Trần Thiên Hương, &amp; Boulakia, G. (1998). Intonation in Vietnamese. Trong D. Hirst &amp; A. Di Cristo (chủ biên), <em>Intonation Systems: A Survey of Twenty Languages</em>. Cambridge University Press.</li>
+<li>Brunelle, M., Hạ Kiều Phương, &amp; Grice, M. (2012). Intonation in Northern Vietnamese. <em>The Linguistic Review</em>, 29(1).</li>
+<li>Chu, W., &amp; Alwan, A. (2009). Reducing F0 frame error of F0 tracking algorithms under noisy conditions with an unvoiced/voiced classification frontend. <em>ICASSP 2009</em>.</li>
+<li>Ren, Y. và cộng sự (2021). FastSpeech 2: Fast and high-quality end-to-end text to speech. <em>ICLR 2021</em>.</li>
+<li>Łańcucki, A. (2021). FastPitch: Parallel text-to-speech with pitch prediction. <em>ICASSP 2021</em>.</li>
+<li>Skerry-Ryan, R. J. và cộng sự (2018). Towards end-to-end prosody transfer for expressive speech synthesis with Tacotron. <em>ICML 2018</em>.</li>
+<li>Wang, Y. và cộng sự (2018). Style Tokens: Unsupervised style modeling, control and transfer in end-to-end speech synthesis. <em>ICML 2018</em>.</li>
+<li>Nguyen, D. Q., &amp; Nguyen, A. T. (2020). PhoBERT: Pre-trained language models for Vietnamese. <em>Findings of EMNLP 2020</em>.</li>
+<li>Mauch, M., &amp; Dixon, S. (2014). pYIN: A fundamental frequency estimator using probabilistic threshold distributions. <em>ICASSP 2014</em>.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Trở lại mục lục
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Chân trang" >
+        
+          
+          <a href="../ch15-ngu-am-tieng-viet/" class="md-footer__link md-footer__link--prev" aria-label="Trước: 15. Ngữ âm và âm vị học tiếng Việt">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Trước
+              </span>
+              <div class="md-ellipsis">
+                15. Ngữ âm và âm vị học tiếng Việt
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../phan-4-frontend/" class="md-footer__link md-footer__link--next" aria-label="Sau: Phần IV. Xử lý văn bản (Frontend)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Sau
+              </span>
+              <div class="md-ellipsis">
+                Phần IV. Xử lý văn bản (Frontend)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Nội dung phát hành theo giấy phép CC BY-SA 4.0 · Mã nguồn minh họa theo giấy phép MIT
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/tuandung222/tts-books-2026" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u0110\u00e3 sao ch\u00e9p", "clipboard.copy": "Sao ch\u00e9p v\u00e0o b\u1ed9 nh\u1edb t\u1ea1m", "search.result.more.one": "1 t\u1eeb kh\u00e1c trong trang", "search.result.more.other": "# t\u1eeb kh\u00e1c trong trang", "search.result.none": "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan", "search.result.one": "1 t\u00e0i li\u1ec7u li\u00ean quan", "search.result.other": "# t\u00e0i li\u1ec7u li\u00ean quan", "search.result.placeholder": "Nh\u1eadp \u0111\u1ec3 b\u1eaft \u0111\u1ea7u t\u00ecm ki\u1ebfm", "search.result.term.missing": "Kh\u00f4ng", "select.version": "Ch\u1ecdn phi\u00ean b\u1ea3n"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

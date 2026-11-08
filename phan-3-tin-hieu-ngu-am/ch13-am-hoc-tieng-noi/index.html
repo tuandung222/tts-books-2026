@@ -1,0 +1,4119 @@
+
+<!doctype html>
+<html lang="vi" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Giáo trình tiếng Việt về Tổng hợp tiếng nói (Text-to-Speech): từ nền tảng học sâu đến làm chủ các hệ thống TTS hiện đại.">
+      
+      
+        <meta name="author" content="Cộng đồng đóng góp tts-books-2026">
+      
+      
+        <link rel="canonical" href="https://tuandung222.github.io/tts-books-2026/phan-3-tin-hieu-ngu-am/ch13-am-hoc-tieng-noi/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../ch14-xu-ly-tin-hieu-so/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>13. Âm học và cơ chế tạo tiếng nói - Giáo trình TTS 2026</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Be+Vietnam+Pro:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Be Vietnam Pro";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#chuong-13-am-hoc-va-co-che-tao-tieng-noi" class="md-skip">
+          Bỏ qua
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Đầu trang">
+    <a href="../.." title="Giáo trình TTS 2026" class="md-header__button md-logo" aria-label="Giáo trình TTS 2026" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Giáo trình TTS 2026
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              13. Âm học và cơ chế tạo tiếng nói
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Chuyển sang chế độ tối"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Chuyển sang chế độ tối" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Chuyển sang chế độ sáng"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Chuyển sang chế độ sáng" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Tìm kiếm" placeholder="Tìm kiếm" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Tìm kiếm">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Chia sẻ" aria-label="Chia sẻ" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Xoá" aria-label="Xoá" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tuandung222/tts-books-2026" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tuandung222/tts-books-2026
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+    
+  
+  Trang chủ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-1-nen-tang/" class="md-tabs__link">
+          
+  
+    
+  
+  I. Nền tảng học sâu
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-2-mo-hinh-sinh/" class="md-tabs__link">
+          
+  
+    
+  
+  II. Mô hình sinh
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  III. Tín hiệu và ngữ âm
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-4-frontend/" class="md-tabs__link">
+          
+  
+    
+  
+  IV. Xử lý văn bản
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-5-mo-hinh-am-hoc/" class="md-tabs__link">
+          
+  
+    
+  
+  V. Mô hình âm học
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-6-vocoder/" class="md-tabs__link">
+          
+  
+    
+  
+  VI. Vocoder
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-7-e2e-bieu-cam/" class="md-tabs__link">
+          
+  
+    
+  
+  VII. End-to-end và biểu cảm
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-8-mo-hinh-lon/" class="md-tabs__link">
+          
+  
+    
+  
+  VIII. TTS thời mô hình lớn
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-9-thuc-tien/" class="md-tabs__link">
+          
+  
+    
+  
+  IX. Thực tiễn
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phan-10-du-an/" class="md-tabs__link">
+          
+  
+    
+  
+  X. Dự án
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../phu-luc/" class="md-tabs__link">
+          
+  
+    
+  
+  Phụ lục
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Thanh điều hướng" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Giáo trình TTS 2026" class="md-nav__button md-logo" aria-label="Giáo trình TTS 2026" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Giáo trình TTS 2026
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tuandung222/tts-books-2026" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tuandung222/tts-books-2026
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Trang chủ
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Trang chủ
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/loi-noi-dau/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Lời nói đầu
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/lo-trinh-hoc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Lộ trình học
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/ky-hieu/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ký hiệu toán học
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gioi-thieu/quy-uoc-bien-soan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quy ước biên soạn
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-1-nen-tang/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    I. Nền tảng học sâu
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            I. Nền tảng học sâu
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch01-toan-nen-tang/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    1. Toán nền tảng cho học sâu
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch02-hoc-may-va-mang-no-ron/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    2. Học máy và mạng nơ-ron
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch03-toi-uu-va-ky-thuat-huan-luyen/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    3. Tối ưu hóa và kỹ thuật huấn luyện
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch04-cnn-rnn-mo-hinh-chuoi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    4. CNN, RNN và mô hình chuỗi
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch05-transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    5. Attention và Transformer
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-1-nen-tang/ch06-pytorch-cho-tieng-noi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    6. PyTorch cho xử lý tiếng nói
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-2-mo-hinh-sinh/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    II. Mô hình sinh
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            II. Mô hình sinh
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    7. Tổng quan mô hình sinh
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch08-vae/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    8. Variational Autoencoder
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch09-gan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    9. Mạng đối sinh (GAN)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch10-normalizing-flows/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    10. Normalizing Flows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch11-diffusion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    11. Mô hình khuếch tán (Diffusion)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-2-mo-hinh-sinh/ch12-flow-matching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    12. Flow Matching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    III. Tín hiệu và ngữ âm
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            III. Tín hiệu và ngữ âm
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    13. Âm học và cơ chế tạo tiếng nói
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    13. Âm học và cơ chế tạo tiếng nói
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#131-song-am-va-cac-ai-luong-co-ban" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1. Sóng âm và các đại lượng cơ bản
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.1. Sóng âm và các đại lượng cơ bản">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1311-song-am-la-gi" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.1. Sóng âm là gì
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1312-tan-so-chu-ky-hai" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.2. Tần số, chu kỳ, hài
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1313-decibel-db-spl-db-cong-suat-va-dbfs" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.3. Decibel: dB SPL, dB công suất và dBFS
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1314-o-to-phon-sone-va-uong-ong-muc-am-luong" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.4. Độ to: phon, sone và đường đồng mức âm lượng
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#132-co-che-tao-tieng-noi" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2. Cơ chế tạo tiếng nói
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.2. Cơ chế tạo tiếng nói">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1321-ba-khau-ho-hap-phat-am-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.1. Ba khâu: hô hấp, phát âm, cấu âm
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1322-dao-ong-cua-day-thanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.2. Dao động của dây thanh
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1323-cac-kieu-phat-am-phonation-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.3. Các kiểu phát âm (phonation types)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1324-nguon-thanh-mon-va-o-nghieng-pho" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.4. Nguồn thanh môn và độ nghiêng phổ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1325-cac-loai-am-theo-nguon-kich-thich" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.5. Các loại âm theo nguồn kích thích
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#133-mo-hinh-nguonbo-loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3. Mô hình nguồn–bộ lọc
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.3. Mô hình nguồn–bộ lọc">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1331-truc-giac" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.1. Trực giác
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1332-hinh-thuc-hoa" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.2. Hình thức hóa
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1333-mo-hinh-ong-ong-nhat-va-cong-thuc-formant" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.3. Mô hình ống đồng nhất và công thức formant
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1334-bo-cong-huong-so-bac-hai" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.4. Bộ cộng hưởng số bậc hai
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1335-cai-at-tong-hop-nguyen-am-bang-nguonbo-loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.5. Cài đặt: tổng hợp nguyên âm bằng nguồn–bộ lọc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1336-lien-he-voi-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.6. Liên hệ với TTS
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#134-ngu-am-hoc-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4. Ngữ âm học cấu âm
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.4. Ngữ âm học cấu âm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1341-phu-am-thanh-tinh-vi-tri-va-phuong-thuc-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.1. Phụ âm: thanh tính, vị trí và phương thức cấu âm
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1342-nguyen-am-o-cao-o-truocsau-o-tron-moi" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.2. Nguyên âm: độ cao, độ trước–sau, độ tròn môi
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1343-bang-mau-tu-ngu-am-quoc-te-ipa" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.3. Bảng mẫu tự ngữ âm quốc tế (IPA)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1344-ong-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.4. Đồng cấu âm
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#135-thinh-giac-tai-nguoi-nghe-nhu-the-nao" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5. Thính giác: tai người nghe như thế nào
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.5. Thính giác: tai người nghe như thế nào">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1351-cau-tao-cua-tai" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.1. Cấu tạo của tai
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1352-dai-toi-han-va-hien-tuong-che-lap" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.2. Dải tới hạn và hiện tượng che lấp
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1353-thang-mel" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.3. Thang mel
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1354-cam-nhan-cao-o" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.4. Cảm nhận cao độ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1355-cam-nhan-pha" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.5. Cảm nhận pha
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#136-vi-sao-nhung-ieu-nay-quan-trong-voi-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.6. Vì sao những điều này quan trọng với TTS
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loi-thuong-gap-va-meo-thuc-hanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lỗi thường gặp và mẹo thực hành
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tom-tat" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tóm tắt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bai-tap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bài tập
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tai-lieu-tham-khao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tài liệu tham khảo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ch14-xu-ly-tin-hieu-so/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    14. Xử lý tín hiệu số cho tiếng nói
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ch15-ngu-am-tieng-viet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    15. Ngữ âm và âm vị học tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ch16-ngon-dieu/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    16. Ngôn điệu (Prosody)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-4-frontend/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    IV. Xử lý văn bản
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            IV. Xử lý văn bản
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-4-frontend/ch17-chuan-hoa-van-ban/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    17. Chuẩn hóa văn bản tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-4-frontend/ch18-g2p-bieu-dien-dau-vao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    18. G2P và biểu diễn đầu vào
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-5-mo-hinh-am-hoc/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    V. Mô hình âm học
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            V. Mô hình âm học
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch19-lich-su-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    19. Lịch sử TTS: từ formant đến neural
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch20-tacotron/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    20. Tacotron và TTS dựa trên attention
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch21-alignment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    21. Bài toán căn chỉnh (Alignment)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch22-fastspeech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    22. FastSpeech và TTS không tự hồi quy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    23. Glow-TTS, Grad-TTS, Matcha-TTS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-6-vocoder/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    VI. Vocoder
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            VI. Vocoder
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    24. Vocoder tự hồi quy và flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-6-vocoder/ch25-gan-vocoder/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    25. Vocoder dựa trên GAN
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    26. Vocoder khuếch tán và so sánh
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-7-e2e-bieu-cam/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    VII. End-to-end và biểu cảm
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            VII. End-to-end và biểu cảm
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch27-vits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    27. VITS và họ end-to-end
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    28. Đa người nói và nhân bản giọng
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    29. Ngôn điệu, cảm xúc và phong cách
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    30. Đa ngôn ngữ và trộn mã Việt–Anh
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-8-mo-hinh-lon/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    VIII. TTS thời mô hình lớn
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            VIII. TTS thời mô hình lớn
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch31-audio-codec-speech-token/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    31. Neural audio codec và speech token
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch32-codec-language-model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    32. Codec language model (VALL-E và họ hàng)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    33. TTS không tự hồi quy quy mô lớn
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    34. Kiến trúc lai LM + Flow hiện đại
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-8-mo-hinh-lon/ch35-streaming-speech-llm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    35. Streaming, Speech LLM và hội thoại
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-9-thuc-tien/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    IX. Thực tiễn
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            IX. Thực tiễn
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch36-du-lieu-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    36. Xây dựng dữ liệu TTS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch37-huan-luyen-va-debug/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    37. Huấn luyện và gỡ lỗi
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch38-danh-gia-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    38. Đánh giá hệ thống TTS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch39-trien-khai-production/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    39. Tối ưu suy luận và triển khai
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-9-thuc-tien/ch40-dao-duc-an-toan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    40. Đạo đức, an toàn và pháp lý
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phan-10-du-an/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    X. Dự án
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_11" id="__nav_11_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            X. Dự án
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-1-frontend-tieng-viet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 1: Frontend tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-2-fastspeech2-hifigan/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 2: FastSpeech 2 + HiFi-GAN
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-3-vits-tieng-viet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 3: VITS tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-4-zero-shot-tts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 4: Zero-shot TTS tiếng Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phan-10-du-an/du-an-5-tts-service-streaming/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dự án 5: Dịch vụ TTS streaming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../phu-luc/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Phụ lục
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_12" id="__nav_12_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            Phụ lục
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phu-luc/a-thuat-ngu/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A. Thuật ngữ Anh–Việt
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phu-luc/b-danh-muc-bai-bao/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    B. Danh mục bài báo cốt lõi
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../phu-luc/c-tai-nguyen/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    C. Công cụ, thư viện và dữ liệu
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#131-song-am-va-cac-ai-luong-co-ban" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1. Sóng âm và các đại lượng cơ bản
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.1. Sóng âm và các đại lượng cơ bản">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1311-song-am-la-gi" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.1. Sóng âm là gì
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1312-tan-so-chu-ky-hai" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.2. Tần số, chu kỳ, hài
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1313-decibel-db-spl-db-cong-suat-va-dbfs" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.3. Decibel: dB SPL, dB công suất và dBFS
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1314-o-to-phon-sone-va-uong-ong-muc-am-luong" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.1.4. Độ to: phon, sone và đường đồng mức âm lượng
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#132-co-che-tao-tieng-noi" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2. Cơ chế tạo tiếng nói
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.2. Cơ chế tạo tiếng nói">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1321-ba-khau-ho-hap-phat-am-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.1. Ba khâu: hô hấp, phát âm, cấu âm
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1322-dao-ong-cua-day-thanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.2. Dao động của dây thanh
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1323-cac-kieu-phat-am-phonation-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.3. Các kiểu phát âm (phonation types)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1324-nguon-thanh-mon-va-o-nghieng-pho" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.4. Nguồn thanh môn và độ nghiêng phổ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1325-cac-loai-am-theo-nguon-kich-thich" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.2.5. Các loại âm theo nguồn kích thích
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#133-mo-hinh-nguonbo-loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3. Mô hình nguồn–bộ lọc
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.3. Mô hình nguồn–bộ lọc">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1331-truc-giac" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.1. Trực giác
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1332-hinh-thuc-hoa" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.2. Hình thức hóa
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1333-mo-hinh-ong-ong-nhat-va-cong-thuc-formant" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.3. Mô hình ống đồng nhất và công thức formant
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1334-bo-cong-huong-so-bac-hai" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.4. Bộ cộng hưởng số bậc hai
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1335-cai-at-tong-hop-nguyen-am-bang-nguonbo-loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.5. Cài đặt: tổng hợp nguyên âm bằng nguồn–bộ lọc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1336-lien-he-voi-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.3.6. Liên hệ với TTS
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#134-ngu-am-hoc-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4. Ngữ âm học cấu âm
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.4. Ngữ âm học cấu âm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1341-phu-am-thanh-tinh-vi-tri-va-phuong-thuc-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.1. Phụ âm: thanh tính, vị trí và phương thức cấu âm
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1342-nguyen-am-o-cao-o-truocsau-o-tron-moi" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.2. Nguyên âm: độ cao, độ trước–sau, độ tròn môi
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1343-bang-mau-tu-ngu-am-quoc-te-ipa" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.3. Bảng mẫu tự ngữ âm quốc tế (IPA)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1344-ong-cau-am" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.4.4. Đồng cấu âm
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#135-thinh-giac-tai-nguoi-nghe-nhu-the-nao" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5. Thính giác: tai người nghe như thế nào
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13.5. Thính giác: tai người nghe như thế nào">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1351-cau-tao-cua-tai" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.1. Cấu tạo của tai
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1352-dai-toi-han-va-hien-tuong-che-lap" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.2. Dải tới hạn và hiện tượng che lấp
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1353-thang-mel" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.3. Thang mel
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1354-cam-nhan-cao-o" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.4. Cảm nhận cao độ
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1355-cam-nhan-pha" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.5.5. Cảm nhận pha
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#136-vi-sao-nhung-ieu-nay-quan-trong-voi-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      13.6. Vì sao những điều này quan trọng với TTS
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loi-thuong-gap-va-meo-thuc-hanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lỗi thường gặp và mẹo thực hành
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tom-tat" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tóm tắt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bai-tap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bài tập
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tai-lieu-tham-khao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tài liệu tham khảo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/tuandung222/tts-books-2026/edit/main/docs/phan-3-tin-hieu-ngu-am/ch13-am-hoc-tieng-noi.md" title="Chỉnh sửa" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="chuong-13-am-hoc-va-co-che-tao-tieng-noi">Chương 13. Âm học và cơ chế tạo tiếng nói<a class="headerlink" href="#chuong-13-am-hoc-va-co-che-tao-tieng-noi" title="Permanent link">&para;</a></h1>
+<div class="admonition abstract">
+<p class="admonition-title">Mục tiêu học tập</p>
+<p>Sau chương này, bạn có thể:</p>
+<ul>
+<li><strong>Giải thích</strong> các đại lượng cơ bản của sóng âm (tần số, biên độ, mức áp suất âm dB SPL, độ to) và chuyển đổi đúng giữa các thang decibel.</li>
+<li><strong>Mô tả</strong> cơ chế tạo tiếng nói qua ba khâu: hô hấp, phát âm ở thanh quản và cấu âm trong đường thanh âm; phân biệt âm hữu thanh, vô thanh, âm tắc, âm xát, âm mũi.</li>
+<li><strong>Suy ra</strong> công thức formant của mô hình ống đồng nhất và công thức hệ số của bộ cộng hưởng số bậc hai.</li>
+<li><strong>Cài đặt</strong> một bộ tổng hợp nguyên âm theo mô hình nguồn–bộ lọc (xung thanh môn + các bộ cộng hưởng formant) và kiểm chứng phổ của tín hiệu tạo ra.</li>
+<li><strong>Phân loại</strong> phụ âm theo vị trí và phương thức cấu âm, nguyên âm theo độ cao, độ trước–sau và độ tròn môi; đọc được ký hiệu IPA cơ bản.</li>
+<li><strong>So sánh</strong> các thang tần số tri giác (mel, Bark, ERB) và giải thích vì sao TTS dùng mel-spectrogram, log-biên độ và log-F0.</li>
+<li><strong>Đánh giá</strong> vai trò của pha trong cảm nhận âm thanh và hệ quả của nó đối với thiết kế vocoder.</li>
+</ul>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Kiến thức cần có</p>
+<ul>
+<li>Số phức, công thức Euler và trực giác về phân tích Fourier: <a href="../../phan-1-nen-tang/ch01-toan-nen-tang/">Chương 1</a>.</li>
+<li>Tích chập một chiều: <a href="../../phan-1-nen-tang/ch04-cnn-rnn-mo-hinh-chuoi/">Chương 4</a>.</li>
+<li>Không cần biết trước ngữ âm học. Biến đổi Fourier rời rạc, STFT và bộ lọc mel được trình bày chi tiết ở <a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>; ở chương này bạn chỉ cần hiểu "phổ" là sự phân bố năng lượng theo tần số.</li>
+</ul>
+</div>
+<p>Một hệ thống TTS hiện đại có thể có hàng trăm triệu tham số, được huấn luyện trên hàng chục nghìn giờ dữ liệu. Thế nhưng gần như mọi lựa chọn "kỹ thuật" trong hệ thống ấy, từ việc dùng mel-spectrogram làm biểu diễn trung gian, lấy log của biên độ, mô hình hóa log-F0, cho đến cấu trúc của vocoder, đều bắt nguồn từ hai sự thật vật lý–sinh học: <strong>con người tạo ra tiếng nói như thế nào</strong> và <strong>tai người nghe như thế nào</strong>. Hiểu hai điều này giúp bạn đọc được bài báo nhanh hơn, chẩn đoán lỗi chính xác hơn (vì sao giọng tổng hợp nghe "rè kim loại"? vì sao đổi cao độ làm giọng nghe như "chuột chù"?) và thiết kế hệ thống tốt hơn cho tiếng Việt, một ngôn ngữ mà cao độ mang nghĩa từ vựng.</p>
+<p>Chương này đi theo đúng đường đi của âm thanh: từ sóng âm (mục 13.1), qua bộ máy phát âm (13.2) và mô hình nguồn–bộ lọc (13.3), đến cách ngữ âm học mô tả các âm (13.4) và cách tai người cảm nhận chúng (13.5). Mục 13.6 tổng kết các hệ quả cho TTS.</p>
+<h2 id="131-song-am-va-cac-ai-luong-co-ban">13.1. Sóng âm và các đại lượng cơ bản<a class="headerlink" href="#131-song-am-va-cac-ai-luong-co-ban" title="Permanent link">&para;</a></h2>
+<h3 id="1311-song-am-la-gi">13.1.1. Sóng âm là gì<a class="headerlink" href="#1311-song-am-la-gi" title="Permanent link">&para;</a></h3>
+<p>Âm thanh là <strong>dao động áp suất</strong> lan truyền trong môi trường đàn hồi (không khí). Khi dây thanh rung, nó lần lượt nén và giãn lớp không khí bên cạnh; các vùng nén–giãn này lan ra theo phương truyền sóng, nên sóng âm trong không khí là <strong>sóng dọc</strong>. Đại lượng ta đo bằng micro là <strong>áp suất âm</strong> <span class="arithmatex">\(p(t)\)</span>: độ lệch nhỏ của áp suất so với áp suất khí quyển. Với tiếng nói thông thường, <span class="arithmatex">\(p(t)\)</span> chỉ cỡ phần trăm đến phần mười pascal, rất nhỏ so với áp suất khí quyển (khoảng <span class="arithmatex">\(10^5\)</span> Pa).</p>
+<p>Tốc độ âm trong không khí khô ở 20 °C là <span class="arithmatex">\(c \approx 343\)</span> m/s; trong đường thanh âm (không khí ấm, ẩm) người ta thường lấy <span class="arithmatex">\(c \approx 350\)</span> m/s. Bước sóng liên hệ với tần số qua</p>
+<div class="arithmatex">\[
+\lambda = \frac{c}{f}.
+\]</div>
+<p>Ở 1 kHz, <span class="arithmatex">\(\lambda \approx 34\)</span> cm, cùng bậc độ lớn với chiều dài đường thanh âm người trưởng thành (khoảng 14–18 cm). Đây không phải chi tiết vụn vặt: chính vì bước sóng của các tần số tiếng nói <strong>so sánh được</strong> với kích thước khoang miệng–họng mà đường thanh âm hoạt động như một <strong>bộ cộng hưởng âm học</strong>, tạo ra các formant (mục 13.3).</p>
+<h3 id="1312-tan-so-chu-ky-hai">13.1.2. Tần số, chu kỳ, hài<a class="headerlink" href="#1312-tan-so-chu-ky-hai" title="Permanent link">&para;</a></h3>
+<p>Một <strong>âm thuần</strong> (<em>pure tone</em>) có dạng</p>
+<div class="arithmatex">\[
+p(t) = A \sin(2\pi f t + \varphi),
+\]</div>
+<p>với biên độ <span class="arithmatex">\(A\)</span>, tần số <span class="arithmatex">\(f\)</span> (Hz) và pha ban đầu <span class="arithmatex">\(\varphi\)</span>. Chu kỳ <span class="arithmatex">\(T_0 = 1/f\)</span>. Tiếng nói không phải âm thuần, nhưng các đoạn <strong>hữu thanh</strong> (nguyên âm, phụ âm mũi...) gần như <strong>tuần hoàn</strong>: dạng sóng lặp lại sau mỗi chu kỳ dao động của dây thanh. Theo khai triển Fourier, mọi tín hiệu tuần hoàn chu kỳ <span class="arithmatex">\(T_0\)</span> đều viết được thành tổng các thành phần sin có tần số là bội nguyên của <span class="arithmatex">\(f_0 = 1/T_0\)</span>:</p>
+<div class="arithmatex">\[
+p(t) = \sum_{k=1}^{\infty} A_k \cos(2\pi k f_0 t + \varphi_k).
+\]</div>
+<p>Thành phần <span class="arithmatex">\(k = 1\)</span> gọi là <strong>tần số cơ bản</strong> <span class="arithmatex">\(f_0\)</span> (F0); các thành phần <span class="arithmatex">\(k \geq 2\)</span> là <strong>hài</strong> (<em>harmonics</em>). Phổ của một đoạn nguyên âm vì vậy là một "hàng rào" các vạch cách đều nhau <span class="arithmatex">\(f_0\)</span> Hz; chiều cao các vạch (biên độ <span class="arithmatex">\(A_k\)</span>) bị "nắn" bởi đường thanh âm. Hãy giữ hình ảnh này: <strong>vị trí các vạch do nguồn quyết định, đường bao của chúng do bộ lọc quyết định</strong>. Đó là toàn bộ tinh thần của mô hình nguồn–bộ lọc.</p>
+<p>Tiếng nói thật chỉ <strong>gần</strong> tuần hoàn: F0 thay đổi liên tục (đó là ngữ điệu và thanh điệu), biên độ và chu kỳ dao động nhỏ từ chu kỳ này sang chu kỳ khác (<em>jitter</em>, <em>shimmer</em>). Các đoạn <strong>vô thanh</strong> như /s/, /f/ thì hoàn toàn không tuần hoàn: phổ của chúng liên tục, giống nhiễu đã được lọc.</p>
+<h3 id="1313-decibel-db-spl-db-cong-suat-va-dbfs">13.1.3. Decibel: dB SPL, dB công suất và dBFS<a class="headerlink" href="#1313-decibel-db-spl-db-cong-suat-va-dbfs" title="Permanent link">&para;</a></h3>
+<p>Tai người cảm nhận được áp suất từ khoảng <span class="arithmatex">\(2 \times 10^{-5}\)</span> Pa đến hàng chục pascal, tức dải động hơn sáu bậc độ lớn. Vì vậy ta dùng thang logarit. <strong>Mức áp suất âm</strong> (<em>sound pressure level</em>) là</p>
+<div class="arithmatex">\[
+L_p = 20 \log_{10} \frac{p_{\text{rms}}}{p_0} \quad \text{(dB SPL)}, \qquad p_0 = 20\ \mu\text{Pa},
+\]</div>
+<p>với <span class="arithmatex">\(p_0\)</span> xấp xỉ ngưỡng nghe của người trẻ ở khoảng 1 kHz. Với <strong>cường độ</strong> hoặc <strong>công suất</strong> (tỉ lệ với bình phương áp suất), ta dùng hệ số 10 thay vì 20:</p>
+<div class="arithmatex">\[
+L_I = 10 \log_{10} \frac{I}{I_0}, \qquad I \propto p^2 \;\Rightarrow\; 10 \log_{10} \frac{p^2}{p_0^2} = 20 \log_{10} \frac{p}{p_0}.
+\]</div>
+<p>Hai công thức nhất quán với nhau. Vài quy tắc nhẩm rất hay dùng: tăng <strong>gấp đôi biên độ</strong> ứng với <span class="arithmatex">\(+6{,}02\)</span> dB; tăng <strong>gấp đôi công suất</strong> ứng với <span class="arithmatex">\(+3{,}01\)</span> dB; tăng biên độ gấp 10 ứng với <span class="arithmatex">\(+20\)</span> dB.</p>
+<p>Một số mức điển hình (xấp xỉ, tùy nguồn và điều kiện đo): ngưỡng nghe quanh 0 dB SPL ở vùng 1–4 kHz; thì thầm khoảng 30 dB SPL; hội thoại thông thường ở khoảng cách 1 m khoảng 55–65 dB SPL; la hét có thể vượt 80 dB SPL; ngưỡng đau quanh 120–130 dB SPL.</p>
+<p>Trong âm thanh số, ta còn gặp <strong>dBFS</strong> (<em>decibels relative to full scale</em>): với tín hiệu dấu phẩy động chuẩn hóa trong <span class="arithmatex">\([-1, 1]\)</span>, mức <span class="arithmatex">\(20 \log_{10} \lvert x \rvert\)</span> dBFS so với biên độ cực đại mà định dạng biểu diễn được. 0 dBFS là đỉnh tối đa; mọi mức thực tế đều âm. <strong>dBFS không có quan hệ cố định với dB SPL</strong> nếu không hiệu chuẩn chuỗi thu âm (micro, tiền khuếch đại, bộ chuyển đổi). Đây là nguồn nhầm lẫn phổ biến khi đọc thông số dữ liệu.</p>
+<div class="admonition warning">
+<p class="admonition-title">Không cộng decibel như số thường</p>
+<p>Hai nguồn âm không tương quan, mỗi nguồn 60 dB SPL, phát cùng lúc cho tổng <strong>công suất</strong> gấp đôi, tức khoảng 63 dB SPL chứ không phải 120 dB. Muốn cộng, hãy đổi về công suất tuyến tính, cộng, rồi đổi lại sang dB.</p>
+</div>
+<h3 id="1314-o-to-phon-sone-va-uong-ong-muc-am-luong">13.1.4. Độ to: phon, sone và đường đồng mức âm lượng<a class="headerlink" href="#1314-o-to-phon-sone-va-uong-ong-muc-am-luong" title="Permanent link">&para;</a></h3>
+<p><strong>Độ to</strong> (<em>loudness</em>) là cảm nhận chủ quan, không đồng nhất với mức áp suất. Tai nhạy nhất ở vùng khoảng 2–5 kHz và kém nhạy hơn nhiều ở tần số thấp: một âm 100 Hz phải có mức áp suất cao hơn đáng kể so với một âm 1 kHz mới được nghe to bằng. Các <strong>đường đồng mức âm lượng</strong> (<em>equal-loudness contours</em>, chuẩn hóa trong ISO 226) mô tả điều này. Đơn vị <strong>phon</strong> định nghĩa độ to của một âm bằng mức dB SPL của âm 1 kHz được nghe to bằng nó. Đơn vị <strong>sone</strong> đo độ to theo thang tỉ lệ: ở mức trung bình, tăng khoảng 10 phon thì độ to cảm nhận tăng khoảng gấp đôi. Nói cách khác, độ to tăng gần như theo <strong>lũy thừa nhỏ</strong> của cường độ (định luật lũy thừa của Stevens, số mũ cỡ 0,3 với âm 1 kHz). Tính chất <strong>nén</strong> (<em>compressive</em>) này là một lý do sâu xa khiến ta luôn lấy log (hoặc một hàm nén) của phổ trước khi đưa vào mô hình học sâu.</p>
+<p>Trong xử lý dữ liệu TTS, ta sẽ gặp lại ý tưởng này dưới dạng <strong>chuẩn hóa độ to theo LUFS</strong> (dùng bộ lọc trọng số mô phỏng độ nhạy của tai), được trình bày ở <a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>.</p>
+<h2 id="132-co-che-tao-tieng-noi">13.2. Cơ chế tạo tiếng nói<a class="headerlink" href="#132-co-che-tao-tieng-noi" title="Permanent link">&para;</a></h2>
+<h3 id="1321-ba-khau-ho-hap-phat-am-cau-am">13.2.1. Ba khâu: hô hấp, phát âm, cấu âm<a class="headerlink" href="#1321-ba-khau-ho-hap-phat-am-cau-am" title="Permanent link">&para;</a></h3>
+<p>Bộ máy phát âm của con người có thể chia thành ba khâu nối tiếp:</p>
+<ol>
+<li><strong>Hô hấp</strong> (<em>respiration</em>): phổi đẩy luồng khí ra, tạo áp suất dưới thanh môn (<em>subglottal pressure</em>). Đây là nguồn năng lượng. Áp suất này giảm dần trong một hơi nói, góp phần tạo hiện tượng <strong>đường xuống</strong> của cao độ (<em>declination</em>) mà ta sẽ gặp ở <a href="../ch16-ngon-dieu/">Chương 16</a>.</li>
+<li><strong>Phát âm</strong> (<em>phonation</em>): trong thanh quản, hai <strong>dây thanh</strong> (<em>vocal folds</em>) có thể khép lại và dao động, cắt luồng khí thành các xung. Khe hở giữa hai dây thanh gọi là <strong>thanh môn</strong> (<em>glottis</em>). Khâu này tạo ra <strong>nguồn âm</strong> tuần hoàn của tiếng nói hữu thanh.</li>
+<li><strong>Cấu âm</strong> (<em>articulation</em>): đường thanh âm (<em>vocal tract</em>), gồm khoang họng, khoang miệng và (khi ngạc mềm hạ xuống) khoang mũi, được các <strong>cơ quan cấu âm</strong> (lưỡi, môi, hàm, ngạc mềm) thay đổi hình dạng. Đường thanh âm <strong>lọc</strong> nguồn âm, và ở những chỗ bị thu hẹp mạnh, nó còn tạo thêm <strong>nguồn nhiễu</strong> (luồng khí xoáy) hoặc <strong>nguồn tức thời</strong> (tiếng nổ khi mở chỗ tắc).</li>
+</ol>
+<pre class="mermaid"><code>flowchart LR
+    A["Phổi: luồng khí, áp suất"] --&gt; B["Thanh quản: dây thanh dao động"]
+    B --&gt; C["Đường thanh âm: họng, miệng, mũi"]
+    C --&gt; D["Bức xạ tại môi"]
+    D --&gt; E["Sóng âm trong không khí"]
+    N["Chỗ thu hẹp: nguồn nhiễu, tiếng nổ"] -.-&gt; C</code></pre>
+<h3 id="1322-dao-ong-cua-day-thanh">13.2.2. Dao động của dây thanh<a class="headerlink" href="#1322-dao-ong-cua-day-thanh" title="Permanent link">&para;</a></h3>
+<p>Vì sao dây thanh dao động được mà không cần một "cơ bắp rung" theo từng chu kỳ? Lý thuyết <strong>cơ đàn hồi – khí động</strong> (<em>myoelastic–aerodynamic theory</em>) giải thích như sau. Khi dây thanh khép, áp suất dưới thanh môn tăng và đẩy chúng tách ra; luồng khí bắt đầu đi qua. Lực đàn hồi của mô, cùng với sự giảm áp suất trong khe hẹp khi luồng khí chảy nhanh và tính chất sóng của lớp niêm mạc, kéo chúng khép lại. Chu trình lặp lại một cách <strong>tự duy trì</strong>, giống như tiếng "rung" khi bạn thổi qua hai môi mím chặt. Người nói điều khiển F0 chủ yếu bằng <strong>độ căng</strong> của dây thanh (cơ nhẫn–giáp kéo dài dây thanh làm F0 tăng), cùng với khối lượng dao động hiệu dụng và áp suất dưới thanh môn.</p>
+<p>Khi nói, F0 trung bình của nam giới trưởng thành thường quanh 100–120 Hz, của nữ giới quanh 190–220 Hz, trẻ em cao hơn nữa; các tài liệu khác nhau đưa ra những con số hơi khác, và dải biến thiên trong một câu nói có thể trải rộng cả quãng tám. Những con số này giải thích các thiết lập như <code>fmin=50–70 Hz</code>, <code>fmax=400–600 Hz</code> khi trích xuất F0 cho tiếng nói (<a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>).</p>
+<p>Mỗi chu kỳ dao động gồm pha <strong>mở</strong> (thanh môn mở dần), pha <strong>đóng</strong> (thường nhanh hơn pha mở) và pha <strong>khép kín</strong>. Thời điểm thanh môn đóng lại đột ngột (<em>glottal closure instant</em>, GCI) là lúc nguồn âm "kích" đường thanh âm mạnh nhất; độ dốc của sự đóng này quyết định lượng năng lượng ở tần số cao. Các phương pháp xử lý tiếng nói cổ điển như TD-PSOLA (<a href="../../phan-5-mo-hinh-am-hoc/ch19-lich-su-tts/">Chương 19</a>) đặt các cửa sổ phân tích đồng bộ với GCI.</p>
+<h3 id="1323-cac-kieu-phat-am-phonation-types">13.2.3. Các kiểu phát âm (phonation types)<a class="headerlink" href="#1323-cac-kieu-phat-am-phonation-types" title="Permanent link">&para;</a></h3>
+<p>Cùng một bộ máy, người nói có thể tạo nhiều <strong>chất giọng</strong> khác nhau:</p>
+<table>
+<thead>
+<tr>
+<th>Kiểu phát âm</th>
+<th>Hoạt động của thanh môn</th>
+<th>Đặc điểm âm học</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Giọng thường (<em>modal</em>)</td>
+<td>Khép kín hoàn toàn, dao động đều</td>
+<td>Hài rõ, F0 ổn định</td>
+</tr>
+<tr>
+<td>Giọng thở (<em>breathy</em>)</td>
+<td>Khép không kín, khí rò liên tục</td>
+<td>Nhiều nhiễu, hài bậc cao yếu, phổ dốc</td>
+</tr>
+<tr>
+<td>Giọng kẹt (<em>creaky</em>, <em>vocal fry</em>)</td>
+<td>Khép chặt, pha khép kín dài</td>
+<td>F0 thấp, chu kỳ không đều, có thể "gãy"</td>
+</tr>
+<tr>
+<td>Giọng gió (<em>falsetto</em>)</td>
+<td>Dây thanh mỏng, căng</td>
+<td>F0 cao, ít hài</td>
+</tr>
+<tr>
+<td>Thì thầm (<em>whisper</em>)</td>
+<td>Không dao động, khe hẹp tạo xoáy</td>
+<td>Không có F0, chỉ có nhiễu được lọc</td>
+</tr>
+<tr>
+<td>Vô thanh (<em>voiceless</em>)</td>
+<td>Mở rộng</td>
+<td>Không có nguồn ở thanh quản</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Góc tiếng Việt</p>
+<p>Trong tiếng Việt, chất giọng không chỉ là đặc điểm cá nhân mà còn là một phần của <strong>thanh điệu</strong>. Ở phương ngữ Bắc, thanh <strong>ngã</strong> thường được mô tả là có đoạn thanh quản hóa (kẹt, có khi gần như tắc thanh hầu) ở giữa âm tiết, còn thanh <strong>nặng</strong> thường ngắn và kết thúc bằng sự co thắt thanh hầu. Hệ quả kỹ thuật rất cụ thể: các thuật toán trích xuất F0 hay "mất dấu" hoặc nhảy quãng tám ở đúng những vùng này, và vocoder phải tái tạo được các chu kỳ không đều. Chi tiết ở <a href="../ch15-ngu-am-tieng-viet/">Chương 15</a>.</p>
+</div>
+<h3 id="1324-nguon-thanh-mon-va-o-nghieng-pho">13.2.4. Nguồn thanh môn và độ nghiêng phổ<a class="headerlink" href="#1324-nguon-thanh-mon-va-o-nghieng-pho" title="Permanent link">&para;</a></h3>
+<p>Luồng khí qua thanh môn trong một chu kỳ, <span class="arithmatex">\(u_g(t)\)</span>, có dạng một "xung" bất đối xứng: tăng từ từ, giảm nhanh, rồi bằng không trong pha khép kín. Hai mô hình kinh điển là <strong>xung Rosenberg</strong> (Rosenberg, 1971), ghép các đoạn hàm lượng giác, và <strong>mô hình LF</strong> (Fant, Liljencrants và Lin, 1985) mô tả đạo hàm của luồng khí bằng bốn tham số. Ta sẽ dùng xung Rosenberg trong mã ở mục 13.3.</p>
+<p>Phổ của xung thanh môn giảm khoảng <span class="arithmatex">\(-12\)</span> dB/quãng tám ở vùng tần số cao. Khi âm bức xạ ra khỏi môi, áp suất ở trường xa tỉ lệ với <strong>đạo hàm</strong> của lưu lượng khí, tương đương một bộ lọc vi phân với độ lợi tăng <span class="arithmatex">\(+6\)</span> dB/quãng tám. Kết hợp lại, phổ "nguồn + bức xạ" của nguyên âm có <strong>độ nghiêng phổ</strong> (<em>spectral tilt</em>) chung khoảng <span class="arithmatex">\(-6\)</span> dB/quãng tám. Đó là lý do nhiều hệ thống xử lý tiếng nói áp dụng <strong>tiền nhấn</strong> (<em>pre-emphasis</em>) <span class="arithmatex">\(y[n] = x[n] - 0{,}97\,x[n-1]\)</span> để "làm phẳng" phổ trước khi phân tích (<a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>).</p>
+<h3 id="1325-cac-loai-am-theo-nguon-kich-thich">13.2.5. Các loại âm theo nguồn kích thích<a class="headerlink" href="#1325-cac-loai-am-theo-nguon-kich-thich" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Loại âm</th>
+<th>Nguồn kích thích</th>
+<th>Ví dụ tiếng Việt (chữ viết)</th>
+<th>Dấu hiệu âm học</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nguyên âm</td>
+<td>Tuần hoàn (thanh quản)</td>
+<td>a, i, u, ư, ơ</td>
+<td>Hài rõ, formant rõ</td>
+</tr>
+<tr>
+<td>Âm mũi</td>
+<td>Tuần hoàn, khí qua mũi</td>
+<td>m, n, nh, ng</td>
+<td>Năng lượng thấp, có phản cộng hưởng</td>
+</tr>
+<tr>
+<td>Âm bên, bán nguyên âm</td>
+<td>Tuần hoàn</td>
+<td>l; âm đệm /w/ trong "hoa"</td>
+<td>Giống nguyên âm, chuyển tiếp formant</td>
+</tr>
+<tr>
+<td>Âm xát vô thanh</td>
+<td>Nhiễu tại chỗ thu hẹp</td>
+<td>x, s, ph, kh, h</td>
+<td>Phổ liên tục, không có F0</td>
+</tr>
+<tr>
+<td>Âm xát hữu thanh</td>
+<td>Tuần hoàn + nhiễu</td>
+<td>v, d/gi (Hà Nội), g</td>
+<td>Có cả hài lẫn nhiễu</td>
+</tr>
+<tr>
+<td>Âm tắc</td>
+<td>Tắc hoàn toàn, rồi bật hơi/nổ</td>
+<td>t, th, đ, b, c/k</td>
+<td>Khoảng lặng + xung nổ ngắn</td>
+</tr>
+</tbody>
+</table>
+<p>Với <strong>âm tắc</strong>, một khái niệm quan trọng là <strong>thời gian khởi phát thanh</strong> (<em>voice onset time</em>, VOT): khoảng thời gian từ lúc bật chỗ tắc đến lúc dây thanh bắt đầu rung. "th" trong tiếng Việt là âm tắc <strong>bật hơi</strong> (VOT dài), "t" thì không bật hơi (VOT ngắn), còn "b", "đ" thường được mô tả là âm <strong>hút vào</strong> (<em>implosive</em>) hữu thanh. Ở <strong>âm mũi</strong>, khoang miệng bị chặn nhưng vẫn nối với đường dẫn âm, tạo ra các <strong>phản cộng hưởng</strong> (<em>anti-resonance</em>): phổ có những "hố" sâu mà mô hình chỉ gồm cực (<em>all-pole</em>) không biểu diễn được. Ta sẽ quay lại hạn chế này ở mục 13.3.</p>
+<h2 id="133-mo-hinh-nguonbo-loc">13.3. Mô hình nguồn–bộ lọc<a class="headerlink" href="#133-mo-hinh-nguonbo-loc" title="Permanent link">&para;</a></h2>
+<h3 id="1331-truc-giac">13.3.1. Trực giác<a class="headerlink" href="#1331-truc-giac" title="Permanent link">&para;</a></h3>
+<p>Hãy nghĩ đến chiếc kèn trumpet: đôi môi người thổi rung tạo ra một chuỗi xung giàu hài (nguồn); thân kèn với chiều dài và độ loe xác định chỉ cho một số tần số "cộng hưởng" đi qua mạnh (bộ lọc). Đổi nốt bằng cách đổi tần số rung môi; đổi âm sắc bằng cách đổi kèn. Tiếng nói cũng vậy: <strong>dây thanh quyết định cao độ, đường thanh âm quyết định âm sắc</strong> (nguyên âm nào, giọng ai). Mô hình <strong>nguồn–bộ lọc</strong> (<em>source–filter model</em>), được hệ thống hóa bởi Fant (1960), tách hai vai trò này ra một cách tường minh.</p>
+<h3 id="1332-hinh-thuc-hoa">13.3.2. Hình thức hóa<a class="headerlink" href="#1332-hinh-thuc-hoa" title="Permanent link">&para;</a></h3>
+<p>Coi nguồn, đường thanh âm và bức xạ là các hệ tuyến tính bất biến theo thời gian (trong một khoảng ngắn vài chục mili-giây). Khi đó tín hiệu tiếng nói là tích chập:</p>
+<div class="arithmatex">\[
+s(t) = \big(u_g \ast v \ast r\big)(t),
+\]</div>
+<p>với <span class="arithmatex">\(u_g\)</span> là luồng khí thanh môn, <span class="arithmatex">\(v\)</span> là đáp ứng xung của đường thanh âm, <span class="arithmatex">\(r\)</span> là đáp ứng của bức xạ tại môi. Trong miền tần số, tích chập thành phép nhân:</p>
+<div class="arithmatex">\[
+S(f) = U_g(f)\, V(f)\, R(f).
+\]</div>
+<p>Trong miền rời rạc, người ta thường tách nguồn thành <strong>kích thích</strong> <span class="arithmatex">\(E(z)\)</span> (chuỗi xung đơn vị cách đều <span class="arithmatex">\(T_0\)</span> cho âm hữu thanh, nhiễu trắng cho âm vô thanh) và <strong>dạng xung thanh môn</strong> <span class="arithmatex">\(G(z)\)</span>:</p>
+<div class="arithmatex">\[
+S(z) = E(z)\, G(z)\, V(z)\, R(z).
+\]</div>
+<p>Lấy log biên độ, phép nhân thành phép cộng:</p>
+<div class="arithmatex">\[
+\log \lvert S(f) \rvert = \log \lvert E(f) G(f) \rvert + \log \lvert V(f) \rvert + \log \lvert R(f) \rvert.
+\]</div>
+<p>Tính <strong>cộng</strong> này trong miền log là nền tảng của <strong>cepstrum</strong> và MFCC (<a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>): đường bao phổ biến thiên chậm theo tần số, còn cấu trúc hài biến thiên nhanh, nên có thể tách chúng bằng một phép lọc trong miền "quefrency".</p>
+<p>Mô hình dựa trên vài giả thiết đơn giản hóa. Thứ nhất, nguồn <strong>độc lập</strong> với bộ lọc; thực tế có tương tác nguồn–đường thanh âm (<em>source–tract interaction</em>), nhất là khi F0 gần F1. Thứ hai, sóng phẳng lan truyền dọc đường thanh âm; giả thiết này đúng khá tốt dưới khoảng 4–5 kHz. Thứ ba, với nguyên âm, <span class="arithmatex">\(V\)</span> chỉ gồm các <strong>cực</strong> (<em>all-pole</em>); âm mũi và âm xát cần thêm <strong>không điểm</strong>. Dù vậy, mô hình đủ tốt để làm nền cho hầu hết kỹ thuật xử lý tiếng nói cổ điển (LPC, vocoder kênh, WORLD) và vẫn hiện diện ngầm trong nhiều vocoder neural.</p>
+<div class="admonition tip">
+<p class="admonition-title">Hài khác formant</p>
+<p>Đây là nhầm lẫn phổ biến nhất của người mới. <strong>Hài</strong> là các vạch phổ tại <span class="arithmatex">\(k f_0\)</span>, thuộc về <strong>nguồn</strong>. <strong>Formant</strong> là các đỉnh của <strong>đường bao</strong> phổ, tức các tần số cộng hưởng của <strong>bộ lọc</strong>. Khi bạn hát cùng một nguyên âm ở nhiều cao độ, các hài trượt đi nhưng formant đứng yên; khi bạn đổi từ "a" sang "i" ở cùng cao độ, hài đứng yên còn formant dịch chuyển. Nếu F0 cao (giọng nữ, trẻ em), các hài thưa và formant bị "lấy mẫu" rất thưa, khiến việc ước lượng formant khó hơn hẳn.</p>
+</div>
+<h3 id="1333-mo-hinh-ong-ong-nhat-va-cong-thuc-formant">13.3.3. Mô hình ống đồng nhất và công thức formant<a class="headerlink" href="#1333-mo-hinh-ong-ong-nhat-va-cong-thuc-formant" title="Permanent link">&para;</a></h3>
+<p>Mô hình vật lý đơn giản nhất của đường thanh âm ở tư thế trung tính (nguyên âm "ơ" trung tính, IPA [ə]) là một <strong>ống đồng nhất</strong> có tiết diện không đổi, chiều dài <span class="arithmatex">\(L\)</span>, <strong>đóng</strong> ở đầu thanh môn (dây thanh gần như khép, trở kháng rất lớn) và <strong>mở</strong> ở đầu môi. Ta suy ra các tần số cộng hưởng của nó theo từng bước.</p>
+<p><strong>Bước 1: phương trình sóng.</strong> Với sóng phẳng, áp suất âm <span class="arithmatex">\(p(x, t)\)</span> dọc trục ống thỏa phương trình sóng một chiều:</p>
+<div class="arithmatex">\[
+\frac{\partial^2 p}{\partial t^2} = c^2 \frac{\partial^2 p}{\partial x^2}.
+\]</div>
+<p><strong>Bước 2: tách biến.</strong> Tìm nghiệm dừng dạng <span class="arithmatex">\(p(x, t) = P(x) \cos(2\pi f t)\)</span>. Thay vào ta được <span class="arithmatex">\(P''(x) = -k^2 P(x)\)</span> với số sóng <span class="arithmatex">\(k = 2\pi f / c\)</span>, nên <span class="arithmatex">\(P(x) = a \cos(kx) + b \sin(kx)\)</span>.</p>
+<p><strong>Bước 3: điều kiện biên tại thanh môn (<span class="arithmatex">\(x = 0\)</span>).</strong> Đầu đóng nghĩa là vận tốc hạt khí bằng không. Theo phương trình Euler tuyến tính hóa, vận tốc hạt tỉ lệ với <span class="arithmatex">\(\partial p / \partial x\)</span>, nên <span class="arithmatex">\(P'(0) = 0\)</span>, suy ra <span class="arithmatex">\(b = 0\)</span> và <span class="arithmatex">\(P(x) = a \cos(kx)\)</span>. Đầu đóng là một <strong>bụng áp suất</strong>.</p>
+<p><strong>Bước 4: điều kiện biên tại môi (<span class="arithmatex">\(x = L\)</span>).</strong> Đầu mở thông ra không gian rộng nên áp suất âm xấp xỉ bằng không: <span class="arithmatex">\(P(L) = 0\)</span>, tức <span class="arithmatex">\(\cos(kL) = 0\)</span>. Do đó</p>
+<div class="arithmatex">\[
+kL = \frac{(2n - 1)\pi}{2}, \quad n = 1, 2, 3, \ldots
+\]</div>
+<p><strong>Bước 5: tần số cộng hưởng.</strong> Thay <span class="arithmatex">\(k = 2\pi f / c\)</span>:</p>
+<div class="arithmatex">\[
+\boxed{F_n = \frac{(2n - 1)\, c}{4L}}, \qquad n = 1, 2, 3, \ldots
+\]</div>
+<p>Đây là các <strong>cộng hưởng một phần tư bước sóng</strong> (<em>quarter-wave resonances</em>): chiều dài ống bằng <span class="arithmatex">\(\lambda/4\)</span>, <span class="arithmatex">\(3\lambda/4\)</span>, <span class="arithmatex">\(5\lambda/4\)</span>...</p>
+<div class="admonition example">
+<p class="admonition-title">Ví dụ: đường thanh âm 17,5 cm</p>
+<p>Với <span class="arithmatex">\(L = 17{,}5\)</span> cm <span class="arithmatex">\(= 0{,}175\)</span> m và <span class="arithmatex">\(c = 350\)</span> m/s: <span class="arithmatex">\(F_1 = 350 / (4 \times 0{,}175) = 500\)</span> Hz, <span class="arithmatex">\(F_2 = 3 F_1 = 1500\)</span> Hz, <span class="arithmatex">\(F_3 = 5 F_1 = 2500\)</span> Hz. Đây đúng là bộ formant "giáo khoa" của nguyên âm trung tính. Một đường thanh âm ngắn hơn, ví dụ khoảng 14,5 cm (cỡ thường gặp ở nữ giới), cho <span class="arithmatex">\(F_1 \approx 603\)</span> Hz, <span class="arithmatex">\(F_2 \approx 1810\)</span> Hz, <span class="arithmatex">\(F_3 \approx 3017\)</span> Hz: <strong>mọi formant tỉ lệ nghịch với chiều dài</strong>. Đây là cơ sở của kỹ thuật chuẩn hóa độ dài đường thanh âm (<em>vocal tract length normalization</em>) trong nhận dạng tiếng nói và của nhiều phép biến đổi giọng.</p>
+</div>
+<p>Các nguyên âm khác ứng với những hình dạng <strong>không đồng nhất</strong>: thu hẹp ở phía sau, mở rộng ở phía trước (như "a") hay ngược lại (như "i"). Có thể xấp xỉ chúng bằng mô hình hai hoặc nhiều ống nối tiếp. Một quy tắc định tính hữu ích từ lý thuyết nhiễu loạn (<em>perturbation theory</em>, xem Stevens, 1998; Johnson, 2012): thu hẹp ống tại nơi <strong>vận tốc</strong> của sóng dừng ứng với formant <span class="arithmatex">\(F_n\)</span> lớn nhất sẽ <strong>hạ</strong> <span class="arithmatex">\(F_n\)</span>, còn thu hẹp tại nơi <strong>áp suất</strong> lớn nhất sẽ <strong>nâng</strong> <span class="arithmatex">\(F_n\)</span>. Vì môi luôn là nơi vận tốc lớn với mọi formant của ống đóng–mở, việc <strong>tròn môi</strong> (thu hẹp và kéo dài lối ra) <strong>hạ toàn bộ formant</strong>, đặc biệt là F2. Đó là lý do "u" có F2 rất thấp.</p>
+<h3 id="1334-bo-cong-huong-so-bac-hai">13.3.4. Bộ cộng hưởng số bậc hai<a class="headerlink" href="#1334-bo-cong-huong-so-bac-hai" title="Permanent link">&para;</a></h3>
+<p>Để mô phỏng một formant trên máy tính, ta cần một bộ lọc số có một <strong>cặp cực phức liên hợp</strong>. Một cộng hưởng tương tự có tần số <span class="arithmatex">\(F\)</span> và băng thông <span class="arithmatex">\(B\)</span> (Hz) ứng với cặp cực trong mặt phẳng <span class="arithmatex">\(s\)</span> tại <span class="arithmatex">\(s = -\pi B \pm j 2\pi F\)</span>. Ánh xạ sang miền <span class="arithmatex">\(z\)</span> bằng phép <strong>bất biến xung</strong> (<em>impulse invariance</em>) <span class="arithmatex">\(z = e^{sT}\)</span> với <span class="arithmatex">\(T = 1/f_s\)</span>:</p>
+<div class="arithmatex">\[
+z_{1,2} = e^{-\pi B T} e^{\pm j 2\pi F T} = r e^{\pm j\theta}, \qquad r = e^{-\pi B / f_s}, \quad \theta = \frac{2\pi F}{f_s}.
+\]</div>
+<p>Hàm truyền chỉ gồm hai cực này là</p>
+<div class="arithmatex">\[
+H(z) = \frac{A}{(1 - r e^{j\theta} z^{-1})(1 - r e^{-j\theta} z^{-1})} = \frac{A}{1 - 2r\cos\theta\, z^{-1} + r^2 z^{-2}},
+\]</div>
+<p>ứng với phương trình sai phân</p>
+<div class="arithmatex">\[
+y[n] = A\, x[n] + \underbrace{2 r \cos\theta}_{B_c}\, y[n-1] \underbrace{- r^2}_{C}\, y[n-2].
+\]</div>
+<p>Đây chính là bộ cộng hưởng trong bộ tổng hợp formant của Klatt (1980), với <span class="arithmatex">\(C = -e^{-2\pi B T}\)</span>, <span class="arithmatex">\(B_c = 2 e^{-\pi B T}\cos(2\pi F T)\)</span> (ta viết <span class="arithmatex">\(B_c\)</span> để khỏi trùng với băng thông <span class="arithmatex">\(B\)</span>). Chọn <span class="arithmatex">\(A = 1 - B_c - C\)</span> thì <span class="arithmatex">\(H(1) = 1\)</span>, tức độ lợi tại 0 Hz bằng 1, giúp các tầng nối tiếp không làm tín hiệu tăng hay giảm vô tội vạ. <strong>Bán kính cực</strong> <span class="arithmatex">\(r\)</span> quyết định độ "nhọn": <span class="arithmatex">\(r\)</span> càng gần 1 thì băng thông càng hẹp, cộng hưởng càng mạnh (bài tập 5 yêu cầu bạn chứng minh băng thông <span class="arithmatex">\(-3\)</span> dB xấp xỉ <span class="arithmatex">\(B\)</span> khi <span class="arithmatex">\(r \to 1\)</span>). Điều kiện ổn định là <span class="arithmatex">\(r &lt; 1\)</span>, luôn đúng khi <span class="arithmatex">\(B &gt; 0\)</span>.</p>
+<h3 id="1335-cai-at-tong-hop-nguyen-am-bang-nguonbo-loc">13.3.5. Cài đặt: tổng hợp nguyên âm bằng nguồn–bộ lọc<a class="headerlink" href="#1335-cai-at-tong-hop-nguyen-am-bang-nguonbo-loc" title="Permanent link">&para;</a></h3>
+<p>Khối mã dưới đây ghép ba thành phần: nguồn (chuỗi xung đơn vị hoặc xung Rosenberg đã lấy vi phân để gộp luôn hiệu ứng bức xạ tại môi), ba bộ cộng hưởng formant mắc <strong>nối tiếp</strong> (<em>cascade</em>), và chuẩn hóa biên độ. Giá trị formant lấy từ số đo kinh điển của Peterson và Barney (1952) cho nam giới nói tiếng Anh Mỹ; băng thông là giá trị giả định hợp lý.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal</span><span class="w"> </span><span class="kn">import</span> <span class="n">lfilter</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">glottal_source</span><span class="p">(</span><span class="n">f0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dur</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fs</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"rosenberg"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="sd">"""Nguồn thanh môn: chuỗi xung đơn vị hoặc đạo hàm của xung Rosenberg."""</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">L</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">dur</span> <span class="o">*</span> <span class="n">fs</span><span class="p">)</span>                         <span class="c1"># số mẫu</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">period</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">fs</span> <span class="o">/</span> <span class="n">f0</span><span class="p">))</span>              <span class="c1"># chu kỳ (số mẫu)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"impulse"</span><span class="p">:</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        <span class="n">g</span><span class="p">[::</span><span class="n">period</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="k">return</span> <span class="n">g</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="c1"># Xung Rosenberg: pha mở chiếm 40% chu kỳ, pha đóng 16%, còn lại đóng kín</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">tp</span><span class="p">,</span> <span class="n">tn</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.40</span> <span class="o">*</span> <span class="n">period</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.16</span> <span class="o">*</span> <span class="n">period</span><span class="p">)</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">pulse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">period</span><span class="p">)</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">pulse</span><span class="p">[:</span><span class="n">tp</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">tp</span><span class="p">)</span> <span class="o">/</span> <span class="n">tp</span><span class="p">))</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">pulse</span><span class="p">[</span><span class="n">tp</span><span class="p">:</span><span class="n">tp</span> <span class="o">+</span> <span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">tn</span><span class="p">)</span> <span class="o">/</span> <span class="n">tn</span><span class="p">)</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">pulse</span><span class="p">,</span> <span class="n">L</span> <span class="o">//</span> <span class="n">period</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[:</span><span class="n">L</span><span class="p">]</span>   <span class="c1"># lưu lượng thanh môn u_g[n]</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">prepend</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>            <span class="c1"># vi phân ≈ bức xạ tại môi (+6 dB/oct)</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">def</span><span class="w"> </span><span class="nf">resonator</span><span class="p">(</span><span class="n">F</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">B</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fs</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="sd">"""Bộ cộng hưởng bậc hai (Klatt, 1980). Trả về (b, a) dùng cho lfilter."""</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="n">T</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">fs</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="n">C</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">B</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="n">Bc</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">B</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="n">A</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">Bc</span> <span class="o">-</span> <span class="n">C</span>                          <span class="c1"># độ lợi tại 0 Hz bằng 1</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">A</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="n">Bc</span><span class="p">,</span> <span class="o">-</span><span class="n">C</span><span class="p">])</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="k">def</span><span class="w"> </span><span class="nf">synth_vowel</span><span class="p">(</span><span class="n">formants</span><span class="p">,</span> <span class="n">bandwidths</span><span class="p">,</span> <span class="n">f0</span><span class="o">=</span><span class="mf">120.0</span><span class="p">,</span> <span class="n">dur</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"rosenberg"</span><span class="p">):</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    <span class="n">x</span> <span class="o">=</span> <span class="n">glottal_source</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="n">dur</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span>     <span class="c1"># (L,)</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    <span class="k">for</span> <span class="n">F</span><span class="p">,</span> <span class="n">B</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">formants</span><span class="p">,</span> <span class="n">bandwidths</span><span class="p">):</span>    <span class="c1"># các bộ cộng hưởng mắc nối tiếp</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>        <span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">resonator</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">fs</span><span class="p">)</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>        <span class="n">x</span> <span class="o">=</span> <span class="n">lfilter</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>    <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">+</span> <span class="mf">1e-9</span><span class="p">)</span>     <span class="c1"># chuẩn hóa biên độ đỉnh về 1</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="c1"># Formant trung bình của nam giới nói tiếng Anh Mỹ (Peterson &amp; Barney, 1952), Hz</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="n">VOWELS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"i"</span><span class="p">:</span> <span class="p">(</span><span class="mi">270</span><span class="p">,</span> <span class="mi">2290</span><span class="p">,</span> <span class="mi">3010</span><span class="p">),</span> <span class="s2">"a"</span><span class="p">:</span> <span class="p">(</span><span class="mi">730</span><span class="p">,</span> <span class="mi">1090</span><span class="p">,</span> <span class="mi">2440</span><span class="p">),</span> <span class="s2">"u"</span><span class="p">:</span> <span class="p">(</span><span class="mi">300</span><span class="p">,</span> <span class="mi">870</span><span class="p">,</span> <span class="mi">2240</span><span class="p">)}</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="n">BANDWIDTHS</span> <span class="o">=</span> <span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">150</span><span class="p">)</span>                    <span class="c1"># băng thông giả định (Hz)</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">soundfile</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sf</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>    <span class="n">fs</span> <span class="o">=</span> <span class="mi">16000</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">F</span> <span class="ow">in</span> <span class="n">VOWELS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>        <span class="n">y</span> <span class="o">=</span> <span class="n">synth_vowel</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">BANDWIDTHS</span><span class="p">,</span> <span class="n">f0</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="n">fs</span><span class="p">)</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>        <span class="n">sf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">"vowel_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.wav"</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">fs</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Lưu khối trên thành <code>ch13_vowel.py</code> rồi chạy, bạn sẽ có ba tệp <code>vowel_i.wav</code>, <code>vowel_a.wav</code>, <code>vowel_u.wav</code>. Hãy nghe chúng: dù chỉ có ba formant tĩnh và F0 không đổi, tai bạn vẫn nhận ra ngay đó là "i", "a", "u", dù nghe "máy móc". Thử đổi <code>kind="impulse"</code>: âm nghe chói và "rè" hơn vì chuỗi xung đơn vị có phổ phẳng, thiếu độ nghiêng <span class="arithmatex">\(-12\)</span> dB/quãng tám của nguồn thật.</p>
+<p>Khối mã sau kiểm chứng ba khẳng định của lý thuyết: đỉnh của một bộ cộng hưởng nằm đúng tại <span class="arithmatex">\(F\)</span>; đường bao của cả bộ lọc có đỉnh tại F1, F2, F3; và phổ của tín hiệu tổng hợp chỉ gồm các vạch tại <span class="arithmatex">\(k f_0\)</span>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal</span><span class="w"> </span><span class="kn">import</span> <span class="n">freqz</span><span class="p">,</span> <span class="n">find_peaks</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">ch13_vowel</span><span class="w"> </span><span class="kn">import</span> <span class="n">resonator</span><span class="p">,</span> <span class="n">synth_vowel</span><span class="p">,</span> <span class="n">VOWELS</span><span class="p">,</span> <span class="n">BANDWIDTHS</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">fs</span> <span class="o">=</span> <span class="mi">16000</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># 1) Bộ cộng hưởng đơn: đỉnh đáp ứng tần số nằm đúng tại F</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">resonator</span><span class="p">(</span><span class="mi">730</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="n">fs</span><span class="p">)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">w</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">freqz</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">worN</span><span class="o">=</span><span class="mi">8192</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="n">fs</span><span class="p">)</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">h</span><span class="p">))]</span> <span class="o">-</span> <span class="mi">730</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">5</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># 2) Cả bộ lọc đường thanh âm: các đỉnh của |V(f)| trùng với F1, F2, F3</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">F</span> <span class="ow">in</span> <span class="n">VOWELS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">H</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="k">for</span> <span class="n">Fi</span><span class="p">,</span> <span class="n">Bi</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">BANDWIDTHS</span><span class="p">):</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="n">H</span> <span class="o">*=</span> <span class="n">freqz</span><span class="p">(</span><span class="o">*</span><span class="n">resonator</span><span class="p">(</span><span class="n">Fi</span><span class="p">,</span> <span class="n">Bi</span><span class="p">,</span> <span class="n">fs</span><span class="p">),</span> <span class="n">worN</span><span class="o">=</span><span class="mi">8192</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="n">fs</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="n">peaks</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">find_peaks</span><span class="p">(</span><span class="mi">20</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">H</span><span class="p">)))</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">"đỉnh của |V(f)| (Hz):"</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">peaks</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">peaks</span><span class="p">][:</span><span class="mi">3</span><span class="p">],</span> <span class="n">F</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="c1"># 3) Phổ của nguyên âm tổng hợp chỉ có năng lượng tại các hài k·F0</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="n">y</span> <span class="o">=</span> <span class="n">synth_vowel</span><span class="p">(</span><span class="n">VOWELS</span><span class="p">[</span><span class="s2">"a"</span><span class="p">],</span> <span class="n">BANDWIDTHS</span><span class="p">,</span> <span class="n">f0</span><span class="o">=</span><span class="mi">125</span><span class="p">,</span> <span class="n">dur</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="n">fs</span><span class="p">)</span>  <span class="c1"># (16000,)</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">hanning</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">))))</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfftfreq</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">fs</span><span class="p">)</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="n">pk</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">find_peaks</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">Y</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">*</span> <span class="mf">0.05</span><span class="p">)</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"10 hài đầu tiên (Hz):"</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">pk</span><span class="p">][:</span><span class="mi">10</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">pk</span><span class="p">][:</span><span class="mi">5</span><span class="p">],</span> <span class="mi">125</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Kết quả chạy thử (CPU, vài giây):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>i đỉnh của |V(f)| (Hz): [ 269 2291 2997]
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>a đỉnh của |V(f)| (Hz): [ 731 1083 2429]
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>u đỉnh của |V(f)| (Hz): [ 300  864 2229]
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>10 hài đầu tiên (Hz): [ 125  250  375  500  625  750  875 1000 1125 1250]
+</span></code></pre></div>
+<p>Đỉnh của đường bao lệch vài Hz so với giá trị đặt vì các bộ cộng hưởng chồng lên nhau (đuôi của F1 làm "nghiêng" vùng quanh F2) và vì độ phân giải hữu hạn của lưới tần số. Hãy để ý rằng trong phổ của tín hiệu thật, ta <strong>không thấy trực tiếp</strong> formant, chỉ thấy các hài bị nắn biên độ. Muốn ước lượng formant từ tín hiệu, ta phải ước lượng đường bao, ví dụ bằng dự đoán tuyến tính (LPC) ở <a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>.</p>
+<h3 id="1336-lien-he-voi-tts">13.3.6. Liên hệ với TTS<a class="headerlink" href="#1336-lien-he-voi-tts" title="Permanent link">&para;</a></h3>
+<p>Mô hình nguồn–bộ lọc hiện diện xuyên suốt lịch sử TTS:</p>
+<ul>
+<li><strong>Tổng hợp formant</strong> (Klatt, DECtalk) chính là phiên bản đầy đủ của đoạn mã trên, với hàng chục tham số điều khiển theo thời gian; xem <a href="../../phan-5-mo-hinh-am-hoc/ch19-lich-su-tts/">Chương 19</a>.</li>
+<li><strong>Vocoder tham số</strong> như WORLD phân tích tiếng nói thành F0, đường bao phổ và độ phi tuần hoàn (<em>aperiodicity</em>), tức đúng ba "núm vặn" của nguồn–bộ lọc.</li>
+<li><strong>LPCNet</strong>, <strong>neural source–filter (NSF)</strong> và <strong>DDSP</strong> tạo nguồn kích thích tường minh từ F0 rồi để mạng nơ-ron đóng vai bộ lọc; xem <a href="../../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow/">Chương 24</a>.</li>
+<li>Ngay cả các vocoder GAN "thuần dữ liệu" như HiFi-GAN cũng phải học ngầm cấu trúc tuần hoàn này; BigVGAN đưa thẳng thiên kiến tuần hoàn vào kiến trúc qua hàm kích hoạt Snake (<a href="../../phan-6-vocoder/ch25-gan-vocoder/">Chương 25</a>).</li>
+</ul>
+<p>Một hệ quả thực hành quan trọng: muốn <strong>đổi cao độ mà giữ nguyên âm sắc</strong>, ta phải đổi nguồn mà giữ bộ lọc. Nếu chỉ "tua nhanh" tín hiệu (lấy mẫu lại), cả hài lẫn formant cùng bị nhân lên, giọng nghe như trẻ con hay "chuột chù". Bài tập 7 cho bạn tự kiểm chứng điều này.</p>
+<h2 id="134-ngu-am-hoc-cau-am">13.4. Ngữ âm học cấu âm<a class="headerlink" href="#134-ngu-am-hoc-cau-am" title="Permanent link">&para;</a></h2>
+<p>Ngữ âm học cấu âm (<em>articulatory phonetics</em>) mô tả âm theo <strong>cách cơ quan cấu âm tạo ra nó</strong>. Với kỹ sư TTS, đây là "ngôn ngữ chung" để thiết kế bộ ký hiệu âm vị, đọc tài liệu G2P và hiểu vì sao mô hình hay nhầm cặp âm này mà không nhầm cặp âm kia.</p>
+<h3 id="1341-phu-am-thanh-tinh-vi-tri-va-phuong-thuc-cau-am">13.4.1. Phụ âm: thanh tính, vị trí và phương thức cấu âm<a class="headerlink" href="#1341-phu-am-thanh-tinh-vi-tri-va-phuong-thuc-cau-am" title="Permanent link">&para;</a></h3>
+<p>Mỗi phụ âm được mô tả bằng ba thuộc tính:</p>
+<ul>
+<li><strong>Thanh tính</strong> (<em>voicing</em>): dây thanh có rung (hữu thanh) hay không (vô thanh). Thêm vào đó là <strong>bật hơi</strong> (<em>aspiration</em>), ký hiệu IPA bằng chữ nhỏ ʰ.</li>
+<li><strong>Vị trí cấu âm</strong> (<em>place of articulation</em>): nơi luồng khí bị cản trở.</li>
+<li><strong>Phương thức cấu âm</strong> (<em>manner of articulation</em>): cách luồng khí bị cản trở.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Vị trí cấu âm</th>
+<th>Mô tả</th>
+<th>Ví dụ IPA</th>
+<th>Ví dụ tiếng Việt (chữ viết → IPA, giọng Hà Nội)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Môi–môi (<em>bilabial</em>)</td>
+<td>Hai môi</td>
+<td>p, b, m</td>
+<td>b → [ɓ], m → [m]</td>
+</tr>
+<tr>
+<td>Môi–răng (<em>labiodental</em>)</td>
+<td>Môi dưới chạm răng trên</td>
+<td>f, v</td>
+<td>ph → [f], v → [v]</td>
+</tr>
+<tr>
+<td>Răng/lợi (<em>dental/alveolar</em>)</td>
+<td>Đầu lưỡi chạm răng/lợi</td>
+<td>t, d, n, s, l</td>
+<td>t, th → [tʰ], đ → [ɗ], n, l, x → [s]</td>
+</tr>
+<tr>
+<td>Quặt lưỡi (<em>retroflex</em>)</td>
+<td>Đầu lưỡi uốn lên sau lợi</td>
+<td>ʈ, ʂ, ʐ</td>
+<td>tr, s, r ở những vùng phân biệt chúng</td>
+</tr>
+<tr>
+<td>Ngạc cứng (<em>palatal</em>)</td>
+<td>Mặt lưỡi chạm ngạc cứng</td>
+<td>c, ɲ, j</td>
+<td>ch → [c], nh → [ɲ]</td>
+</tr>
+<tr>
+<td>Ngạc mềm (<em>velar</em>)</td>
+<td>Gốc lưỡi chạm ngạc mềm</td>
+<td>k, ŋ, x, ɣ</td>
+<td>c/k/q → [k], ng → [ŋ], kh → [x], g → [ɣ]</td>
+</tr>
+<tr>
+<td>Thanh hầu (<em>glottal</em>)</td>
+<td>Tại thanh môn</td>
+<td>ʔ, h</td>
+<td>h → [h]; âm tiết mở đầu bằng nguyên âm như "ăn" thường có [ʔ]</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Phương thức</th>
+<th>Mô tả</th>
+<th>Ví dụ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tắc (<em>plosive</em>)</td>
+<td>Chặn hoàn toàn rồi bật ra</td>
+<td>t, k, tʰ</td>
+</tr>
+<tr>
+<td>Tắc hút vào (<em>implosive</em>)</td>
+<td>Thanh quản hạ xuống khi đóng, khí "hút" vào</td>
+<td>ɓ, ɗ</td>
+</tr>
+<tr>
+<td>Mũi (<em>nasal</em>)</td>
+<td>Chặn miệng, khí qua mũi</td>
+<td>m, n, ɲ, ŋ</td>
+</tr>
+<tr>
+<td>Xát (<em>fricative</em>)</td>
+<td>Khe hẹp gây xoáy</td>
+<td>f, v, s, z, x, ɣ, h</td>
+</tr>
+<tr>
+<td>Tắc–xát (<em>affricate</em>)</td>
+<td>Tắc rồi nhả thành xát</td>
+<td>tɕ (một cách phiên âm "ch")</td>
+</tr>
+<tr>
+<td>Tiếp cận (<em>approximant</em>)</td>
+<td>Thu hẹp nhẹ, không xoáy</td>
+<td>w, j</td>
+</tr>
+<tr>
+<td>Bên (<em>lateral</em>)</td>
+<td>Khí đi hai bên lưỡi</td>
+<td>l</td>
+</tr>
+</tbody>
+</table>
+<p>Bảng trên chỉ là phác thảo để làm quen; danh sách đầy đủ phụ âm tiếng Việt, các biến thể theo phương ngữ và những điểm còn tranh luận được trình bày cẩn thận ở <a href="../ch15-ngu-am-tieng-viet/">Chương 15</a>.</p>
+<p>Mỗi thuộc tính cấu âm để lại <strong>dấu vết âm học</strong> riêng. Vị trí cấu âm của âm tắc thể hiện chủ yếu qua <strong>chuyển tiếp formant</strong> (<em>formant transitions</em>) ở nguyên âm kế bên và phổ của tiếng nổ; phương thức thể hiện qua khoảng lặng, tiếng nổ, độ dài nhiễu xát hay nhiễu mũi; thanh tính và bật hơi thể hiện qua VOT. Âm xát /s/ có năng lượng tập trung ở vùng tần số cao, thường từ khoảng 4 kHz trở lên và có thể kéo dài tới 8–10 kHz. Đây là lý do thực tế để TTS dùng tần số lấy mẫu 22,05 kHz trở lên: với 16 kHz (tần số Nyquist 8 kHz), các âm xát nghe "đục" và thiếu độ sắc nét.</p>
+<h3 id="1342-nguyen-am-o-cao-o-truocsau-o-tron-moi">13.4.2. Nguyên âm: độ cao, độ trước–sau, độ tròn môi<a class="headerlink" href="#1342-nguyen-am-o-cao-o-truocsau-o-tron-moi" title="Permanent link">&para;</a></h3>
+<p>Nguyên âm được tạo khi luồng khí đi tương đối tự do; khác biệt giữa chúng nằm ở <strong>hình dạng</strong> đường thanh âm, mô tả bằng ba tham số:</p>
+<ul>
+<li><strong>Độ cao</strong> (<em>height</em>): lưỡi nâng cao (nguyên âm đóng như "i", "u") hay hạ thấp (nguyên âm mở như "a").</li>
+<li><strong>Độ trước–sau</strong> (<em>backness</em>): khối lưỡi dồn ra trước ("i", "ê") hay lùi về sau ("u", "ô").</li>
+<li><strong>Độ tròn môi</strong> (<em>rounding</em>): môi tròn ("u", "ô", "o") hay không tròn ("i", "ư", "ơ").</li>
+</ul>
+<p>Ba tham số này có tương quan âm học khá rõ: <strong>F1 tỉ lệ nghịch với độ cao</strong> (há miệng rộng thì F1 lớn), <strong>F2 tăng khi lưỡi dồn ra trước</strong>, và <strong>tròn môi làm giảm F2, F3</strong>. Bảng sau trích một phần số đo của Peterson và Barney (1952) (nam giới, tiếng Anh Mỹ):</p>
+<table>
+<thead>
+<tr>
+<th>Nguyên âm (IPA)</th>
+<th>Mô tả</th>
+<th>F1 (Hz)</th>
+<th>F2 (Hz)</th>
+<th>F3 (Hz)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[i]</td>
+<td>cao, trước, không tròn</td>
+<td>270</td>
+<td>2290</td>
+<td>3010</td>
+</tr>
+<tr>
+<td>[ɛ]</td>
+<td>nửa thấp, trước</td>
+<td>530</td>
+<td>1840</td>
+<td>2480</td>
+</tr>
+<tr>
+<td>[ɑ]</td>
+<td>thấp, sau</td>
+<td>730</td>
+<td>1090</td>
+<td>2440</td>
+</tr>
+<tr>
+<td>[ɔ]</td>
+<td>nửa thấp, sau, tròn</td>
+<td>570</td>
+<td>840</td>
+<td>2410</td>
+</tr>
+<tr>
+<td>[u]</td>
+<td>cao, sau, tròn</td>
+<td>300</td>
+<td>870</td>
+<td>2240</td>
+</tr>
+</tbody>
+</table>
+<p>Đặt các nguyên âm lên mặt phẳng (F2, F1) với trục F1 hướng xuống, ta được một <strong>tam giác/tứ giác nguyên âm</strong> gần giống sơ đồ lưỡi trong miệng, với [i], [a], [u] ở ba góc. Không gian nguyên âm này còn phụ thuộc vào người nói (nữ và trẻ em có formant cao hơn vì đường thanh âm ngắn hơn), nên các số liệu trên chỉ có giá trị tham khảo, nhất là khi áp dụng cho tiếng Việt.</p>
+<div class="admonition note">
+<p class="admonition-title">Góc tiếng Việt</p>
+<p>Tiếng Việt có những nguyên âm khá hiếm trên thế giới: <strong>ư</strong> và <strong>ơ</strong> là nguyên âm <strong>sau (hoặc giữa), không tròn môi</strong>, thường được ghi là [ɯ] (có tác giả ghi [ɨ]) và [ɤ] (có tác giả ghi [əː]). Ngoài ra tiếng Việt còn đối lập <strong>dài–ngắn</strong> như "tai" và "tay", "cơn" và "cân". Với các mô hình TTS đa ngôn ngữ huấn luyện chủ yếu trên tiếng Anh, những âm này thường bị phát âm lệch về [u], [ə] hay [ʊ]. Khi dùng bộ ký hiệu IPA chung, hãy kiểm tra kỹ rằng mỗi nguyên âm tiếng Việt có ký hiệu riêng; xem <a href="../ch15-ngu-am-tieng-viet/">Chương 15</a> và <a href="../../phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching/">Chương 30</a>.</p>
+</div>
+<h3 id="1343-bang-mau-tu-ngu-am-quoc-te-ipa">13.4.3. Bảng mẫu tự ngữ âm quốc tế (IPA)<a class="headerlink" href="#1343-bang-mau-tu-ngu-am-quoc-te-ipa" title="Permanent link">&para;</a></h3>
+<p><strong>IPA</strong> (<em>International Phonetic Alphabet</em>) cho mỗi âm một ký hiệu duy nhất, không phụ thuộc chính tả của ngôn ngữ nào (International Phonetic Association, 1999). Vài quy ước cần nắm:</p>
+<ul>
+<li>Ngoặc vuông <span class="arithmatex">\([\,]\)</span> dùng cho phiên âm <strong>ngữ âm</strong> (âm thực tế, có thể chi tiết); gạch chéo <span class="arithmatex">\(/\,/\)</span> dùng cho phiên âm <strong>âm vị</strong> (đơn vị trừu tượng có chức năng phân biệt nghĩa). Ví dụ /t/ có thể được phát âm [t] hay [t̚] tùy vị trí. Chương 15 phân biệt kỹ âm tố, âm vị và biến thể.</li>
+<li><strong>Dấu phụ</strong> (<em>diacritics</em>): ʰ bật hơi; ˀ hoặc dấu ngã dưới (như a̰) chỉ giọng kẹt/thanh quản hóa; ̆ chỉ nguyên âm ngắn (ă); ̚ chỉ âm tắc không buông (các phụ âm cuối -p, -t, -c của tiếng Việt thường không buông: "đẹp" [ɗɛp̚]); ː chỉ nguyên âm dài.</li>
+<li><strong>Thanh điệu</strong>: IPA có các "chữ thanh" ˥ ˦ ˧ ˨ ˩ (từ cao đến thấp) ghép thành đường nét, tương đương <strong>số Chao</strong> (Chao Yuen Ren) từ 5 (cao nhất) đến 1 (thấp nhất). Ví dụ một thanh đi ngang ở mức giữa ghi là ˧ hay "33". Các giá trị số Chao của sáu thanh tiếng Việt và sự khác biệt giữa các mô tả được thảo luận ở Chương 15.</li>
+</ul>
+<h3 id="1344-ong-cau-am">13.4.4. Đồng cấu âm<a class="headerlink" href="#1344-ong-cau-am" title="Permanent link">&para;</a></h3>
+<p>Cơ quan cấu âm có quán tính và không thể nhảy tức thời từ tư thế này sang tư thế khác. Vì vậy các âm kế cận <strong>chồng lấn</strong> lên nhau, gọi là <strong>đồng cấu âm</strong> (<em>coarticulation</em>): môi đã tròn từ trước khi phát "u" trong "tu", lưỡi đã chuẩn bị cho "i" khi còn đang phát phụ âm đầu trong "ti". Hệ quả là một âm vị không có một hình ảnh âm học cố định; nó phụ thuộc mạnh vào ngữ cảnh. Điều này giải thích vì sao tổng hợp ghép nối phải dùng <strong>âm đôi</strong> (<em>diphone</em>, từ giữa âm này đến giữa âm kia) thay vì ghép từng âm rời (<a href="../../phan-5-mo-hinh-am-hoc/ch19-lich-su-tts/">Chương 19</a>), và vì sao mọi mô hình âm học neural đều cần ngữ cảnh rộng (tích chập, attention) chứ không thể dự đoán từng khung một cách độc lập.</p>
+<h2 id="135-thinh-giac-tai-nguoi-nghe-nhu-the-nao">13.5. Thính giác: tai người nghe như thế nào<a class="headerlink" href="#135-thinh-giac-tai-nguoi-nghe-nhu-the-nao" title="Permanent link">&para;</a></h2>
+<h3 id="1351-cau-tao-cua-tai">13.5.1. Cấu tạo của tai<a class="headerlink" href="#1351-cau-tao-cua-tai" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Tai ngoài</strong> gồm vành tai và ống tai dài khoảng 2,5 cm. Ống tai là một ống đóng một đầu (màng nhĩ), mở một đầu: áp dụng ngay công thức một phần tư bước sóng ở mục 13.3.3 ta được cộng hưởng khoảng <span class="arithmatex">\(343 / (4 \times 0{,}025) \approx 3{,}4\)</span> kHz. Điều này góp phần giải thích vì sao tai nhạy nhất ở vùng 2–5 kHz.</li>
+<li><strong>Tai giữa</strong> với chuỗi ba xương con (búa, đe, bàn đạp) đóng vai trò <strong>phối hợp trở kháng</strong>, truyền dao động từ không khí vào chất lỏng của tai trong một cách hiệu quả.</li>
+<li><strong>Tai trong</strong> chứa <strong>ốc tai</strong> (<em>cochlea</em>), một ống xoắn chứa dịch, có <strong>màng đáy</strong> (<em>basilar membrane</em>) chạy dọc theo chiều dài. Màng đáy ở gần đáy ốc tai hẹp và cứng, cộng hưởng với tần số cao; càng về phía đỉnh, màng rộng và mềm hơn, cộng hưởng với tần số thấp. Mỗi vị trí trên màng đáy vì thế ứng với một tần số đặc trưng: đây là <strong>tổ chức theo tần số</strong> (<em>tonotopy</em>). Các tế bào lông trong biến dao động cơ học thành xung thần kinh; các tế bào lông ngoài khuếch đại chủ động và tạo ra tính <strong>nén phi tuyến</strong> của tai.</li>
+</ul>
+<p>Về mặt kỹ thuật, có thể hình dung ốc tai như một <strong>dãy bộ lọc thông dải</strong> chồng lấn nhau, với băng thông <strong>tăng theo tần số trung tâm</strong>: hẹp và gần như cố định ở tần số thấp, xấp xỉ tỉ lệ với tần số (hằng số Q) ở tần số cao. Mel filterbank chính là một mô phỏng thô của dãy bộ lọc này.</p>
+<h3 id="1352-dai-toi-han-va-hien-tuong-che-lap">13.5.2. Dải tới hạn và hiện tượng che lấp<a class="headerlink" href="#1352-dai-toi-han-va-hien-tuong-che-lap" title="Permanent link">&para;</a></h3>
+<p><strong>Dải tới hạn</strong> (<em>critical band</em>) xuất phát từ thí nghiệm của Fletcher (1940): phát một âm thuần trong nhiễu dải hẹp có tâm tại tần số của âm, rồi mở rộng dần dải nhiễu (giữ mật độ phổ không đổi). Ngưỡng nghe được âm thuần tăng theo độ rộng dải nhiễu, nhưng chỉ đến một độ rộng nhất định; vượt quá đó, phần nhiễu thêm vào nằm ngoài "bộ lọc thính giác" nên không ảnh hưởng nữa. Độ rộng ấy là dải tới hạn. Có hai thang phổ biến dựa trên ý tưởng này:</p>
+<ul>
+<li><strong>Thang Bark</strong> (Zwicker, 1961) chia dải nghe thành khoảng 24 dải tới hạn. Một công thức xấp xỉ gọn của Traunmüller (1990) là <span class="arithmatex">\(z = 26{,}81 f / (1960 + f) - 0{,}53\)</span> (Bark).</li>
+<li><strong>Thang ERB</strong> (<em>equivalent rectangular bandwidth</em>) của Glasberg và Moore (1990) ước lượng băng thông bộ lọc thính giác <span class="arithmatex">\(\mathrm{ERB}(f) = 24{,}7\,(4{,}37 f / 1000 + 1)\)</span> Hz, khoảng 133 Hz tại 1 kHz, và "số ERB" tích lũy <span class="arithmatex">\(21{,}4 \log_{10}(1 + 0{,}00437 f)\)</span>.</li>
+</ul>
+<p><strong>Che lấp</strong> (<em>masking</em>) là hiện tượng một âm làm âm khác khó hoặc không nghe được. <strong>Che lấp đồng thời</strong> mạnh nhất khi hai âm nằm trong cùng dải tới hạn và <strong>bất đối xứng</strong>: âm thấp che âm cao dễ hơn chiều ngược lại (<em>upward spread of masking</em>). <strong>Che lấp theo thời gian</strong> cũng tồn tại: một âm mạnh che các âm yếu ngay sau nó (hậu che lấp, có thể kéo dài tới cỡ 100–200 ms) và, ở mức yếu hơn nhiều, ngay trước nó (tiền che lấp, chỉ vài mili-giây đến khoảng 20 ms). Các bộ mã hóa âm thanh tri giác (MP3, AAC, Opus) khai thác triệt để che lấp. Với TTS, bài học là: <strong>sai số dạng sóng tính theo L2 không phản ánh cảm nhận</strong>. Một nhiễu nhỏ nằm dưới ngưỡng che lấp của nguyên âm mạnh là vô hại, nhưng cùng mức nhiễu ấy trong khoảng lặng lại rất dễ nghe. Đó là lý do hàm mất mát của vocoder thường được tính trên log-mel hoặc phổ nhiều độ phân giải (<a href="../../phan-6-vocoder/ch25-gan-vocoder/">Chương 25</a>), và vì sao lỗi "rì rì" trong khoảng lặng là một trong những lỗi vocoder dễ bị phát hiện nhất.</p>
+<h3 id="1353-thang-mel">13.5.3. Thang mel<a class="headerlink" href="#1353-thang-mel" title="Permanent link">&para;</a></h3>
+<p>Thang <strong>mel</strong> ra đời từ thí nghiệm của Stevens, Volkmann và Newman (1937): người nghe điều chỉnh một âm cho đến khi cảm thấy cao độ của nó bằng "một nửa" hay "gấp đôi" một âm tham chiếu. Thang được neo sao cho 1000 Hz ứng với 1000 mel. Trong thực hành có hai họ công thức, và sự khác biệt giữa chúng là một cái bẫy kinh điển:</p>
+<ul>
+<li><strong>Công thức HTK</strong> (O'Shaughnessy, 1987; dùng trong bộ công cụ HTK và là mặc định của <code>torchaudio</code>):</li>
+</ul>
+<div class="arithmatex">\[
+m_{\text{HTK}}(f) = 2595 \log_{10}\!\left(1 + \frac{f}{700}\right).
+\]</div>
+<ul>
+<li><strong>Công thức Slaney</strong> (Slaney, 1998; mặc định của <code>librosa</code>): <strong>tuyến tính</strong> dưới 1 kHz với bước <span class="arithmatex">\(200/3\)</span> Hz mỗi đơn vị, <strong>logarit</strong> phía trên:</li>
+</ul>
+<div class="arithmatex">\[
+m_{\text{Slaney}}(f) =
+\begin{cases}
+\dfrac{3f}{200}, &amp; f &lt; 1000, \\[2mm]
+15 + \dfrac{27 \ln(f / 1000)}{\ln 6{,}4}, &amp; f \geq 1000.
+\end{cases}
+\]</div>
+<p>Lưu ý thang Slaney có <strong>đơn vị khác</strong>: 1000 Hz ứng với 15 chứ không phải 1000. Vì bộ lọc mel chỉ cần các điểm <strong>cách đều</strong> trên thang, hệ số nhân không quan trọng, nhưng <strong>hình dạng</strong> của đường cong thì quan trọng: hai công thức đặt tâm các bộ lọc ở những vị trí khác nhau. <a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a> cho thấy bằng số rằng trộn lẫn hai quy ước này giữa mô hình âm học và vocoder là một lỗi âm thầm nhưng nghiêm trọng.</p>
+<p>Khối mã sau so sánh các thang tri giác tại vài tần số:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">mel_htk</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>     <span class="c1"># O'Shaughnessy (1987), dùng trong HTK</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="k">return</span> <span class="mf">2595.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">f</span> <span class="o">/</span> <span class="mf">700.0</span><span class="p">)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">mel_slaney</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>  <span class="c1"># Slaney (1998): tuyến tính dưới 1 kHz, logarit phía trên</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">lin</span> <span class="o">=</span> <span class="n">f</span> <span class="o">/</span> <span class="p">(</span><span class="mf">200.0</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="n">log</span> <span class="o">=</span> <span class="mf">15.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">f</span> <span class="o">/</span> <span class="mf">1000.0</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">6.4</span><span class="p">)</span> <span class="o">/</span> <span class="mf">27.0</span><span class="p">)</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">f</span> <span class="o">&lt;</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="n">lin</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="k">def</span><span class="w"> </span><span class="nf">bark</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>        <span class="c1"># công thức xấp xỉ của Traunmüller (1990)</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="k">return</span> <span class="mf">26.81</span> <span class="o">*</span> <span class="n">f</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1960.0</span> <span class="o">+</span> <span class="n">f</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.53</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="k">def</span><span class="w"> </span><span class="nf">erb_rate</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>    <span class="c1"># Glasberg &amp; Moore (1990): số ERB tính từ 0 Hz</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="k">return</span> <span class="mf">21.4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="mf">0.00437</span> <span class="o">*</span> <span class="n">f</span><span class="p">)</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="n">freqs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">100</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">2000</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="mi">8000</span><span class="p">,</span> <span class="mi">11025</span><span class="p">])</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'f (Hz)'</span><span class="si">:</span><span class="s2">&gt;7</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">'mel HTK'</span><span class="si">:</span><span class="s2">&gt;8</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">'mel Slaney'</span><span class="si">:</span><span class="s2">&gt;10</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">'Bark'</span><span class="si">:</span><span class="s2">&gt;6</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">'ERB-rate'</span><span class="si">:</span><span class="s2">&gt;8</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">freqs</span><span class="p">:</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">f</span><span class="si">:</span><span class="s2">&gt;7</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">mel_htk</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="si">:</span><span class="s2">&gt;8.0f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">mel_slaney</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="si">:</span><span class="s2">&gt;10.1f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">bark</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="si">:</span><span class="s2">&gt;6.1f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">erb_rate</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="si">:</span><span class="s2">&gt;8.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="c1"># Cả hai công thức mel đều neo 1000 Hz ≈ 1000 mel (Slaney đo theo đơn vị khác: 15)</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mel_htk</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="c1"># Độ phân giải: 1 kHz ở vùng thấp chiếm nhiều mel hơn hẳn 1 kHz ở vùng cao</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"mel(1k)-mel(0) ="</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">mel_htk</span><span class="p">(</span><span class="mi">1000</span><span class="p">)),</span> <span class="s2">" mel(8k)-mel(7k) ="</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">mel_htk</span><span class="p">(</span><span class="mi">8000</span><span class="p">)</span> <span class="o">-</span> <span class="n">mel_htk</span><span class="p">(</span><span class="mi">7000</span><span class="p">)))</span>
+</span></code></pre></div>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a> f (Hz)  mel HTK mel Slaney   Bark ERB-rate
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    100      150        1.5    0.8      3.4
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    250      344        3.7    2.5      6.9
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    500      607        7.5    4.9     10.8
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>   1000     1000       15.0    8.5     15.6
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>   2000     1521       25.1   13.0     21.2
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>   4000     2146       35.2   17.5     27.1
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>   8000     2840       45.2   21.0     33.3
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  11025     3176       49.9   22.2     36.2
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>mel(1k)-mel(0) = 1000  mel(8k)-mel(7k) = 138
+</span></code></pre></div>
+<p>Cả ba thang đều <strong>nén</strong> trục tần số ở vùng cao: khoảng 0–1 kHz chiếm 1000 mel, trong khi 7–8 kHz chỉ chiếm 138 mel. Một mel filterbank 80 kênh vì thế dành rất nhiều kênh cho vùng dưới 2 kHz, nơi chứa F0, F1, F2 và phần lớn thông tin phân biệt nguyên âm và thanh điệu, và rất ít kênh cho vùng cao.</p>
+<p>Cũng nên biết rằng thí nghiệm gốc của thang mel đã bị phê phán về phương pháp, và các thang Bark/ERB có cơ sở tâm sinh lý chắc chắn hơn. Ngày nay mel được dùng chủ yếu như một <strong>phép nén trục tần số thuận tiện, đã được kiểm chứng thực nghiệm trong ASR và TTS</strong>, chứ không phải một định luật tri giác chính xác. Trong thực tế, chọn mel hay ERB hiếm khi là yếu tố quyết định chất lượng; <strong>nhất quán</strong> giữa các thành phần mới là điều quyết định.</p>
+<h3 id="1354-cam-nhan-cao-o">13.5.4. Cảm nhận cao độ<a class="headerlink" href="#1354-cam-nhan-cao-o" title="Permanent link">&para;</a></h3>
+<p><strong>Cao độ</strong> (<em>pitch</em>) là thuộc tính tri giác; <strong>F0</strong> là đại lượng vật lý. Với âm phức có hài, cao độ cảm nhận gần như luôn bằng F0, <strong>kể cả khi thành phần tần số cơ bản bị loại bỏ hoàn toàn</strong>. Đây là hiện tượng <strong>cơ bản bị khuyết</strong> (<em>missing fundamental</em>), hay cao độ ảo. Ví dụ quen thuộc: đường điện thoại truyền thống chỉ truyền khoảng 300–3400 Hz, cắt mất F0 của giọng nam (khoảng 100 Hz), vậy mà ta vẫn nghe rõ cao độ và thanh điệu. Bộ não suy ra F0 từ <strong>khoảng cách giữa các hài</strong> và từ <strong>tính tuần hoàn</strong> của đường bao tín hiệu trong các kênh thính giác. Các lý thuyết "vị trí" (dựa trên mẫu phổ) và "thời gian" (dựa trên chu kỳ phát xung thần kinh) ngày nay được xem là bổ sung cho nhau.</p>
+<p>Hai tính chất của cảm nhận cao độ ảnh hưởng trực tiếp đến TTS:</p>
+<ol>
+<li>
+<p><strong>Cao độ được cảm nhận theo tỉ lệ (logarit)</strong>. Từ 100 lên 200 Hz và từ 200 lên 400 Hz đều là "một quãng tám". Vì thế người ta đo khoảng cao độ bằng <strong>semitone</strong> (nửa cung) hoặc <strong>cent</strong>:</p>
+<div class="arithmatex">\[
+\Delta_{\text{st}} = 12 \log_2 \frac{f_2}{f_1}, \qquad \Delta_{\text{cent}} = 1200 \log_2 \frac{f_2}{f_1}.
+\]</div>
+<p>Các mô hình TTS do đó thường dự đoán <strong>log-F0</strong> (hoặc F0 đã chuẩn hóa z-score trong miền log theo từng người nói) thay vì F0 tính bằng Hz, và sai số F0 được báo cáo bằng cent.</p>
+</li>
+<li>
+<p><strong>Ngưỡng phân biệt F0 rất nhỏ</strong>: trong điều kiện phòng thí nghiệm với âm ổn định, người nghe có thể phân biệt thay đổi F0 dưới 1%. Với đường nét cao độ động như trong lời nói, ngưỡng lớn hơn, nhưng sai lệch vài chục cent ở vị trí quan trọng vẫn có thể nghe ra.</p>
+</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Góc tiếng Việt</p>
+<p>Giọng nam và giọng nữ chênh nhau gần một quãng tám về F0, nhưng <strong>hình dạng</strong> đường nét thanh điệu, đo bằng semitone so với mức trung bình của người nói, lại khá giống nhau. Biểu diễn log-F0 đã chuẩn hóa theo người nói giúp mô hình đa người nói "chia sẻ" tri thức về thanh điệu giữa các giọng. Ngược lại, nếu mô hình hóa F0 trong miền Hz và co giãn tuyến tính, phép "đổi cao độ" có thể bóp méo tỉ lệ giữa các thanh. <a href="../ch16-ngon-dieu/">Chương 16</a> minh họa cách tách thanh điệu khỏi ngữ điệu trong miền semitone.</p>
+</div>
+<h3 id="1355-cam-nhan-pha">13.5.5. Cảm nhận pha<a class="headerlink" href="#1355-cam-nhan-pha" title="Permanent link">&para;</a></h3>
+<p>Theo "định luật âm học Ohm" mà Helmholtz phát triển, tai <strong>gần như không nhạy</strong> với quan hệ pha giữa các hài của một âm ổn định: thay đổi pha các hài làm dạng sóng khác hẳn, nhưng âm sắc nghe gần như không đổi. Nhận định này đúng một phần, và chính nó cho phép dùng <strong>biên độ phổ</strong> (như mel-spectrogram) làm biểu diễn trung gian trong TTS. Tuy nhiên có ba ngoại lệ quan trọng:</p>
+<ul>
+<li>Ở <strong>tần số cao</strong>, bộ lọc thính giác rộng nên chứa nhiều hài cùng lúc; đường bao thời gian trong kênh ấy phụ thuộc vào pha tương đối của các hài. Với F0 thấp, thay đổi pha có thể nghe ra như độ "gắt" hay "mềm" khác nhau.</li>
+<li><strong>Âm tức thời</strong> (tiếng nổ của âm tắc, điểm đóng thanh môn) cần các thành phần tần số <strong>đồng pha</strong> tại một thời điểm; pha sai làm chúng bị "nhòe".</li>
+<li><strong>Tính nhất quán giữa các khung</strong>: STFT dùng các khung chồng lấp, nên pha của các khung kế tiếp phải ăn khớp. Pha không nhất quán tạo âm "vang ống" (<em>phasiness</em>) hoặc "kim loại".</li>
+</ul>
+<p>Hệ quả cho TTS rất rõ ràng. Mel-spectrogram bỏ hẳn pha và còn làm mờ chi tiết phổ ở tần số cao; <strong>vocoder phải tự "phát minh" lại pha</strong> sao cho nhất quán và hợp lý. Thuật toán Griffin–Lim (<a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>) làm việc này bằng phép lặp và để lại tiếng kim loại đặc trưng; các vocoder neural (<a href="../../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow/">Chương 24</a> đến <a href="../../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh/">Chương 26</a>) học cách sinh pha từ dữ liệu, và một số như Vocos dự đoán pha tường minh.</p>
+<h2 id="136-vi-sao-nhung-ieu-nay-quan-trong-voi-tts">13.6. Vì sao những điều này quan trọng với TTS<a class="headerlink" href="#136-vi-sao-nhung-ieu-nay-quan-trong-voi-tts" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    P["Tạo tiếng nói: nguồn và bộ lọc"] --&gt; S["Tín hiệu âm"]
+    S --&gt; H["Thính giác: ốc tai, dải tới hạn"]
+    P -.-&gt;|"F0, log-F0, nguồn tuần hoàn"| T1["Bộ dự đoán cao độ, vocoder NSF/DDSP"]
+    H -.-&gt;|"nén tần số, nén biên độ"| T2["Log-mel-spectrogram"]
+    H -.-&gt;|"ít nhạy pha"| T3["Vocoder tái tạo pha"]
+    H -.-&gt;|"che lấp"| T4["Hàm mất mát trên phổ, nhiều độ phân giải"]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Hiện tượng âm học hoặc thính giác</th>
+<th>Lựa chọn thiết kế trong TTS</th>
+<th>Chương liên quan</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ốc tai phân giải tần số kém dần ở vùng cao</td>
+<td>Mel filterbank 80–100 kênh</td>
+<td><a href="../ch14-xu-ly-tin-hieu-so/">14</a></td>
+</tr>
+<tr>
+<td>Độ to tăng theo hàm nén của cường độ</td>
+<td>Log của biên độ, nén dải động</td>
+<td><a href="../ch14-xu-ly-tin-hieu-so/">14</a></td>
+</tr>
+<tr>
+<td>Cao độ cảm nhận theo tỉ lệ</td>
+<td>Log-F0, semitone, chuẩn hóa theo người nói</td>
+<td><a href="../ch16-ngon-dieu/">16</a>, <a href="../../phan-5-mo-hinh-am-hoc/ch22-fastspeech/">22</a></td>
+</tr>
+<tr>
+<td>Tiếng nói = nguồn ⊗ bộ lọc</td>
+<td>WORLD, LPCNet, NSF, DDSP; đổi cao độ giữ âm sắc</td>
+<td><a href="../../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow/">24</a></td>
+</tr>
+<tr>
+<td>Tai ít nhạy với pha của âm ổn định</td>
+<td>Mel làm biểu diễn trung gian; vocoder tái tạo pha</td>
+<td><a href="../../phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow/">24</a>–<a href="../../phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh/">26</a></td>
+</tr>
+<tr>
+<td>Che lấp, sai số L2 trên dạng sóng không phản ánh tri giác</td>
+<td>Hàm mất mát log-mel, STFT nhiều độ phân giải, GAN</td>
+<td><a href="../../phan-6-vocoder/ch25-gan-vocoder/">25</a></td>
+</tr>
+<tr>
+<td>Âm xát có năng lượng tới 8–10 kHz</td>
+<td>Lấy mẫu 22,05/24 kHz trở lên cho TTS</td>
+<td><a href="../ch14-xu-ly-tin-hieu-so/">14</a></td>
+</tr>
+<tr>
+<td>Đồng cấu âm</td>
+<td>Mô hình cần ngữ cảnh rộng; đơn vị diphone thời ghép nối</td>
+<td><a href="../../phan-5-mo-hinh-am-hoc/ch19-lich-su-tts/">19</a></td>
+</tr>
+<tr>
+<td>Chất giọng kẹt trong thanh ngã, nặng</td>
+<td>Vocoder phải tái tạo chu kỳ không đều; cẩn trọng với F0</td>
+<td><a href="../ch15-ngu-am-tieng-viet/">15</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="loi-thuong-gap-va-meo-thuc-hanh">Lỗi thường gặp và mẹo thực hành<a class="headerlink" href="#loi-thuong-gap-va-meo-thuc-hanh" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Nhầm hài với formant.</strong> Khi đọc spectrogram băng hẹp (cửa sổ dài), các vạch ngang song song là hài; các dải đậm rộng là formant. Một "đỉnh" trong phổ của giọng nữ cao chưa chắc là formant, có thể chỉ là một hài tình cờ nằm gần formant.</li>
+<li><strong>Đổi cao độ bằng cách lấy mẫu lại.</strong> Thao tác này dịch cả formant, làm giọng biến dạng. Muốn đổi F0 mà giữ âm sắc, hãy dùng phương pháp tách nguồn–bộ lọc (WORLD, PSOLA) hoặc điều khiển F0 trong mô hình TTS.</li>
+<li><strong>Trộn dB SPL với dBFS</strong> hoặc cộng các giá trị dB như số thường. Hãy luôn ghi rõ mốc tham chiếu và đổi về miền công suất trước khi cộng.</li>
+<li><strong>Dùng bảng formant của giọng nam tiếng Anh cho giọng nữ hay cho tiếng Việt.</strong> Formant phụ thuộc chiều dài đường thanh âm và hệ thống nguyên âm; số liệu Peterson và Barney chỉ dùng để minh họa.</li>
+<li><strong>Bộ cộng hưởng mất ổn định hoặc "réo".</strong> Băng thông quá nhỏ (vài Hz) làm <span class="arithmatex">\(r\)</span> gần 1, gây dao động kéo dài và tràn số khi mắc nhiều tầng; tần số gần Nyquist làm méo. Giữ <span class="arithmatex">\(B\)</span> cỡ vài chục đến vài trăm Hz và <span class="arithmatex">\(F &lt; f_s/2\)</span> với khoảng an toàn.</li>
+<li><strong>Bỏ qua pha.</strong> Mel-spectrogram tốt không đảm bảo âm thanh tốt; pha không nhất quán giữa các khung là nguồn gốc của nhiều lỗi "kim loại".</li>
+<li><strong>Tin tuyệt đối vào F0 ở vùng giọng kẹt.</strong> Ở thanh ngã, thanh nặng và cuối câu, F0 trích xuất hay bị nhảy quãng tám hoặc bị coi là vô thanh. Hãy nghe lại và quan sát spectrogram trước khi kết luận mô hình "sai thanh".</li>
+<li><strong>Nhầm đơn vị mel Slaney với mel HTK</strong> khi tự viết hàm đổi thang: 1000 Hz là 15 đơn vị trong Slaney nhưng là 1000 mel trong HTK.</li>
+</ul>
+<h2 id="tom-tat">Tóm tắt<a class="headerlink" href="#tom-tat" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Âm thanh là dao động áp suất; tiếng nói hữu thanh gần tuần hoàn nên phổ của nó gồm các hài tại <span class="arithmatex">\(k f_0\)</span>. Mức âm đo bằng dB SPL (mốc 20 µPa), còn âm thanh số dùng dBFS; độ to là cảm nhận chủ quan, phụ thuộc tần số.</li>
+<li>Tiếng nói được tạo qua ba khâu: phổi cấp năng lượng, dây thanh tạo nguồn tuần hoàn (F0 do độ căng dây thanh điều khiển), đường thanh âm lọc nguồn và tạo thêm nguồn nhiễu hoặc tiếng nổ.</li>
+<li>Mô hình nguồn–bộ lọc <span class="arithmatex">\(S(f) = U_g(f) V(f) R(f)\)</span> tách cao độ (nguồn) khỏi âm sắc (bộ lọc); trong miền log, hai thành phần cộng với nhau.</li>
+<li>Ống đồng nhất đóng–mở có formant <span class="arithmatex">\(F_n = (2n-1)c/(4L)\)</span>; với <span class="arithmatex">\(L = 17{,}5\)</span> cm ta được 500, 1500, 2500 Hz. Formant tỉ lệ nghịch với chiều dài đường thanh âm; tròn môi hạ formant.</li>
+<li>Một formant được mô phỏng bằng bộ cộng hưởng số có cặp cực <span class="arithmatex">\(r e^{\pm j\theta}\)</span> với <span class="arithmatex">\(r = e^{-\pi B/f_s}\)</span>, <span class="arithmatex">\(\theta = 2\pi F/f_s\)</span>.</li>
+<li>Phụ âm được mô tả bằng thanh tính, vị trí và phương thức cấu âm; nguyên âm bằng độ cao (ngược với F1), độ trước–sau (theo F2) và độ tròn môi. IPA là công cụ ký hiệu chung.</li>
+<li>Ốc tai hoạt động như dãy bộ lọc có băng thông tăng theo tần số; các thang mel, Bark, ERB mô phỏng điều này. Có hai công thức mel (HTK và Slaney) với hình dạng khác nhau.</li>
+<li>Cao độ được cảm nhận theo tỉ lệ, nên TTS mô hình hóa log-F0; tai ít nhạy với pha của âm ổn định nhưng nhạy với pha không nhất quán, nên vocoder phải tái tạo pha cẩn thận.</li>
+</ul>
+<h2 id="bai-tap">Bài tập<a class="headerlink" href="#bai-tap" title="Permanent link">&para;</a></h2>
+<p><strong>Bài 1 [Cơ bản].</strong> Một micro đo được áp suất hiệu dụng 0,02 Pa. (a) Tính mức áp suất âm theo dB SPL. (b) Nếu có thêm một nguồn thứ hai không tương quan, cùng mức, thì tổng là bao nhiêu dB SPL? &copy; Nếu hai nguồn <strong>hoàn toàn đồng pha</strong> thì sao?</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p>(a) <span class="arithmatex">\(L_p = 20 \log_{10}(0{,}02 / 2 \times 10^{-5}) = 20 \log_{10} 1000 = 60\)</span> dB SPL.
+(b) Hai nguồn không tương quan: công suất cộng lại, gấp đôi, nên khoảng <span class="arithmatex">\(60 + 3{,}01 \approx 63\)</span> dB SPL.
+&copy; Đồng pha: <strong>biên độ</strong> áp suất cộng lại, gấp đôi, nên <span class="arithmatex">\(60 + 6{,}02 \approx 66\)</span> dB SPL. Trường hợp &copy; hiếm gặp trong thực tế với nguồn độc lập, nhưng xảy ra khi bạn vô tình cộng hai bản sao của cùng một tín hiệu (ví dụ trộn kênh trái và phải giống hệt nhau).</p>
+</details>
+<p><strong>Bài 2 [Cơ bản].</strong> Dùng mô hình ống đồng nhất đóng–mở với <span class="arithmatex">\(c = 350\)</span> m/s, tính ba formant đầu của một đường thanh âm dài 15 cm. Formant thay đổi theo tỉ lệ nào khi chiều dài giảm 10%?</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p><span class="arithmatex">\(F_1 = 350/(4 \times 0{,}15) \approx 583\)</span> Hz, <span class="arithmatex">\(F_2 = 3F_1 = 1750\)</span> Hz, <span class="arithmatex">\(F_3 = 5F_1 \approx 2917\)</span> Hz. Vì <span class="arithmatex">\(F_n \propto 1/L\)</span>, giảm chiều dài 10% làm mọi formant tăng theo hệ số <span class="arithmatex">\(1/0{,}9 \approx 1{,}11\)</span>, tức khoảng 11%.</p>
+</details>
+<p><strong>Bài 3 [Cơ bản].</strong> Giải thích bằng mô hình nguồn–bộ lọc: (a) vì sao khi thì thầm ta vẫn phân biệt được các nguyên âm; (b) vì sao giọng nói qua điện thoại băng hẹp vẫn giữ được cao độ.</p>
+<details class="tip">
+<summary>Gợi ý</summary>
+<p>(a) Thì thầm thay nguồn tuần hoàn bằng nguồn nhiễu, nhưng bộ lọc (hình dạng đường thanh âm, tức formant) vẫn như cũ. (b) Xem mục 13.5.4 về hiện tượng cơ bản bị khuyết: các hài bậc cao vẫn còn và cách nhau đúng F0.</p>
+</details>
+<p><strong>Bài 4 [Nâng cao].</strong> Suy ra các tần số cộng hưởng của một ống đồng nhất <strong>mở cả hai đầu</strong> (hoặc đóng cả hai đầu). So sánh với ống đóng–mở. Hãy nêu một tình huống trong phát âm mà một phần đường thanh âm có thể được xấp xỉ bằng ống loại này.</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p>Với ống mở–mở, điều kiện biên là <span class="arithmatex">\(P(0) = P(L) = 0\)</span>, nghiệm <span class="arithmatex">\(P(x) = \sin(kx)\)</span> và <span class="arithmatex">\(\sin(kL) = 0\)</span>, nên <span class="arithmatex">\(kL = n\pi\)</span> và <span class="arithmatex">\(F_n = n c / (2L)\)</span>, <span class="arithmatex">\(n = 1, 2, \ldots\)</span> Ống đóng–đóng cho cùng tập tần số (với <span class="arithmatex">\(P(x) = \cos(kx)\)</span>, <span class="arithmatex">\(n \geq 1\)</span>, cộng thêm "mode" tầm thường ở 0 Hz). Các cộng hưởng này cách nhau <span class="arithmatex">\(c/(2L)\)</span> và bắt đầu từ <span class="arithmatex">\(c/(2L)\)</span>, khác với ống đóng–mở chỉ có các bội lẻ của <span class="arithmatex">\(c/(4L)\)</span>. Trong mô hình hai ống của nguyên âm "a", khoang họng hẹp phía sau và khoang miệng rộng phía trước có thể xấp xỉ bằng các ống với điều kiện biên khác nhau; ở chỗ nối giữa ống hẹp và ống rộng, ống hẹp "nhìn thấy" gần như một đầu mở.</p>
+</details>
+<p><strong>Bài 5 [Nâng cao].</strong> Với bộ cộng hưởng <span class="arithmatex">\(H(z) = A / [(1 - r e^{j\theta} z^{-1})(1 - r e^{-j\theta} z^{-1})]\)</span>, chứng minh rằng khi <span class="arithmatex">\(r \to 1\)</span>, độ rộng dải <span class="arithmatex">\(-3\)</span> dB quanh đỉnh xấp xỉ <span class="arithmatex">\(B\)</span> Hz nếu <span class="arithmatex">\(r = e^{-\pi B / f_s}\)</span>.</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p>Gần đỉnh <span class="arithmatex">\(\omega \approx \theta\)</span>, thừa số <span class="arithmatex">\((1 - r e^{-j\theta} e^{-j\omega})\)</span> gần như không đổi, nên <span class="arithmatex">\(\lvert H(e^{j\omega}) \rvert \propto 1 / \lvert 1 - r e^{-j(\omega - \theta)} \rvert\)</span>. Đặt <span class="arithmatex">\(\delta = \omega - \theta\)</span> nhỏ: <span class="arithmatex">\(\lvert 1 - r e^{-j\delta} \rvert^2 = 1 - 2r\cos\delta + r^2 \approx (1 - r)^2 + r\delta^2\)</span>. Công suất giảm một nửa khi <span class="arithmatex">\(r\delta^2 = (1-r)^2\)</span>, tức <span class="arithmatex">\(\delta \approx \pm (1 - r)\)</span> (vì <span class="arithmatex">\(r \approx 1\)</span>). Độ rộng dải theo rad/mẫu là <span class="arithmatex">\(2(1 - r)\)</span>. Với <span class="arithmatex">\(r = e^{-\pi B/f_s} \approx 1 - \pi B / f_s\)</span>, độ rộng là <span class="arithmatex">\(2\pi B / f_s\)</span> rad/mẫu, đổi sang Hz bằng cách nhân <span class="arithmatex">\(f_s / (2\pi)\)</span>, được đúng <span class="arithmatex">\(B\)</span> Hz.</p>
+</details>
+<p><strong>Bài 6 [Lập trình].</strong> Mở rộng <code>synth_vowel</code> để tổng hợp nguyên âm đôi "ai" bằng cách nội suy tuyến tính formant từ bộ của [a] sang bộ của [i] trong 250 ms. Gợi ý: xử lý theo từng khối 5 ms và truyền trạng thái bộ lọc giữa các khối bằng tham số <code>zi</code> của <code>scipy.signal.lfilter</code>, hoặc cài đặt phương trình sai phân theo từng mẫu với hệ số thay đổi theo thời gian. Nghe và so sánh với việc ghép cứng hai nguyên âm.</p>
+<details class="tip">
+<summary>Gợi ý</summary>
+<p>Nếu không truyền trạng thái bộ lọc giữa các khối, bạn sẽ nghe tiếng "lách tách" ở mỗi ranh giới khối, một phiên bản thu nhỏ của lỗi nối khung trong vocoder streaming (<a href="../../phan-8-mo-hinh-lon/ch35-streaming-speech-llm/">Chương 35</a>).</p>
+</details>
+<p><strong>Bài 7 [Lập trình].</strong> Tổng hợp nguyên âm [a] với <span class="arithmatex">\(f_0 = 120\)</span> Hz. (a) Lấy mẫu lại tín hiệu sao cho khi phát ở cùng <span class="arithmatex">\(f_s\)</span> thì cao độ tăng 1,5 lần (ví dụ <code>scipy.signal.resample</code> xuống còn &#8532; số mẫu). (b) Tổng hợp lại trực tiếp với <span class="arithmatex">\(f_0 = 180\)</span> Hz và cùng formant. Dùng <code>find_peaks</code> trên đường bao (ví dụ bằng LPC ở Chương 14, hoặc đơn giản là làm trơn phổ) để so sánh formant của (a) và (b). Giải thích hiện tượng "giọng chuột chù".</p>
+<details class="success">
+<summary>Lời giải</summary>
+<p>Ở (a), mọi tần số đều nhân với 1,5: F0 thành 180 Hz nhưng formant cũng thành khoảng 1095, 1635, 3660 Hz, nên nguyên âm và "kích thước người nói" đều thay đổi. Ở (b), chỉ nguồn thay đổi, formant giữ nguyên 730, 1090, 2440 Hz. Đây là lý do mọi phép đổi cao độ chất lượng cao đều cần tách nguồn khỏi bộ lọc.</p>
+</details>
+<p><strong>Bài 8 [Lập trình].</strong> Viết hàm <code>erb_filterbank(sr, n_fft, n_filters)</code> tạo các bộ lọc tam giác có tâm cách đều trên thang ERB-rate (thay vì thang mel), theo cùng cách xây dựng mel filterbank ở <a href="../ch14-xu-ly-tin-hieu-so/">Chương 14</a>. So sánh vị trí tâm của 80 bộ lọc ERB với 80 bộ lọc mel HTK trong dải 0–8 kHz.</p>
+<h2 id="tai-lieu-tham-khao">Tài liệu tham khảo<a class="headerlink" href="#tai-lieu-tham-khao" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Fant, G. (1960). <em>Acoustic Theory of Speech Production</em>. Mouton, The Hague.</li>
+<li>Stevens, K. N. (1998). <em>Acoustic Phonetics</em>. MIT Press.</li>
+<li>Johnson, K. (2012). <em>Acoustic and Auditory Phonetics</em> (ấn bản 3). Wiley-Blackwell.</li>
+<li>Ladefoged, P., &amp; Johnson, K. (2015). <em>A Course in Phonetics</em> (ấn bản 7). Cengage Learning.</li>
+<li>International Phonetic Association (1999). <em>Handbook of the International Phonetic Association: A Guide to the Use of the International Phonetic Alphabet</em>. Cambridge University Press.</li>
+<li>Rabiner, L. R., &amp; Schafer, R. W. (2010). <em>Theory and Applications of Digital Speech Processing</em>. Pearson.</li>
+<li>Titze, I. R. (1994). <em>Principles of Voice Production</em>. Prentice Hall.</li>
+<li>Klatt, D. H. (1980). Software for a cascade/parallel formant synthesizer. <em>Journal of the Acoustical Society of America</em>, 67(3), 971–995.</li>
+<li>Peterson, G. E., &amp; Barney, H. L. (1952). Control methods used in a study of the vowels. <em>Journal of the Acoustical Society of America</em>, 24(2), 175–184.</li>
+<li>Rosenberg, A. E. (1971). Effect of glottal pulse shape on the quality of natural vowels. <em>Journal of the Acoustical Society of America</em>, 49(2B), 583–590.</li>
+<li>Fant, G., Liljencrants, J., &amp; Lin, Q. (1985). A four-parameter model of glottal flow. <em>STL-QPSR (KTH)</em>, 26(4), 1–13.</li>
+<li>Stevens, S. S., Volkmann, J., &amp; Newman, E. B. (1937). A scale for the measurement of the psychological magnitude pitch. <em>Journal of the Acoustical Society of America</em>, 8(3), 185–190.</li>
+<li>O'Shaughnessy, D. (1987). <em>Speech Communication: Human and Machine</em>. Addison-Wesley.</li>
+<li>Slaney, M. (1998). <em>Auditory Toolbox, Version 2</em>. Technical Report #1998-010, Interval Research Corporation.</li>
+<li>Fletcher, H. (1940). Auditory patterns. <em>Reviews of Modern Physics</em>, 12(1), 47–65.</li>
+<li>Zwicker, E. (1961). Subdivision of the audible frequency range into critical bands (Frequenzgruppen). <em>Journal of the Acoustical Society of America</em>, 33(2), 248.</li>
+<li>Traunmüller, H. (1990). Analytical expressions for the tonotopic sensory scale. <em>Journal of the Acoustical Society of America</em>, 88(1), 97–100.</li>
+<li>Glasberg, B. R., &amp; Moore, B. C. J. (1990). Derivation of auditory filter shapes from notched-noise data. <em>Hearing Research</em>, 47(1–2), 103–138.</li>
+<li>ISO 226 (2003; có bản sửa đổi sau đó). <em>Acoustics — Normal equal-loudness-level contours</em>. International Organization for Standardization.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Trở lại mục lục
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Chân trang" >
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Trước: Phần III. Tín hiệu và ngữ âm">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Trước
+              </span>
+              <div class="md-ellipsis">
+                Phần III. Tín hiệu và ngữ âm
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../ch14-xu-ly-tin-hieu-so/" class="md-footer__link md-footer__link--next" aria-label="Sau: 14. Xử lý tín hiệu số cho tiếng nói">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Sau
+              </span>
+              <div class="md-ellipsis">
+                14. Xử lý tín hiệu số cho tiếng nói
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Nội dung phát hành theo giấy phép CC BY-SA 4.0 · Mã nguồn minh họa theo giấy phép MIT
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/tuandung222/tts-books-2026" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u0110\u00e3 sao ch\u00e9p", "clipboard.copy": "Sao ch\u00e9p v\u00e0o b\u1ed9 nh\u1edb t\u1ea1m", "search.result.more.one": "1 t\u1eeb kh\u00e1c trong trang", "search.result.more.other": "# t\u1eeb kh\u00e1c trong trang", "search.result.none": "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan", "search.result.one": "1 t\u00e0i li\u1ec7u li\u00ean quan", "search.result.other": "# t\u00e0i li\u1ec7u li\u00ean quan", "search.result.placeholder": "Nh\u1eadp \u0111\u1ec3 b\u1eaft \u0111\u1ea7u t\u00ecm ki\u1ebfm", "search.result.term.missing": "Kh\u00f4ng", "select.version": "Ch\u1ecdn phi\u00ean b\u1ea3n"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
