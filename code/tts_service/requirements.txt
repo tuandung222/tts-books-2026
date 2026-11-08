@@ -1,0 +1,7 @@
+# Phụ thuộc của dịch vụ TTS (Dự án 5). onnxruntime chỉ cần khi dùng OnnxVitsSynthesizer.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+websockets>=13
+httpx>=0.27
+numpy>=1.24
+# onnxruntime>=1.17

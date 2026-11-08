@@ -1,0 +1,188 @@
+site_name: "Giáo trình TTS 2026"
+site_description: "Giáo trình tiếng Việt về Tổng hợp tiếng nói (Text-to-Speech): từ nền tảng học sâu đến làm chủ các hệ thống TTS hiện đại."
+site_author: "Cộng đồng đóng góp tts-books-2026"
+site_url: https://tuandung222.github.io/tts-books-2026/
+repo_url: https://github.com/tuandung222/tts-books-2026
+repo_name: tuandung222/tts-books-2026
+edit_uri: edit/main/docs/
+copyright: "Nội dung phát hành theo giấy phép CC BY-SA 4.0 · Mã nguồn minh họa theo giấy phép MIT"
+
+theme:
+  name: material
+  language: vi
+  font:
+    text: Be Vietnam Pro
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Chuyển sang chế độ tối
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Chuyển sang chế độ sáng
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - content.tabs.link
+
+plugins:
+  - search:
+      lang:
+        - vi
+        - en
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn
+    absolute_links: info
+    unrecognized_links: info
+    anchors: info
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tuandung222/tts-books-2026
+
+nav:
+  - "Trang chủ":
+      - index.md
+      - "Lời nói đầu": gioi-thieu/loi-noi-dau.md
+      - "Lộ trình học": gioi-thieu/lo-trinh-hoc.md
+      - "Ký hiệu toán học": gioi-thieu/ky-hieu.md
+      - "Quy ước biên soạn": gioi-thieu/quy-uoc-bien-soan.md
+  - "I. Nền tảng học sâu":
+      - phan-1-nen-tang/index.md
+      - "1. Toán nền tảng cho học sâu": phan-1-nen-tang/ch01-toan-nen-tang.md
+      - "2. Học máy và mạng nơ-ron": phan-1-nen-tang/ch02-hoc-may-va-mang-no-ron.md
+      - "3. Tối ưu hóa và kỹ thuật huấn luyện": phan-1-nen-tang/ch03-toi-uu-va-ky-thuat-huan-luyen.md
+      - "4. CNN, RNN và mô hình chuỗi": phan-1-nen-tang/ch04-cnn-rnn-mo-hinh-chuoi.md
+      - "5. Attention và Transformer": phan-1-nen-tang/ch05-transformer.md
+      - "6. PyTorch cho xử lý tiếng nói": phan-1-nen-tang/ch06-pytorch-cho-tieng-noi.md
+  - "II. Mô hình sinh":
+      - phan-2-mo-hinh-sinh/index.md
+      - "7. Tổng quan mô hình sinh": phan-2-mo-hinh-sinh/ch07-tong-quan-mo-hinh-sinh.md
+      - "8. Variational Autoencoder": phan-2-mo-hinh-sinh/ch08-vae.md
+      - "9. Mạng đối sinh (GAN)": phan-2-mo-hinh-sinh/ch09-gan.md
+      - "10. Normalizing Flows": phan-2-mo-hinh-sinh/ch10-normalizing-flows.md
+      - "11. Mô hình khuếch tán (Diffusion)": phan-2-mo-hinh-sinh/ch11-diffusion.md
+      - "12. Flow Matching": phan-2-mo-hinh-sinh/ch12-flow-matching.md
+  - "III. Tín hiệu và ngữ âm":
+      - phan-3-tin-hieu-ngu-am/index.md
+      - "13. Âm học và cơ chế tạo tiếng nói": phan-3-tin-hieu-ngu-am/ch13-am-hoc-tieng-noi.md
+      - "14. Xử lý tín hiệu số cho tiếng nói": phan-3-tin-hieu-ngu-am/ch14-xu-ly-tin-hieu-so.md
+      - "15. Ngữ âm và âm vị học tiếng Việt": phan-3-tin-hieu-ngu-am/ch15-ngu-am-tieng-viet.md
+      - "16. Ngôn điệu (Prosody)": phan-3-tin-hieu-ngu-am/ch16-ngon-dieu.md
+  - "IV. Xử lý văn bản":
+      - phan-4-frontend/index.md
+      - "17. Chuẩn hóa văn bản tiếng Việt": phan-4-frontend/ch17-chuan-hoa-van-ban.md
+      - "18. G2P và biểu diễn đầu vào": phan-4-frontend/ch18-g2p-bieu-dien-dau-vao.md
+  - "V. Mô hình âm học":
+      - phan-5-mo-hinh-am-hoc/index.md
+      - "19. Lịch sử TTS: từ formant đến neural": phan-5-mo-hinh-am-hoc/ch19-lich-su-tts.md
+      - "20. Tacotron và TTS dựa trên attention": phan-5-mo-hinh-am-hoc/ch20-tacotron.md
+      - "21. Bài toán căn chỉnh (Alignment)": phan-5-mo-hinh-am-hoc/ch21-alignment.md
+      - "22. FastSpeech và TTS không tự hồi quy": phan-5-mo-hinh-am-hoc/ch22-fastspeech.md
+      - "23. Glow-TTS, Grad-TTS, Matcha-TTS": phan-5-mo-hinh-am-hoc/ch23-glow-grad-matcha.md
+  - "VI. Vocoder":
+      - phan-6-vocoder/index.md
+      - "24. Vocoder tự hồi quy và flow": phan-6-vocoder/ch24-vocoder-tu-hoi-quy-va-flow.md
+      - "25. Vocoder dựa trên GAN": phan-6-vocoder/ch25-gan-vocoder.md
+      - "26. Vocoder khuếch tán và so sánh": phan-6-vocoder/ch26-diffusion-vocoder-va-so-sanh.md
+  - "VII. End-to-end và biểu cảm":
+      - phan-7-e2e-bieu-cam/index.md
+      - "27. VITS và họ end-to-end": phan-7-e2e-bieu-cam/ch27-vits.md
+      - "28. Đa người nói và nhân bản giọng": phan-7-e2e-bieu-cam/ch28-da-nguoi-noi-voice-cloning.md
+      - "29. Ngôn điệu, cảm xúc và phong cách": phan-7-e2e-bieu-cam/ch29-prosody-cam-xuc-phong-cach.md
+      - "30. Đa ngôn ngữ và trộn mã Việt–Anh": phan-7-e2e-bieu-cam/ch30-da-ngon-ngu-code-switching.md
+  - "VIII. TTS thời mô hình lớn":
+      - phan-8-mo-hinh-lon/index.md
+      - "31. Neural audio codec và speech token": phan-8-mo-hinh-lon/ch31-audio-codec-speech-token.md
+      - "32. Codec language model (VALL-E và họ hàng)": phan-8-mo-hinh-lon/ch32-codec-language-model.md
+      - "33. TTS không tự hồi quy quy mô lớn": phan-8-mo-hinh-lon/ch33-nar-quy-mo-lon.md
+      - "34. Kiến trúc lai LM + Flow hiện đại": phan-8-mo-hinh-lon/ch34-he-thong-lai-hien-dai.md
+      - "35. Streaming, Speech LLM và hội thoại": phan-8-mo-hinh-lon/ch35-streaming-speech-llm.md
+  - "IX. Thực tiễn":
+      - phan-9-thuc-tien/index.md
+      - "36. Xây dựng dữ liệu TTS": phan-9-thuc-tien/ch36-du-lieu-tts.md
+      - "37. Huấn luyện và gỡ lỗi": phan-9-thuc-tien/ch37-huan-luyen-va-debug.md
+      - "38. Đánh giá hệ thống TTS": phan-9-thuc-tien/ch38-danh-gia-tts.md
+      - "39. Tối ưu suy luận và triển khai": phan-9-thuc-tien/ch39-trien-khai-production.md
+      - "40. Đạo đức, an toàn và pháp lý": phan-9-thuc-tien/ch40-dao-duc-an-toan.md
+  - "X. Dự án":
+      - phan-10-du-an/index.md
+      - "Dự án 1: Frontend tiếng Việt": phan-10-du-an/du-an-1-frontend-tieng-viet.md
+      - "Dự án 2: FastSpeech 2 + HiFi-GAN": phan-10-du-an/du-an-2-fastspeech2-hifigan.md
+      - "Dự án 3: VITS tiếng Việt": phan-10-du-an/du-an-3-vits-tieng-viet.md
+      - "Dự án 4: Zero-shot TTS tiếng Việt": phan-10-du-an/du-an-4-zero-shot-tts.md
+      - "Dự án 5: Dịch vụ TTS streaming": phan-10-du-an/du-an-5-tts-service-streaming.md
+  - "Phụ lục":
+      - phu-luc/index.md
+      - "A. Thuật ngữ Anh–Việt": phu-luc/a-thuat-ngu.md
+      - "B. Danh mục bài báo cốt lõi": phu-luc/b-danh-muc-bai-bao.md
+      - "C. Công cụ, thư viện và dữ liệu": phu-luc/c-tai-nguyen.md
