@@ -199,11 +199,11 @@ Về ngữ âm, thanh sắc và thanh nặng trong âm tiết khép **ngắn hơ
 | Thanh | Dấu | Ví dụ | Đường nét (mô tả định tính, giọng Bắc) | Chất giọng | Số Chao thường gặp | Các giá trị khác được đề xuất |
 |---|---|---|---|---|---|---|
 | ngang | (không) | ma | ngang, mức trung bình | thường | 33 | 44 |
-| huyền | ` | mà | thấp, đi xuống nhẹ | thường, có thể hơi thở | 21 | 31, 32 |
-| sắc | ´ | má | đi lên | thường | 35 | 24, 45 |
-| hỏi | ̉ | mả | thấp, đi xuống, có thể vòng lên ở cuối | có thể hơi kẹt ở điểm thấp | 313 | 312, 21 |
-| ngã | ˜ | mã | đi lên, có đoạn "gãy" ở giữa | thanh quản hóa giữa âm tiết | 3ʔ5 | 4ʔ5, 325 |
-| nặng | . | mạ | thấp, đi xuống, ngắn | co thắt thanh hầu ở cuối | 21ʔ | 31ʔ, 32ʔ |
+| huyền | ◌̀ | mà | thấp, đi xuống nhẹ | thường, có thể hơi thở | 21 | 31, 32 |
+| sắc | ◌́ | má | đi lên | thường | 35 | 24, 45 |
+| hỏi | ◌̉ | mả | thấp, đi xuống, có thể vòng lên ở cuối | có thể hơi kẹt ở điểm thấp | 313 | 312, 21 |
+| ngã | ◌̃ | mã | đi lên, có đoạn "gãy" ở giữa | thanh quản hóa giữa âm tiết | 3ʔ5 | 4ʔ5, 325 |
+| nặng | ◌̣ | mạ | thấp, đi xuống, ngắn | co thắt thanh hầu ở cuối | 21ʔ | 31ʔ, 32ʔ |
 
 Số Chao (Chao, 1930) chia quãng cao độ của **từng người nói** thành 5 mức, 5 là cao nhất; một thanh được mô tả bằng các mức ở đầu, (giữa) và cuối. Ký hiệu ʔ chen giữa (3ʔ5) chỉ sự thanh quản hóa hay tắc thanh hầu.
 
