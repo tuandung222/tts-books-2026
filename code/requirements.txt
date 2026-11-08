@@ -1,0 +1,10 @@
+# Phụ thuộc cho toàn bộ code/ (torch được cài riêng, ví dụ trong CI: pip install torch --index-url ...)
+numpy
+pytest
+fastapi
+uvicorn
+httpx
+websockets
+# fastspeech2: trích đặc trưng (mel, pYIN) và đọc/ghi âm thanh
+librosa
+soundfile
